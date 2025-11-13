@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PhonePe Debug Console</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1e1e1e; color: #d4d4d4; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #0e639c; color: white; border: none; }
+        button:hover { background: #1177bb; }
+        .output { border: 1px solid #555; padding: 15px; margin-top: 20px; background: #252526; min-height: 200px; overflow-y: auto; max-height: 500px; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .info { color: #9cdcfe; }
+        .warn { color: #ce9178; }
+        pre { margin: 0; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔍 PhonePe Edge Function Debug</h1>
+    
+    <button onclick="testDirectFetch()">Test Direct Fetch (Show All Headers)</button>
+    <button onclick="testWithAuth()">Test With Anon Key</button>
+    <button onclick="clearOutput()">Clear</button>
+    
+    <div class="output" id="output"></div>
+    
+    <script>
+        function log(msg, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            const prefix = {
+                'success': '✓',
+                'error': '✗',
+                'info': 'ℹ',
+                'warn': '⚠'
+            }[type] || '•';
+            
+            output.innerHTML += `<div class="${className}"><pre>[${timestamp}] ${prefix} ${msg}</pre></div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+        
+        async function testDirectFetch() {
+            clearOutput();
+            log('Testing direct fetch to cors-test function...', 'info');
+            
+            try {
+                log('Sending OPTIONS preflight request...', 'info');
+                const preflightResponse = await fetch('https://osromibanfzzthdmhyzp.supabase.co/functions/v1/cors-test', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log(`Preflight Status: ${preflightResponse.status}`, 
+                    preflightResponse.status === 200 ? 'success' : 'error');
+                
+                log('Preflight Response Headers:', 'info');
+                for (let [key, value] of preflightResponse.headers) {
+                    log(`  ${key}: ${value}`, 'info');
+                }
+                
+                log('\nSending actual POST request...', 'info');
+                const response = await fetch('https://osromibanfzzthdmhyzp.supabase.co/functions/v1/cors-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ test: true })
+                });
+                
+                log(`POST Response Status: ${response.status}`, 
+                    response.status === 200 ? 'success' : 'error');
+                
+                log('POST Response Headers:', 'info');
+                for (let [key, value] of response.headers) {
+                    log(`  ${key}: ${value}`, 'info');
+                }
+                
+                const data = await response.json();
+                log('Response Body:', 'info');
+                log(JSON.stringify(data, null, 2), 'info');
+                
+                if (response.status === 200) {
+                    log('✓ SUCCESS! CORS is working now!', 'success');
+                }
+            } catch (error) {
+                log(`Fetch Error: ${error.message}`, 'error');
+                log(`Stack: ${error.stack}`, 'error');
+            }
+        }
+        
+        async function testWithAuth() {
+            clearOutput();
+            log('Testing with Supabase anon key...', 'info');
+            
+            const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zcm9taWJhbmZ6enRoZG1oeXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MzAzMjksImV4cCI6MjA3ODQwNjMyOX0.7w-XL2QqhqUmm6w-U9AlUJFPZKrgG2GOWppXmqbYBvg';
+            
+            try {
+                log('Sending request with Authorization header...', 'info');
+                const response = await fetch('https://osromibanfzzthdmhyzp.supabase.co/functions/v1/cors-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${anonKey}`
+                    },
+                    body: JSON.stringify({ test: true })
+                });
+                
+                log(`Status: ${response.status}`, response.status === 200 ? 'success' : 'error');
+                const data = await response.json();
+                log(JSON.stringify(data, null, 2), 'info');
+                
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

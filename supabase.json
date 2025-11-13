@@ -1,0 +1,16 @@
+{
+  "functions": [
+    {
+      "key": "phonepe-initiate",
+      "verify_jwt": false
+    },
+    {
+      "key": "phonepe-check-status",
+      "verify_jwt": false
+    },
+    {
+      "key": "cors-test",
+      "verify_jwt": false
+    }
+  ]
+}
