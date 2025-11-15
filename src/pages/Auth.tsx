@@ -208,7 +208,7 @@ const Auth = () => {
           email: validationResult.data.email,
           password: validationResult.data.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth`,
+            emailRedirectTo: `${window.location.origin}/`,
             data: {
               name: validationResult.data.name,
             },
