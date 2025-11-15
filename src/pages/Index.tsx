@@ -73,7 +73,7 @@ const Index = () => {
     else if (scrollProgress < 0.25) {
       const isMobile = windowWidth < 768;
       const positions = isMobile
-        ? [{ left: '50%', top: '15%' }, { left: '50%', top: '50%' }, { left: '50%', top: '85%' }]
+        ? [{ left: '50%', top: '10%' }, { left: '50%', top: '50%' }, { left: '50%', top: '90%' }]
         : ['0%', '50%', '100%'];
       const scale = 1;
       const opacity = 1;
@@ -89,7 +89,7 @@ const Index = () => {
     else if (scrollProgress < (windowWidth < 768 ? 0.5 : 0.4)) {
       const isMobile = windowWidth < 768;
       const positions = isMobile
-        ? [{ left: '50%', top: '15%' }, { left: '50%', top: '50%' }, { left: '50%', top: '85%' }]
+        ? [{ left: '50%', top: '10%' }, { left: '50%', top: '50%' }, { left: '50%', top: '90%' }]
         : ['0%', '50%', '100%'];
       const scale = 1;
       const opacity = 1;
@@ -116,8 +116,8 @@ const Index = () => {
           opacity: Math.max(0, opacity),
         };
       } else {
-        // On PC, keep widgets expanded and separated
-        const positions = ['0%', '50%', '100%'];
+        // On PC, keep widgets expanded and separated with slightly increased gaps
+        const positions = ['10%', '50%', '90%'];
         return {
           ...baseStyles,
           left: positions[index],
@@ -153,9 +153,6 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1">
-        <div className="max-w-3xl mx-auto text-center container px-4 pt-12">
-          <h2 className="text-5xl font-bold mb-6"></h2>
-        </div>
         <video
           autoPlay
           loop
@@ -175,28 +172,28 @@ const Index = () => {
           >
             <Card className="bg-[#4e342e] text-white rounded-lg" style={getWidgetStyles(0)}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-saira font-black text-white uppercase">REAL INGREDIENTS</CardTitle>
+                <CardTitle className={`${windowWidth >= 768 ? 'text-3xl' : 'text-lg'} font-saira font-black text-white uppercase`}>REAL INGREDIENTS</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm font-saira font-medium text-white">We start with real, recognizable ingredients. No artificial stuff.</p>
+                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>We start with real, recognizable ingredients. No artificial stuff.</p>
               </CardContent>
             </Card>
 
             <Card className="bg-[#4e342e] text-white rounded-lg" style={getWidgetStyles(1)}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-saira font-black text-white uppercase">BALANCED NUTRITION</CardTitle>
+                <CardTitle className={`${windowWidth >= 768 ? 'text-3xl' : 'text-lg'} font-saira font-black text-white uppercase`}>BALANCED NUTRITION</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm font-saira font-medium text-white">We keep protein strong, calories sensible,for nutrition that supports you without extremes.</p>
+                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>We keep protein strong, calories sensible,for nutrition that supports you without extremes.</p>
               </CardContent>
             </Card>
 
             <Card className="bg-[#4e342e] text-white rounded-lg" style={getWidgetStyles(2)}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-saira font-black text-white uppercase">BETTER SWEETNESS</CardTitle>
+                <CardTitle className={`${windowWidth >= 768 ? 'text-3xl' : 'text-lg'} font-saira font-black text-white uppercase`}>BETTER SWEETNESS</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm font-saira font-medium text-white">A sweetness, balanced with real and better sources, that goes easy on you.</p>
+                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>A sweetness, balanced with real and better sources, that goes easy on you.</p>
               </CardContent>
             </Card>
           </div>
@@ -224,8 +221,8 @@ const Index = () => {
 
         <div className="bg-white flex-grow py-12 mt-8 flex items-center justify-center min-h-screen">
           <div className="max-w-3xl px-4 text-center">
-            <h2 className="text-5xl font-saira font-black text-[#b5edce] mb-6">
-              HOW WE MAKE FOOD BETTER
+            <h2 className="text-6xl font-saira font-black text-[#b5edce] mb-8 text-center">
+              HOW WE MAKE SNACKING BETTER
             </h2>
             <p className="text-xl font-saira font-medium text-[#3b2a20] mb-8">
               We don't just make healthy versions, we build better ones.<br />
