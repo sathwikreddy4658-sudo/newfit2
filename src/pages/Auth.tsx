@@ -122,14 +122,9 @@ const Auth = () => {
       console.log('Auth state change:', event, session?.user?.email);
 
       if (event === 'SIGNED_IN' && session && mounted) {
-        toast({
-          title: "Success!",
-          description: "Email verified successfully! Welcome to Freelit.",
-        });
-        // Check for redirectTo in URL params first, then fall back to location state
-        const urlParams = new URLSearchParams(window.location.search);
-        const returnTo = urlParams.get('redirectTo') || location.state?.returnTo || "/";
-        navigate(returnTo, { replace: true });
+        // Navigation is handled in the handleAuth function above, so we don't need to navigate here
+        // This prevents redirect loops
+        console.log('User signed in via auth state change');
       } else if (event === 'SIGNED_OUT' && mounted) {
         // Handle sign out if needed
         console.log('User signed out');
