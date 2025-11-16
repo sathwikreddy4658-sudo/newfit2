@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Mail } from "lucide-react";
+import { Trash2, Mail, Download } from "lucide-react";
 
 const NewsletterTab = () => {
   const [subscribers, setSubscribers] = useState<any[]>([]);
@@ -52,6 +52,34 @@ const NewsletterTab = () => {
     }
   };
 
+  const handleDownloadCSV = () => {
+    if (subscribers.length === 0) {
+      toast({ title: "No subscribers to download", variant: "destructive" });
+      return;
+    }
+
+    // Create CSV content
+    const csvHeaders = "Email,Source,Subscribed Date\n";
+    const csvRows = subscribers.map(subscriber =>
+      `"${subscriber.email}","${subscriber.source || 'footer'}","${new Date(subscriber.created_at).toLocaleDateString()}"`
+    ).join("\n");
+
+    const csvContent = csvHeaders + csvRows;
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `newsletter_subscribers_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({ title: "CSV downloaded successfully" });
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -70,9 +98,20 @@ const NewsletterTab = () => {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Newsletter Subscribers</h2>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Mail className="h-4 w-4" />
-          <span>{subscribers.length} subscribers</span>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDownloadCSV}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download CSV
+          </Button>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Mail className="h-4 w-4" />
+            <span>{subscribers.length} subscribers</span>
+          </div>
         </div>
       </div>
 

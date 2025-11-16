@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { signupSchema, loginSchema } from "@/lib/validation";
@@ -16,6 +17,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -260,18 +262,34 @@ const Auth = () => {
         }
 
         console.log('Sign up response:', data);
-        
+
+        // Subscribe to newsletter if checked
+        if (subscribeNewsletter) {
+          try {
+            const { error: newsletterError } = await supabase
+              .from("newsletter_subscribers")
+              .insert([{ email: email.trim(), source: 'sign up page' }]);
+
+            if (newsletterError && newsletterError.code !== '23505') {
+              console.error('Newsletter subscription error:', newsletterError);
+            }
+          } catch (newsletterError) {
+            console.error('Newsletter subscription error:', newsletterError);
+          }
+        }
+
         // Show detailed success message
         toast({
           title: "Account created successfully!",
           description: "Please check your email and click the verification link before signing in.",
           duration: 8000,
         });
-        
+
         // Clear form and switch to login
         setEmail("");
         setPassword("");
         setName("");
+        setSubscribeNewsletter(false);
         setIsLogin(true);
       }
     } catch (error: any) {
@@ -339,6 +357,18 @@ const Auth = () => {
                 minLength={8}
               />
             </div>
+            {!isLogin && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="newsletter"
+                  checked={subscribeNewsletter}
+                  onCheckedChange={setSubscribeNewsletter}
+                />
+                <Label htmlFor="newsletter" className="text-sm font-normal">
+                  Subscribe to Freelit for blog updates and special promotions
+                </Label>
+              </div>
+            )}
             <Button type="submit" className="w-full font-poppins font-bold" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLogin ? "Sign In" : "Sign Up"}
