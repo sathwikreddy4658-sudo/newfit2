@@ -14,8 +14,11 @@ import logo from "@/assets/loo.png";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isResetMode, setIsResetMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,6 +31,8 @@ const Auth = () => {
     const mode = urlParams.get('mode');
     if (mode === 'signup') {
       setIsLogin(false);
+    } else if (mode === 'reset') {
+      setIsResetMode(true);
     }
 
     let mounted = true;
@@ -178,6 +183,62 @@ const Auth = () => {
     }
   };
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (newPassword !== confirmPassword) {
+        toast({
+          title: "Password Mismatch",
+          description: "New password and confirmation do not match.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        toast({
+          title: "Password Too Short",
+          description: "Password must be at least 8 characters long.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Password Updated",
+        description: "Your password has been successfully updated.",
+      });
+
+      // Clear form and redirect to login
+      setNewPassword("");
+      setConfirmPassword("");
+      setIsResetMode(false);
+      setIsLogin(true);
+    } catch (error: any) {
+      console.error('Password update error:', error);
+      const errorMessage = sanitizeError(error);
+      toast({
+        title: "Update Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -314,67 +375,98 @@ const Auth = () => {
             <img src={logo} alt="Freelit Logo" className="w-[150px] h-[150px] object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">
-            {isLogin ? "Welcome Back" : "Join Freelit"}
+            {isResetMode ? "Reset Password" : isLogin ? "Welcome Back" : "Join Freelit"}
           </CardTitle>
           <CardDescription>
-            {isLogin ? "Sign in to your account" : "Create your account"}
+            {isResetMode ? "Enter your new password" : isLogin ? "Sign in to your account" : "Create your account"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
-            {!isLogin && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-              </>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-              />
-            </div>
-            {!isLogin && (
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="newsletter"
-                  checked={subscribeNewsletter}
-                  onCheckedChange={setSubscribeNewsletter}
+          {isResetMode ? (
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={8}
                 />
-                <Label htmlFor="newsletter" className="text-sm font-normal">
-                  Subscribe to Freelit for blog updates and special promotions
-                </Label>
               </div>
-            )}
-            <Button type="submit" className="w-full font-poppins font-bold" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLogin ? "Sign In" : "Sign Up"}
-            </Button>
-          </form>
-          {isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={8}
+                />
+              </div>
+              <Button type="submit" className="w-full font-poppins font-bold" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Update Password
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleAuth} className="space-y-4">
+              {!isLogin && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                />
+              </div>
+              {!isLogin && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="newsletter"
+                    checked={subscribeNewsletter}
+                    onCheckedChange={(checked) => setSubscribeNewsletter(checked === true)}
+                  />
+                  <Label htmlFor="newsletter" className="text-sm font-normal">
+                    Subscribe to Freelit for blog updates and special promotions
+                  </Label>
+                </div>
+              )}
+              <Button type="submit" className="w-full font-poppins font-bold" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLogin ? "Sign In" : "Sign Up"}
+              </Button>
+            </form>
+          )}
+          {isLogin && !isResetMode && (
             <div className="mt-4 text-center">
               <button
                 type="button"
@@ -385,15 +477,17 @@ const Auth = () => {
               </button>
             </div>
           )}
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
-            </button>
-          </div>
+          {!isResetMode && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
