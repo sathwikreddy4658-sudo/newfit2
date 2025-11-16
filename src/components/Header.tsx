@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ShoppingCart, User, LogOut, Menu, X, ShoppingBag } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import logo from "@/assets/freelit-logo.svg";
+import logo from "@/assets/logotm.png";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -94,7 +94,7 @@ const Header = () => {
           </div>
           <div className="flex items-center md:justify-start">
             <Link to="/" className="flex items-center">
-              <img src={logo} alt="Freelit" className="h-12" />
+              <img src={logo} alt="Freelit" className="h-10 md:h-12" />
             </Link>
           </div>
 

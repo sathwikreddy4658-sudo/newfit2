@@ -12,7 +12,7 @@ const Contact = () => {
         {/* Body */}
         <div className="mb-8" style={{ borderLeft: '4px solid #b5edce', borderRadius: '4px', paddingLeft: '8px' }}>
           <p className="font-saira font-medium text-base" style={{ color: '#3b2a20' }}>
-            Whether it's feedback, a question about your order, or just a thought about better food — we're always listening.
+            Whether it's a feedback, a question about your order, or just a thought about better food — we're always listening.
           </p>
         </div>
 
@@ -25,7 +25,7 @@ const Contact = () => {
             <p style={{ color: '#3b2a20' }}>For help with orders, shipping, or general inquiries:</p>
             <div style={{ borderLeft: '4px solid #b5edce', borderRadius: '4px', paddingLeft: '8px' }}>
               <p style={{ color: '#5e4338' }}>📧 <a href="mailto:care@freelit.in" style={{ color: '#5e4338' }}>care@freelit.in</a></p>
-              <p style={{ color: '#5e4338' }}>📞 +91 6302249231</p>
+              <p style={{ color: '#5e4338' }}>📞 +91 6302254190</p>
             </div>
             <p style={{ color: '#3b2a20' }}>We usually respond within 24–48 hours on business days.</p>
           </div>
