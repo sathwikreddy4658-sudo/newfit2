@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { sanitizeError } from "@/lib/errorUtils";
 import { guestCheckoutSchema } from "@/lib/validation";
@@ -27,6 +28,7 @@ const Checkout = () => {
   const [profile, setProfile] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Guest checkout state
   const isGuestCheckout = location.state?.isGuest || false;
@@ -65,6 +67,15 @@ const Checkout = () => {
 
 
   const handlePayment = async () => {
+    // Check if terms are accepted
+    if (!termsAccepted) {
+      toast({
+        title: "Terms Required",
+        description: "Please accept the terms and conditions to proceed with payment.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (isGuestCheckout) {
       // Validate guest data
@@ -339,10 +350,25 @@ const Checkout = () => {
               </div>
             </div>
 
+            <div className="flex items-center space-x-2 mb-4">
+              <Checkbox
+                id="terms"
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                className="data-[state=checked]:bg-[#3b2a20] data-[state=checked]:border-[#3b2a20]"
+              />
+              <Label htmlFor="terms" className="text-sm font-poppins text-black cursor-pointer">
+                I have read and agree to the{" "}
+                <a href="/terms" target="_blank" className="text-[#b5edce] hover:underline">
+                  terms and conditions
+                </a>
+              </Label>
+            </div>
+
             <Button
               className="w-full font-poppins font-bold"
               onClick={handlePayment}
-              disabled={processing}
+              disabled={processing || !termsAccepted}
             >
               {processing ? "Processing..." : "Go to Payment"}
             </Button>

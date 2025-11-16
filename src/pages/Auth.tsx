@@ -137,6 +137,45 @@ const Auth = () => {
     };
   }, [navigate, location]);
 
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address to reset your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Please check your email for password reset instructions.",
+        duration: 6000,
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      const errorMessage = sanitizeError(error);
+      toast({
+        title: "Reset Failed",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 6000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -144,11 +183,11 @@ const Auth = () => {
     try {
       if (isLogin) {
         // Validate login data
-        const validationResult = loginSchema.safeParse({ 
-          email: email.trim(), 
-          password 
+        const validationResult = loginSchema.safeParse({
+          email: email.trim(),
+          password
         });
-        
+
         if (!validationResult.success) {
           const firstError = validationResult.error.errors[0];
           toast({
@@ -170,7 +209,7 @@ const Auth = () => {
           console.error('Sign in error:', error);
           throw error;
         }
-        
+
         console.log('Sign in successful:', data);
         toast({
           title: "Welcome back!",
@@ -305,6 +344,17 @@ const Auth = () => {
               {isLogin ? "Sign In" : "Sign Up"}
             </Button>
           </form>
+          {isLogin && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                className="text-sm text-[#b5edce] hover:text-[#a3d9c9] transition-colors font-poppins"
+              >
+                Forgot Password?
+              </button>
+            </div>
+          )}
           <div className="mt-4 text-center">
             <button
               type="button"
