@@ -14,22 +14,26 @@ const PaymentCallback = () => {
   const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
+    let hasShownToast = false;
+    let hasProcessed = false;
+
     const verifyPayment = async () => {
+      if (hasProcessed) return;
+      hasProcessed = true;
+
       const transactionId = searchParams.get('transactionId');
       const orderParam = searchParams.get('order');
       
-      // PhonePe may also send these parameters
-      const code = searchParams.get('code');
-      const merchantId = searchParams.get('merchantId');
-      const providerReferenceId = searchParams.get('providerReferenceId');
-
       if (!transactionId && !orderParam) {
         setStatus('failed');
-        toast({
-          title: "Error",
-          description: "Missing transaction information",
-          variant: "destructive"
-        });
+        if (!hasShownToast) {
+          hasShownToast = true;
+          toast({
+            title: "Error",
+            description: "Missing transaction information",
+            variant: "destructive"
+          });
+        }
         return;
       }
 
@@ -50,21 +54,12 @@ const PaymentCallback = () => {
           if (txData && txData.status === 'SUCCESS') {
             clearCart();
             setStatus('success');
-            toast({
-              title: "Payment Successful",
-              description: "Your order has been confirmed!",
-            });
             return;
           }
 
           // If failed
           if (txData && txData.status === 'FAILED') {
             setStatus('failed');
-            toast({
-              title: "Payment Failed",
-              description: "Your payment was not successful. Please try again.",
-              variant: "destructive"
-            });
             return;
           }
         }
@@ -75,65 +70,43 @@ const PaymentCallback = () => {
             .from('orders')
             .select('status, payment_id')
             .eq('id', orderParam)
-            .single();
+            .maybeSingle();
 
           console.log('[PaymentCallback] Order query result:', { orderData, orderError });
 
           if (!orderError && orderData && orderData.status === 'paid') {
             clearCart();
             setStatus('success');
-            toast({
-              title: "Payment Successful",
-              description: "Your order has been confirmed!",
-            });
             return;
           }
         }
 
-        // If webhook hasn't processed yet, show pending message
-        // In production, you'd typically check PhonePe status API here
-        console.log('[PaymentCallback] No confirmation found, assuming payment is pending/processing');
-        
-        // For now, if user is redirected back to callback page from PhonePe,
-        // we'll optimistically assume success since PhonePe redirects on success
-        // This is a workaround until webhook is properly configured
-        if (transactionId && orderParam) {
-          // Use RPC function to confirm payment (handles RLS properly)
-          const { error: confirmError } = await supabase.rpc('confirm_payment_for_order', {
-            p_order_id: orderParam,
-            p_transaction_id: transactionId
-          });
+        // Wait 3 seconds to give webhook time to process
+        console.log('[PaymentCallback] Waiting for webhook to process...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
-          console.log('[PaymentCallback] Confirm payment result:', { confirmError });
+        // Check again after waiting
+        if (orderParam) {
+          const { data: orderData } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('id', orderParam)
+            .maybeSingle();
 
-          if (!confirmError) {
+          if (orderData && orderData.status === 'paid') {
             clearCart();
             setStatus('success');
-            toast({
-              title: "Payment Successful",
-              description: "Your order has been confirmed!",
-            });
             return;
-          } else {
-            console.error('[PaymentCallback] Failed to confirm payment:', confirmError);
           }
         }
 
+        // If no confirmation after waiting, payment was likely cancelled or failed
+        console.log('[PaymentCallback] No payment confirmation received - payment cancelled or failed');
         setStatus('failed');
-        toast({
-          title: "Payment Verification Pending",
-          description: "We're still verifying your payment. Check your orders page in a few minutes.",
-          variant: "destructive"
-        });
 
       } catch (error) {
         console.error('Payment verification failed:', error);
         setStatus('failed');
-        toast({
-          title: "Error",
-          description: "Failed to verify payment status",
-          variant: "destructive"
-        });
       }
     };
 
