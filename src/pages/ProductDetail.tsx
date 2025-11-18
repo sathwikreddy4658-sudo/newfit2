@@ -168,7 +168,7 @@ const ProductDetail = () => {
       image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
     });
     setCartQuantity(prev => prev + selectedQuantity);
-    toast({ title: "Added to cart" });
+    // Toast notification is handled in CartContext
   };
 
   const increaseQuantity = () => {

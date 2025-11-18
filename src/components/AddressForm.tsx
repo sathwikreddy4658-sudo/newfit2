@@ -105,6 +105,17 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
 
     onAddressSubmit(formattedAddress, formattedPhone);
     toast.success("Address saved successfully!");
+    
+    // Scroll to payment section on mobile after saving address
+    setTimeout(() => {
+      const paymentSection = document.querySelector('[data-payment-section]');
+      if (paymentSection) {
+        paymentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // Fallback: scroll to bottom of page
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }
+    }, 300);
   };
 
   const handleInputChange = (field: string, value: string) => {

@@ -546,7 +546,7 @@ const Checkout = () => {
               </div>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-4" data-payment-section>
               <h3 className="font-semibold mb-2">Payment Method</h3>
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
