@@ -118,17 +118,27 @@ const PaymentCallback = () => {
             .eq('merchant_transaction_id', transactionId)
             .maybeSingle();
 
-          console.log('[PaymentCallback] Transaction query result:', { txData });
+          console.log('[PaymentCallback] Transaction query result:', { 
+            txData, 
+            status: txData?.status,
+            orderId: txData?.order_id 
+          });
 
           if (txData && txData.status === 'SUCCESS') {
+            console.log('[PaymentCallback] ✅ Payment already confirmed by webhook - SUCCESS');
             clearCart();
             setStatus('success');
             return;
           }
 
           if (txData && txData.status === 'FAILED') {
+            console.log('[PaymentCallback] ❌ Payment marked as FAILED by webhook');
             setStatus('failed');
             return;
+          }
+          
+          if (txData && txData.status === 'INITIATED') {
+            console.log('[PaymentCallback] ⏳ Payment is INITIATED, waiting for webhook...');
           }
         }
 
@@ -140,18 +150,22 @@ const PaymentCallback = () => {
             .eq('id', orderParam)
             .maybeSingle();
 
-          console.log('[PaymentCallback] Order query result:', { orderData });
+          console.log('[PaymentCallback] Order query result:', { 
+            orderData,
+            status: orderData?.status
+          });
 
           if (orderData && orderData.status === 'paid') {
+            console.log('[PaymentCallback] ✅ Order already marked as PAID by webhook');
             clearCart();
             setStatus('success');
             return;
           }
         }
 
-        // Wait 3 seconds for webhook to process
-        console.log('[PaymentCallback] Waiting for webhook...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Wait 5 seconds for webhook to process (increased from 3 seconds)
+        console.log('[PaymentCallback] Waiting 5 seconds for webhook to process...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Check transaction status again after waiting
         if (transactionId) {
@@ -161,9 +175,20 @@ const PaymentCallback = () => {
             .eq('merchant_transaction_id', transactionId)
             .maybeSingle();
 
+          console.log('[PaymentCallback] Transaction status after wait:', {
+            status: txDataAfterWait?.status
+          });
+
           if (txDataAfterWait && txDataAfterWait.status === 'SUCCESS') {
+            console.log('[PaymentCallback] ✅ Webhook processed - Payment SUCCESS');
             clearCart();
             setStatus('success');
+            return;
+          }
+          
+          if (txDataAfterWait && txDataAfterWait.status === 'FAILED') {
+            console.log('[PaymentCallback] ❌ Webhook processed - Payment FAILED');
+            setStatus('failed');
             return;
           }
         }
@@ -176,121 +201,38 @@ const PaymentCallback = () => {
             .eq('id', orderParam)
             .maybeSingle();
 
+          console.log('[PaymentCallback] Order status after wait:', {
+            status: orderDataAfterWait?.status
+          });
+
           if (orderDataAfterWait && orderDataAfterWait.status === 'paid') {
+            console.log('[PaymentCallback] ✅ Webhook processed - Order PAID');
             clearCart();
             setStatus('success');
             return;
           }
         }
 
-        // If webhook hasn't updated yet, check with PhonePe directly
+        // If webhook hasn't updated yet, try PhonePe API as last resort
+        // Note: This may fail with "Api Mapping Not Found" but that's OK if webhook already processed
         if (transactionId) {
-          console.log('[PaymentCallback] Checking payment status with PhonePe API');
-          const phonePeStatus = await checkPhonePeOrderStatus(transactionId);
+          console.log('[PaymentCallback] Webhook not updated yet, checking with PhonePe API...');
+          
+          try {
+            const phonePeStatus = await checkPhonePeOrderStatus(transactionId);
+            console.log('[PaymentCallback] PhonePe status result:', phonePeStatus);
 
-          console.log('[PaymentCallback] PhonePe status result:', phonePeStatus);
-
-          if (phonePeStatus === 'COMPLETED') {
-            // Payment successful - update our records
-            console.log('[PaymentCallback] Payment COMPLETED, updating transaction and order');
-            
-            toast({
-              title: "Payment Verified",
-              description: "Payment confirmed with PhonePe. Updating your order...",
-            });
-            
-            // Update payment transaction status
-            const { error: txUpdateError } = await supabase
-              .from('payment_transactions')
-              .update({
-                status: 'SUCCESS',
-                updated_at: new Date().toISOString()
-              })
-              .eq('merchant_transaction_id', transactionId);
-
-            if (txUpdateError) {
-              console.error('[PaymentCallback] Error updating transaction:', txUpdateError);
-            }
-
-            // Update order status
-            if (orderParam) {
-              const { error: orderUpdateError } = await supabase
-                .from('orders')
-                .update({
-                  status: 'paid',
-                  payment_id: transactionId,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', orderParam);
-
-              if (orderUpdateError) {
-                console.error('[PaymentCallback] Error updating order:', orderUpdateError);
-              } else {
-                console.log('[PaymentCallback] Order marked as paid');
-              }
-            }
-
-            clearCart();
-            setStatus('success');
-            return;
-          } else if (phonePeStatus === 'FAILED') {
-            console.log('[PaymentCallback] Payment FAILED');
-            
-            // Update transaction status
-            const { error: txUpdateError } = await supabase
-              .from('payment_transactions')
-              .update({
-                status: 'FAILED',
-                updated_at: new Date().toISOString()
-              })
-              .eq('merchant_transaction_id', transactionId);
-
-            if (txUpdateError) {
-              console.error('[PaymentCallback] Error updating failed transaction:', txUpdateError);
-            }
-
-            setStatus('failed');
-            return;
-          } else if (phonePeStatus === 'PENDING') {
-            // Payment is still pending, wait a bit longer
-            console.log('[PaymentCallback] Payment PENDING, waiting for webhook...');
-            await new Promise(resolve => setTimeout(resolve, 3000));
-
-            // Check transaction status one more time
-            const { data: finalTxData } = await supabase
-              .from('payment_transactions')
-              .select('status')
-              .eq('merchant_transaction_id', transactionId)
-              .maybeSingle();
-
-            if (finalTxData && finalTxData.status === 'SUCCESS') {
-              clearCart();
-              setStatus('success');
-              return;
-            }
-
-            // Check order status one more time
-            if (orderParam) {
-              const { data: finalOrderData } = await supabase
-                .from('orders')
-                .select('status')
-                .eq('id', orderParam)
-                .maybeSingle();
-
-              if (finalOrderData && finalOrderData.status === 'paid') {
-                clearCart();
-                setStatus('success');
-                return;
-              }
-            }
-
-            // Still pending - check PhonePe one final time
-            const finalPhonePeStatus = await checkPhonePeOrderStatus(transactionId);
-            console.log('[PaymentCallback] Final PhonePe status check:', finalPhonePeStatus);
-            
-            if (finalPhonePeStatus === 'COMPLETED') {
-              // Update records
-              await supabase
+            if (phonePeStatus === 'COMPLETED') {
+              // Payment successful - update our records
+              console.log('[PaymentCallback] Payment COMPLETED, updating transaction and order');
+              
+              toast({
+                title: "Payment Verified",
+                description: "Payment confirmed with PhonePe. Updating your order...",
+              });
+              
+              // Update payment transaction status
+              const { error: txUpdateError } = await supabase
                 .from('payment_transactions')
                 .update({
                   status: 'SUCCESS',
@@ -298,8 +240,13 @@ const PaymentCallback = () => {
                 })
                 .eq('merchant_transaction_id', transactionId);
 
+              if (txUpdateError) {
+                console.error('[PaymentCallback] Error updating transaction:', txUpdateError);
+              }
+
+              // Update order status
               if (orderParam) {
-                await supabase
+                const { error: orderUpdateError } = await supabase
                   .from('orders')
                   .update({
                     status: 'paid',
@@ -307,19 +254,68 @@ const PaymentCallback = () => {
                     updated_at: new Date().toISOString()
                   })
                   .eq('id', orderParam);
+
+                if (orderUpdateError) {
+                  console.error('[PaymentCallback] Error updating order:', orderUpdateError);
+                } else {
+                  console.log('[PaymentCallback] Order marked as paid');
+                }
               }
 
               clearCart();
               setStatus('success');
               return;
-            } else if (finalPhonePeStatus === 'FAILED') {
-              console.log('[PaymentCallback] Final check: Payment FAILED');
+            } else if (phonePeStatus === 'FAILED') {
+              console.log('[PaymentCallback] Payment FAILED');
+              
+              // Update transaction status
+              const { error: txUpdateError } = await supabase
+                .from('payment_transactions')
+                .update({
+                  status: 'FAILED',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('merchant_transaction_id', transactionId);
+
+              if (txUpdateError) {
+                console.error('[PaymentCallback] Error updating failed transaction:', txUpdateError);
+              }
+
               setStatus('failed');
               return;
             }
+          } catch (phonepeError) {
+            console.error('[PaymentCallback] PhonePe API call failed (this is OK if webhook processed):', phonepeError);
             
-            // If still pending after all checks, show failed with appropriate message
-            console.log('[PaymentCallback] Payment still pending after all checks');
+            // One final check - maybe webhook processed while we were trying PhonePe API
+            const { data: finalTxCheck } = await supabase
+              .from('payment_transactions')
+              .select('status')
+              .eq('merchant_transaction_id', transactionId)
+              .maybeSingle();
+            
+            if (finalTxCheck && finalTxCheck.status === 'SUCCESS') {
+              console.log('[PaymentCallback] ✅ Final check: Webhook processed successfully!');
+              clearCart();
+              setStatus('success');
+              return;
+            }
+            
+            const { data: finalOrderCheck } = await supabase
+              .from('orders')
+              .select('status')
+              .eq('id', orderParam!)
+              .maybeSingle();
+            
+            if (finalOrderCheck && finalOrderCheck.status === 'paid') {
+              console.log('[PaymentCallback] ✅ Final check: Order is PAID!');
+              clearCart();
+              setStatus('success');
+              return;
+            }
+            
+            // If still not updated after all checks, assume failed
+            console.warn('[PaymentCallback] Payment verification inconclusive after all attempts');
             setStatus('failed');
             return;
           }
