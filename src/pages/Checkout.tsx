@@ -28,6 +28,7 @@ const Checkout = () => {
   const [profile, setProfile] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [successOrderData, setSuccessOrderData] = useState<{orderId: string, email: string, isGuest: boolean} | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('cod');
 
@@ -55,6 +56,23 @@ const Checkout = () => {
       });
     }
   }, [isGuestCheckout]);
+
+  // Handle navigation after successful order
+  useEffect(() => {
+    if (successOrderData) {
+      const timer = setTimeout(() => {
+        if (successOrderData.isGuest) {
+          navigate('/order-confirmation', { 
+            state: { orderId: successOrderData.orderId, email: successOrderData.email } 
+          });
+        } else {
+          navigate('/orders');
+        }
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [successOrderData, navigate]);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -274,10 +292,17 @@ const Checkout = () => {
       setShowSuccess(true);
       setProcessing(false);
       
-      // Redirect to orders page after 2 seconds
-      setTimeout(() => {
-        navigate('/orders');
-      }, 2000);
+      // Store order data for navigation
+      if (isGuestCheckout) {
+        sessionStorage.setItem('guestOrderId', orderId);
+        sessionStorage.setItem('guestOrderEmail', guestData.email);
+      }
+      
+      setSuccessOrderData({
+        orderId,
+        email: isGuestCheckout ? guestData.email : user?.email || '',
+        isGuest: isGuestCheckout
+      });
       
       return;
     }
