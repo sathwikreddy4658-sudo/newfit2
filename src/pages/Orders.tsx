@@ -81,8 +81,10 @@ const Orders = () => {
   };
 
   const getStatusLabel = (order: any) => {
-    // Show payment method for confirmed/paid orders
-    if (order.status === 'confirmed' && order.payment_method === 'COD') {
+    // Check if COD order by payment_id prefix
+    const isCOD = order.payment_id && order.payment_id.startsWith('COD-');
+    
+    if (order.status === 'confirmed' && isCOD) {
       return 'COD - Confirmed';
     }
     if (order.status === 'paid') {
@@ -113,9 +115,14 @@ const Orders = () => {
                   <p className="text-sm text-muted-foreground">
                     {new Date(order.created_at).toLocaleDateString()}
                   </p>
-                  {order.payment_method && (
+                  {order.payment_id && order.payment_id.startsWith('COD-') && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Payment: {order.payment_method}
+                      Payment: Cash on Delivery
+                    </p>
+                  )}
+                  {order.payment_id && !order.payment_id.startsWith('COD-') && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Payment: Online
                     </p>
                   )}
                 </div>

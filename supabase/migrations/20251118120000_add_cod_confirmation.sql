@@ -29,11 +29,11 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized: You can only confirm your own orders';
   END IF;
   
-  -- Update order to confirmed with COD payment method
+  -- Update order to confirmed status (COD)
+  -- payment_id will store 'COD-' prefix to identify COD orders
   UPDATE orders
   SET 
     status = 'confirmed',
-    payment_method = 'COD',
     payment_id = p_payment_id,
     updated_at = NOW()
   WHERE id = p_order_id AND user_id = v_user_id;

@@ -205,7 +205,9 @@ const Checkout = () => {
     }
 
     // Generate unique transaction ID
-    const merchantTransactionId = `MT${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+    const merchantTransactionId = paymentMethod === 'cod' 
+      ? `COD-${Date.now()}${Math.random().toString(36).substr(2, 9)}`
+      : `MT${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
 
     // Handle COD payment
     if (paymentMethod === 'cod') {
