@@ -569,7 +569,7 @@ const Checkout = () => {
                       : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5'
                   }`}
                 >
-                  Online Payment (PhonePe)
+                  Online Payment
                 </button>
               </div>
             </div>
