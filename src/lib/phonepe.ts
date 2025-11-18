@@ -111,31 +111,17 @@ export async function initiatePhonePePayment(
 
       console.log('[PhonePe] Request body being sent:', requestBody);
 
-      // Get authorization - use session token if available, otherwise use anon key
-      const session = await supabase.auth.getSession();
-      const authToken = session.data.session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-      // Use fetch directly to get full response details
-      const response = await fetch('https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe_initiate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(requestBody)
+      // Use Supabase functions.invoke() - it handles authentication automatically
+      // This works for both authenticated users and guest users (uses anon key)
+      const { data, error } = await supabase.functions.invoke('phonepe_initiate', {
+        body: requestBody
       });
 
-      console.log('[PhonePe] Response status:', response.status);
+      console.log('[PhonePe] Response:', { data, error });
 
-      const data = await response.json();
-      console.log('[PhonePe] Response data:', data);
-
-      if (!response.ok) {
-        console.error('[PhonePe] Non-2xx response:', {
-          status: response.status,
-          data: data
-        });
-        throw new Error(`Edge Function returned ${response.status}: ${data.message || JSON.stringify(data)}`);
+      if (error) {
+        console.error('[PhonePe] Function invocation error:', error);
+        throw new Error(`Edge Function error: ${error.message || JSON.stringify(error)}`);
       }
 
       if (data?.success) {
