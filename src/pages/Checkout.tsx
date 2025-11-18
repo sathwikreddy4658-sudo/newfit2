@@ -457,7 +457,7 @@ const Checkout = () => {
                   />
                   <span>Cash on Delivery (COD)</span>
                 </label>
-                <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 opacity-60">
+                <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -465,12 +465,8 @@ const Checkout = () => {
                     checked={paymentMethod === 'online'}
                     onChange={() => setPaymentMethod('online')}
                     className="w-4 h-4"
-                    disabled
                   />
-                  <div>
-                    <div>Online Payment (PhonePe)</div>
-                    <div className="text-xs text-red-500">Currently unavailable - Contact support</div>
-                  </div>
+                  <span>Online Payment (PhonePe)</span>
                 </label>
               </div>
             </div>
