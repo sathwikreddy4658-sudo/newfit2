@@ -95,8 +95,8 @@ serve(async (req: Request) => {
     const authToken = await getValidToken();
 
     // Call PhonePe v2 Order Status API
-    // GET /checkout/v2/order/{merchantOrderId}/status
-    const phonepeUrl = `${PHONEPE_API_URL}/checkout/v2/order/${merchantTransactionId}/status?details=false`;
+    // Correct endpoint: /v2/checkout/order/{merchantId}/{merchantTransactionId}/status
+    const phonepeUrl = `${PHONEPE_API_URL}/v2/checkout/order/${PHONEPE_MERCHANT_ID}/${merchantTransactionId}/status`;
     console.log('[PhonePe Check Status] Calling v2 API:', phonepeUrl);
 
     const response = await fetch(phonepeUrl, {
