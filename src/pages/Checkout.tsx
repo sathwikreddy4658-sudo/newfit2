@@ -177,24 +177,30 @@ const Checkout = () => {
     if (promoCode && !isGuestCheckout) {
       try {
         // Get promo code id first
-        const { data: promoData } = await supabase
+        const { data: promoData, error: promoError } = await supabase
           .from("promo_codes")
           .select("id")
           .eq("code", promoCode.code)
           .single();
 
-        if (promoData) {
-          await (supabase
+        if (promoError) {
+          console.warn("Error fetching promo code:", promoError);
+        } else if (promoData) {
+          const { error: usageError } = await (supabase
             .from as any)("promo_code_usage")
             .insert({
               promo_code_id: promoData.id,
               order_id: orderId,
               user_id: authUser.id,
             });
+          
+          if (usageError) {
+            console.warn("Error tracking promo code usage:", usageError);
+          }
         }
       } catch (error) {
-        console.error("Error tracking promo code usage:", error);
-        // Don't fail the order for this, just log it
+        // Don't fail the order for promo code tracking issues
+        console.error("Error in promo code tracking:", error);
       }
     }
 
@@ -203,18 +209,15 @@ const Checkout = () => {
 
     // Handle COD payment
     if (paymentMethod === 'cod') {
-      // For COD, mark order as confirmed and skip online payment
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'confirmed',
-          payment_method: 'COD',
-          payment_id: merchantTransactionId
-        })
-        .eq('id', orderId);
+      // For COD, mark order as confirmed using database function
+      // This bypasses RLS restrictions
+      const { data: confirmData, error: confirmError } = await (supabase.rpc as any)('confirm_cod_order', {
+        p_order_id: orderId,
+        p_payment_id: merchantTransactionId
+      });
 
-      if (updateError) {
-        console.error('[Checkout] Error updating order for COD:', updateError);
+      if (confirmError) {
+        console.error('[Checkout] Error confirming COD order:', confirmError);
         toast({
           title: "Error",
           description: "Failed to confirm COD order. Please try again.",
