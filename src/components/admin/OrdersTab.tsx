@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MapPin, CreditCard, Package } from "lucide-react";
+import { Phone, MapPin, CreditCard, Package, Trash2 } from "lucide-react";
 
 const OrdersTab = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -41,7 +42,7 @@ const OrdersTab = () => {
     if (data) setOrders(data);
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: "pending" | "shipped" | "delivered" | "cancelled") => {
+  const handleStatusChange = async (orderId: string, newStatus: "pending" | "confirmed" | "paid" | "shipped" | "delivered" | "cancelled") => {
     const { error } = await supabase
       .from("orders")
       .update({ status: newStatus })
@@ -51,6 +52,36 @@ const OrdersTab = () => {
       toast({ title: "Status update failed", variant: "destructive" });
     } else {
       toast({ title: "Order status updated" });
+      fetchOrders();
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+      return;
+    }
+
+    // Delete order items first (foreign key constraint)
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .delete()
+      .eq("order_id", orderId);
+
+    if (itemsError) {
+      toast({ title: "Failed to delete order items", variant: "destructive" });
+      return;
+    }
+
+    // Delete the order
+    const { error } = await supabase
+      .from("orders")
+      .delete()
+      .eq("id", orderId);
+
+    if (error) {
+      toast({ title: "Failed to delete order", variant: "destructive" });
+    } else {
+      toast({ title: "Order deleted successfully" });
       fetchOrders();
     }
   };
@@ -71,6 +102,9 @@ const OrdersTab = () => {
         return "default";
       case "shipped":
         return "secondary";
+      case "confirmed":
+      case "paid":
+        return "outline";
       case "cancelled":
         return "destructive";
       default:
@@ -151,7 +185,7 @@ const OrdersTab = () => {
                   <Select
                     value={order.status}
                     onValueChange={(value) =>
-                      handleStatusChange(order.id, value as "pending" | "shipped" | "delivered" | "cancelled")
+                      handleStatusChange(order.id, value as "pending" | "confirmed" | "paid" | "shipped" | "delivered" | "cancelled")
                     }
                   >
                     <SelectTrigger className="w-full">
@@ -159,11 +193,23 @@ const OrdersTab = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="confirmed">Confirmed (COD)</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="shipped">Shipped</SelectItem>
                       <SelectItem value="delivered">Delivered</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteOrder(order.id)}
+                    className="w-full"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Order
+                  </Button>
 
                   {paymentTransaction && (
                     <div className="pt-2 border-t">
