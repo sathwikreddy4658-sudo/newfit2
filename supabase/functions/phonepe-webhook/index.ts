@@ -55,27 +55,38 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Verify SHA256 authorization header
+    // Verify SHA256 authorization header - Required by PhonePe
     const authHeader = req.headers.get('Authorization')
-    if (authHeader) {
-      // Create SHA256 hash using Web Crypto API
-      const encoder = new TextEncoder();
-      const data = encoder.encode(`${WEBHOOK_USERNAME}:${WEBHOOK_PASSWORD}`);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const expectedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      
-      const receivedHash = authHeader.replace('SHA256 ', '').toLowerCase();
-      
-      if (receivedHash !== expectedHash) {
-        console.error('[PhonePe Webhook] Authentication failed');
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      }
-      console.log('[PhonePe Webhook] Authentication successful');
+    if (!authHeader) {
+      console.error('[PhonePe Webhook] Missing Authorization header');
+      return new Response(JSON.stringify({ error: 'Unauthorized - Missing Authorization header' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      })
     }
+
+    // Create SHA256 hash using Web Crypto API
+    // PhonePe sends: Authorization: SHA256(username:password)
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`${WEBHOOK_USERNAME}:${WEBHOOK_PASSWORD}`);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const expectedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Extract hash from Authorization header (may have "SHA256 " prefix or not)
+    const receivedHash = authHeader.replace(/^SHA256\s*/i, '').toLowerCase();
+    
+    if (receivedHash !== expectedHash) {
+      console.error('[PhonePe Webhook] Authentication failed', {
+        received: receivedHash.substring(0, 10) + '...',
+        expected: expectedHash.substring(0, 10) + '...'
+      });
+      return new Response(JSON.stringify({ error: 'Unauthorized - Invalid credentials' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      })
+    }
+    console.log('[PhonePe Webhook] Authentication successful');
 
     const body: PhonePeWebhookPayload = await req.json()
 
@@ -89,15 +100,24 @@ serve(async (req: Request) => {
       console.error('[PhonePe Webhook] Missing merchantOrderId');
       return new Response(
         JSON.stringify({ error: 'Missing merchant order ID' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       )
     }
 
-    // Determine payment status from event
+    // Determine payment status based on PhonePe documentation:
+    // Use "event" parameter to identify event type
+    // Use "payload.state" for payment status (root-level field)
     let paymentStatus: 'SUCCESS' | 'FAILED' | 'PENDING' = 'PENDING'
+    
     if (event === 'checkout.order.completed' && payload.state === 'COMPLETED') {
       paymentStatus = 'SUCCESS'
-    } else if (event === 'checkout.order.failed' || payload.state === 'FAILED') {
+      console.log('[PhonePe Webhook] Order completed successfully');
+    } else if (event === 'checkout.order.failed' && payload.state === 'FAILED') {
+      paymentStatus = 'FAILED'
+      console.log('[PhonePe Webhook] Order failed');
+    } else {
+      console.warn('[PhonePe Webhook] Unexpected event/state combination:', { event, state: payload.state });
+      // For safety, treat unexpected combinations as failed
       paymentStatus = 'FAILED'
     }
 
@@ -118,19 +138,30 @@ serve(async (req: Request) => {
       )
     }
 
-    // Extract payment details
+    // Extract payment details from the paymentDetails array
     const paymentDetail = payload.paymentDetails?.[0];
     const phonepeTransactionId = paymentDetail?.transactionId || payload.orderId;
     const paymentMode = paymentDetail?.paymentMode || 'UNKNOWN';
+    const errorCode = paymentDetail?.errorCode;
+    const detailedErrorCode = paymentDetail?.detailedErrorCode;
 
-    // Update payment transaction
+    console.log('[PhonePe Webhook] Payment details:', {
+      phonepeTransactionId,
+      paymentMode,
+      errorCode,
+      detailedErrorCode,
+      amount: payload.amount
+    });
+
+    // Update payment transaction with all relevant data
     const { error: updateError } = await supabase
       .from('payment_transactions')
       .update({
         status: paymentStatus,
         phonepe_transaction_id: phonepeTransactionId,
         payment_method: paymentMode,
-        response_code: paymentDetail?.errorCode,
+        response_code: errorCode || null,
+        response_message: detailedErrorCode ? `${errorCode} - ${detailedErrorCode}` : errorCode || null,
         phonepe_response: body,
         updated_at: new Date().toISOString()
       })
@@ -140,9 +171,11 @@ serve(async (req: Request) => {
       console.error('[PhonePe Webhook] Update error:', updateError);
       return new Response(
         JSON.stringify({ error: 'Failed to update transaction' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       )
     }
+
+    console.log('[PhonePe Webhook] Transaction updated successfully');
 
     // If payment successful, update order and deduct stock
     if (paymentStatus === 'SUCCESS') {
@@ -157,33 +190,45 @@ serve(async (req: Request) => {
 
       if (orderError) {
         console.error('[PhonePe Webhook] Order update error:', orderError);
-      } else {
-        console.log('[PhonePe Webhook] Order marked as paid:', transactionData.order_id)
-        
-        // Deduct stock
-        try {
-          const { error: deductError } = await supabase
-            .rpc('deduct_stock_for_order', { p_order_id: transactionData.order_id })
-          
-          if (deductError) {
-            console.error('[PhonePe Webhook] Stock deduction error:', deductError);
-          } else {
-            console.log('[PhonePe Webhook] Stock deducted');
-          }
-        } catch (stockError) {
-          console.error('[PhonePe Webhook] Error calling deduct_stock_for_order:', stockError);
-        }
+        // Return error since this is critical
+        return new Response(
+          JSON.stringify({ error: 'Failed to update order status' }),
+          { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        )
       }
+      
+      console.log('[PhonePe Webhook] Order marked as paid:', transactionData.order_id)
+      
+      // Deduct stock for successful payment
+      try {
+        const { error: deductError } = await supabase
+          .rpc('deduct_stock_for_order', { p_order_id: transactionData.order_id })
+        
+        if (deductError) {
+          console.error('[PhonePe Webhook] Stock deduction error:', deductError);
+          // Log error but don't fail the webhook - order is already paid
+        } else {
+          console.log('[PhonePe Webhook] Stock deducted successfully');
+        }
+      } catch (stockError) {
+        console.error('[PhonePe Webhook] Error calling deduct_stock_for_order:', stockError);
+        // Log error but don't fail the webhook
+      }
+    } else if (paymentStatus === 'FAILED') {
+      // For failed payments, optionally update order status to failed
+      console.log('[PhonePe Webhook] Payment failed, order will remain in pending state');
     }
 
-    console.log('[PhonePe Webhook] Successfully processed');
+    console.log('[PhonePe Webhook] Webhook processed successfully');
 
     return new Response(JSON.stringify({
       success: true,
-      message: 'Webhook processed'
+      message: 'Webhook processed successfully',
+      merchantOrderId: merchantOrderId,
+      status: paymentStatus
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     })
   } catch (error) {
     console.error('[PhonePe Webhook] Error:', error);

@@ -491,7 +491,7 @@ const Checkout = () => {
               onClick={handlePayment}
               disabled={processing || !termsAccepted}
             >
-              {processing ? "Processing..." : "Go to Payment"}
+              {processing ? "Processing..." : paymentMethod === 'cod' ? "Place Order (COD)" : "Proceed to Payment"}
             </Button>
           </Card>
         </div>
@@ -502,7 +502,7 @@ const Checkout = () => {
           <DialogHeader>
             <DialogTitle>Order Placed Successfully!</DialogTitle>
           </DialogHeader>
-          <p>Your order has been placed and is being processed.</p>
+          <p>Your COD order has been confirmed. Please keep the exact amount ready for payment upon delivery.</p>
           <Button onClick={() => navigate("/orders")} className="font-poppins font-bold">View Orders</Button>
         </DialogContent>
       </Dialog>

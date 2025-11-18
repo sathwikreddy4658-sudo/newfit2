@@ -24,19 +24,28 @@ const PaymentCallback = () => {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ merchantOrderId: merchantTransactionId })
+          body: JSON.stringify({ merchantTransactionId: merchantTransactionId })
         });
 
         const data = await response.json();
         console.log('[PaymentCallback] PhonePe status check:', data);
 
-        if (data.success && data.state === 'COMPLETED') {
-          return 'COMPLETED';
-        } else if (data.state === 'FAILED') {
-          return 'FAILED';
-        } else {
-          return 'PENDING';
+        // Check the actual PhonePe response structure
+        if (data.success && data.data) {
+          const state = data.data.state;
+          console.log('[PaymentCallback] Payment state from PhonePe:', state);
+          
+          if (state === 'COMPLETED') {
+            return 'COMPLETED';
+          } else if (state === 'FAILED') {
+            return 'FAILED';
+          } else {
+            return 'PENDING';
+          }
         }
+        
+        // If no success or no data, treat as failed
+        return 'FAILED';
       } catch (error) {
         console.error('[PaymentCallback] Error checking PhonePe status:', error);
         return null;
@@ -97,19 +106,34 @@ const PaymentCallback = () => {
           }
         }
 
-        // Wait 2 seconds for webhook to process
+        // Wait 3 seconds for webhook to process
         console.log('[PaymentCallback] Waiting for webhook...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // Check again after waiting
+        // Check transaction status again after waiting
+        if (transactionId) {
+          const { data: txDataAfterWait } = await supabase
+            .from('payment_transactions')
+            .select('status, order_id')
+            .eq('merchant_transaction_id', transactionId)
+            .maybeSingle();
+
+          if (txDataAfterWait && txDataAfterWait.status === 'SUCCESS') {
+            clearCart();
+            setStatus('success');
+            return;
+          }
+        }
+
+        // Check order status again after waiting
         if (orderParam) {
-          const { data: orderData } = await supabase
+          const { data: orderDataAfterWait } = await supabase
             .from('orders')
             .select('status')
             .eq('id', orderParam)
             .maybeSingle();
 
-          if (orderData && orderData.status === 'paid') {
+          if (orderDataAfterWait && orderDataAfterWait.status === 'paid') {
             clearCart();
             setStatus('success');
             return;
@@ -121,28 +145,129 @@ const PaymentCallback = () => {
           console.log('[PaymentCallback] Checking payment status with PhonePe API');
           const phonePeStatus = await checkPhonePeOrderStatus(transactionId);
 
-          if (phonePeStatus === 'COMPLETED') {
-            // Payment successful - confirm it in our system
-            if (orderParam) {
-              const { error: confirmError } = await supabase.rpc('confirm_payment_for_order', {
-                p_order_id: orderParam,
-                p_transaction_id: transactionId
-              });
+          console.log('[PaymentCallback] PhonePe status result:', phonePeStatus);
 
-              if (!confirmError) {
+          if (phonePeStatus === 'COMPLETED') {
+            // Payment successful - update our records
+            console.log('[PaymentCallback] Payment COMPLETED, updating transaction and order');
+            
+            // Update payment transaction status
+            const { error: txUpdateError } = await supabase
+              .from('payment_transactions')
+              .update({
+                status: 'SUCCESS',
+                updated_at: new Date().toISOString()
+              })
+              .eq('merchant_transaction_id', transactionId);
+
+            if (txUpdateError) {
+              console.error('[PaymentCallback] Error updating transaction:', txUpdateError);
+            }
+
+            // Update order status
+            if (orderParam) {
+              const { error: orderUpdateError } = await supabase
+                .from('orders')
+                .update({
+                  status: 'paid',
+                  payment_id: transactionId,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', orderParam);
+
+              if (orderUpdateError) {
+                console.error('[PaymentCallback] Error updating order:', orderUpdateError);
+              } else {
+                console.log('[PaymentCallback] Order marked as paid');
+              }
+            }
+
+            clearCart();
+            setStatus('success');
+            return;
+          } else if (phonePeStatus === 'FAILED') {
+            console.log('[PaymentCallback] Payment FAILED');
+            
+            // Update transaction status
+            const { error: txUpdateError } = await supabase
+              .from('payment_transactions')
+              .update({
+                status: 'FAILED',
+                updated_at: new Date().toISOString()
+              })
+              .eq('merchant_transaction_id', transactionId);
+
+            if (txUpdateError) {
+              console.error('[PaymentCallback] Error updating failed transaction:', txUpdateError);
+            }
+
+            setStatus('failed');
+            return;
+          } else if (phonePeStatus === 'PENDING') {
+            // Payment is still pending, wait a bit longer
+            console.log('[PaymentCallback] Payment PENDING, waiting for webhook...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Check transaction status one more time
+            const { data: finalTxData } = await supabase
+              .from('payment_transactions')
+              .select('status')
+              .eq('merchant_transaction_id', transactionId)
+              .maybeSingle();
+
+            if (finalTxData && finalTxData.status === 'SUCCESS') {
+              clearCart();
+              setStatus('success');
+              return;
+            }
+
+            // Check order status one more time
+            if (orderParam) {
+              const { data: finalOrderData } = await supabase
+                .from('orders')
+                .select('status')
+                .eq('id', orderParam)
+                .maybeSingle();
+
+              if (finalOrderData && finalOrderData.status === 'paid') {
                 clearCart();
                 setStatus('success');
                 return;
               }
             }
-          } else if (phonePeStatus === 'FAILED') {
-            setStatus('failed');
-            return;
+
+            // Still pending - check PhonePe one final time
+            const finalPhonePeStatus = await checkPhonePeOrderStatus(transactionId);
+            if (finalPhonePeStatus === 'COMPLETED') {
+              // Update records
+              await supabase
+                .from('payment_transactions')
+                .update({
+                  status: 'SUCCESS',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('merchant_transaction_id', transactionId);
+
+              if (orderParam) {
+                await supabase
+                  .from('orders')
+                  .update({
+                    status: 'paid',
+                    payment_id: transactionId,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', orderParam);
+              }
+
+              clearCart();
+              setStatus('success');
+              return;
+            }
           }
         }
 
-        // If still no confirmation, payment was cancelled or failed
-        console.log('[PaymentCallback] No payment confirmation - showing failed');
+        // If we reach here without a definitive status, payment was cancelled or user closed the payment window
+        console.log('[PaymentCallback] Payment not completed - user may have cancelled');
         setStatus('failed');
 
       } catch (error) {
@@ -190,9 +315,9 @@ const PaymentCallback = () => {
         ) : (
           <>
             <div className="text-red-500 text-6xl mb-4">✗</div>
-            <h2 className="text-2xl font-bold mb-2 text-red-600">Payment Failed</h2>
+            <h2 className="text-2xl font-bold mb-2 text-red-600">Payment Unsuccessful</h2>
             <p className="text-gray-600 mb-6">
-              Your payment could not be processed. Please try again or contact support if the issue persists.
+              Your payment was not completed. This may happen if you cancelled the payment or if there was an issue processing it. Please try again or contact support if the issue persists.
             </p>
           </>
         )}
