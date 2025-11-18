@@ -111,12 +111,16 @@ export async function initiatePhonePePayment(
 
       console.log('[PhonePe] Request body being sent:', requestBody);
 
+      // Get authorization - use session token if available, otherwise use anon key
+      const session = await supabase.auth.getSession();
+      const authToken = session.data.session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
       // Use fetch directly to get full response details
       const response = await fetch('https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe_initiate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify(requestBody)
       });
