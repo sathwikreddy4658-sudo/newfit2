@@ -548,29 +548,29 @@ const Checkout = () => {
 
             <div className="mb-4" data-payment-section>
               <h3 className="font-semibold mb-2">Payment Method</h3>
-              <div className="space-y-2">
-                <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cod"
-                    checked={paymentMethod === 'cod'}
-                    onChange={() => setPaymentMethod('cod')}
-                    className="w-4 h-4"
-                  />
-                  <span>Cash on Delivery (COD)</span>
-                </label>
-                <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="online"
-                    checked={paymentMethod === 'online'}
-                    onChange={() => setPaymentMethod('online')}
-                    className="w-4 h-4"
-                  />
-                  <span>Online Payment (PhonePe)</span>
-                </label>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('cod')}
+                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 font-medium ${
+                    paymentMethod === 'cod'
+                      ? 'bg-[#5e4338] text-white border-[#5e4338]'
+                      : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5'
+                  }`}
+                >
+                  Cash on Delivery (COD)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('online')}
+                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 font-medium ${
+                    paymentMethod === 'online'
+                      ? 'bg-[#5e4338] text-white border-[#5e4338]'
+                      : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5'
+                  }`}
+                >
+                  Online Payment (PhonePe)
+                </button>
               </div>
             </div>
 
