@@ -1,0 +1,37 @@
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'https://osromibanfzzthdmhyzp.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zcm9taWJhbmZ6enRoZG1oeXpwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgzMDMyOSwiZXhwIjoyMDc4NDA2MzI5fQ.I1P1jpiI5hHe5Hue57p1i8_kkQEC3a8tWtPJQUTpdTk';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+async function addPaymentMethodColumn() {
+  console.log('📦 Adding payment_method column to orders table...\n');
+  
+  try {
+    // Execute via raw SQL using the REST API
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+      },
+      body: JSON.stringify({
+        sql: 'ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT;'
+      })
+    });
+
+    console.log('✅ Column added successfully!\n');
+    console.log('🎉 COD and PhonePe orders can now track payment method!\n');
+    
+  } catch (error) {
+    console.log('⚠️  Using manual approach...\n');
+    console.log('📋 Go to: https://supabase.com/dashboard/project/osromibanfzzthdmhyzp/sql');
+    console.log('📋 Run this SQL:\n');
+    console.log('ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT;');
+    console.log('\n✅ This will enable payment method tracking!\n');
+  }
+}
+
+addPaymentMethodColumn();
