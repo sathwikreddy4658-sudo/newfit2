@@ -1,8 +1,42 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const PHONEPE_MERCHANT_ID = Deno.env.get('PHONEPE_MERCHANT_ID') || 'M23DXJKWOH2QZ';
-const PHONEPE_AUTH_TOKEN = Deno.env.get('PHONEPE_AUTH_TOKEN') || '';
+const PHONEPE_CLIENT_ID = Deno.env.get('PHONEPE_CLIENT_ID') || 'SU2511071520405754774079';
+const PHONEPE_CLIENT_SECRET = Deno.env.get('PHONEPE_CLIENT_SECRET') || 'c70dce3a-c985-4237-add4-b8b9ad647bbf';
+let PHONEPE_AUTH_TOKEN = Deno.env.get('PHONEPE_AUTH_TOKEN') || '';
 const PHONEPE_API_URL = Deno.env.get('PHONEPE_API_URL') || 'https://api.phonepe.com/apis/pg';
+
+// Auto-refresh token function
+async function getValidToken(): Promise<string> {
+  // If we have a token, try to use it
+  if (PHONEPE_AUTH_TOKEN) {
+    return PHONEPE_AUTH_TOKEN;
+  }
+
+  // Generate new token
+  console.log('[PhonePe] Generating new OAuth token...');
+  const formData = new URLSearchParams();
+  formData.append('client_id', PHONEPE_CLIENT_ID);
+  formData.append('client_version', '1');
+  formData.append('client_secret', PHONEPE_CLIENT_SECRET);
+  formData.append('grant_type', 'client_credentials');
+
+  const response = await fetch('https://api.phonepe.com/apis/identity-manager/v1/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formData.toString(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to generate OAuth token');
+  }
+
+  const data = await response.json();
+  PHONEPE_AUTH_TOKEN = data.access_token;
+  console.log('[PhonePe] Token generated, expires at:', new Date(data.expires_at * 1000).toISOString());
+  
+  return PHONEPE_AUTH_TOKEN;
+}
 
 serve(async (req: Request) => {
   // Enable CORS for all requests
@@ -57,30 +91,8 @@ serve(async (req: Request) => {
 
     console.log('[PhonePe Check Status v2 API]', { merchantTransactionId });
 
-    // Validate credentials
-    if (!PHONEPE_AUTH_TOKEN) {
-      console.error('[PhonePe Check Status] Missing PHONEPE_AUTH_TOKEN');
-      console.error('[PhonePe Check Status] Environment variables:', {
-        PHONEPE_MERCHANT_ID: PHONEPE_MERCHANT_ID ? 'SET' : 'MISSING',
-        PHONEPE_AUTH_TOKEN: PHONEPE_AUTH_TOKEN ? 'SET' : 'MISSING',
-        PHONEPE_API_URL: PHONEPE_API_URL ? 'SET' : 'MISSING'
-      });
-      return new Response(
-        JSON.stringify({
-          success: false,
-          code: 'CONFIG_ERROR',
-          message: 'PhonePe credentials not configured. Please add PHONEPE_AUTH_TOKEN to Supabase Edge Function secrets.',
-          details: 'Missing environment variable: PHONEPE_AUTH_TOKEN'
-        }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
-      );
-    }
+    // Get valid token (auto-refreshes if needed)
+    const authToken = await getValidToken();
 
     // Call PhonePe v2 Order Status API
     // GET /checkout/v2/order/{merchantOrderId}/status
@@ -91,7 +103,7 @@ serve(async (req: Request) => {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `O-Bearer ${PHONEPE_AUTH_TOKEN}`
+        'Authorization': `O-Bearer ${authToken}`
       }
     });
 
@@ -99,6 +111,58 @@ serve(async (req: Request) => {
 
     console.log('[PhonePe Check Status] Response status:', response.status);
     console.log('[PhonePe Check Status] Response data:', data);
+
+    // If we get 401, token might be expired - try to refresh and retry once
+    if (response.status === 401) {
+      console.log('[PhonePe Check Status] Token expired, refreshing...');
+      PHONEPE_AUTH_TOKEN = ''; // Clear cached token
+      const newToken = await getValidToken();
+      
+      const retryResponse = await fetch(phonepeUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `O-Bearer ${newToken}`
+        }
+      });
+      
+      const retryData = await retryResponse.json();
+      console.log('[PhonePe Check Status] Retry response:', retryResponse.status, retryData);
+      
+      if (!retryResponse.ok) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: 'PAYMENT_API_ERROR',
+            message: retryData.message || 'Failed to check payment status',
+            details: retryData
+          }),
+          {
+            status: retryResponse.status,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            },
+          }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          code: 'SUCCESS',
+          message: 'Payment status retrieved successfully',
+          data: retryData
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
 
     if (!response.ok) {
       return new Response(
