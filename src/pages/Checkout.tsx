@@ -288,7 +288,7 @@ const Checkout = () => {
       // Order status will be updated by webhook after payment confirmation
       try {
         await createPaymentTransaction(orderId, merchantTransactionId, paymentOptions.amount);
-        console.log('[Checkout] Payment transaction recorded:', { orderId, merchantTransactionId });
+        console.log('[Checkout] Payment transaction recorded:', { orderId, merchantTransactionId, amount: paymentOptions.amount });
       } catch (error) {
         console.error('[Checkout] Error creating payment transaction record:', error);
         // Don't fail checkout for this - webhook will handle it
