@@ -14,8 +14,34 @@ const PaymentCallback = () => {
   const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
-    let hasShownToast = false;
     let hasProcessed = false;
+
+    const checkPhonePeOrderStatus = async (merchantTransactionId: string) => {
+      try {
+        // Call PhonePe Order Status API via our Edge Function
+        const response = await fetch(`https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-check-status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ merchantOrderId: merchantTransactionId })
+        });
+
+        const data = await response.json();
+        console.log('[PaymentCallback] PhonePe status check:', data);
+
+        if (data.success && data.state === 'COMPLETED') {
+          return 'COMPLETED';
+        } else if (data.state === 'FAILED') {
+          return 'FAILED';
+        } else {
+          return 'PENDING';
+        }
+      } catch (error) {
+        console.error('[PaymentCallback] Error checking PhonePe status:', error);
+        return null;
+      }
+    };
 
     const verifyPayment = async () => {
       if (hasProcessed) return;
@@ -26,64 +52,54 @@ const PaymentCallback = () => {
       
       if (!transactionId && !orderParam) {
         setStatus('failed');
-        if (!hasShownToast) {
-          hasShownToast = true;
-          toast({
-            title: "Error",
-            description: "Missing transaction information",
-            variant: "destructive"
-          });
-        }
         return;
       }
 
       setOrderId(orderParam);
 
       try {
-        // First check if payment_transactions table exists and has the transaction
+        // First check if payment_transactions table has the transaction with SUCCESS status
         if (transactionId) {
-          const { data: txData, error: txError } = await supabase
+          const { data: txData } = await supabase
             .from('payment_transactions')
             .select('status, order_id')
             .eq('merchant_transaction_id', transactionId)
             .maybeSingle();
 
-          console.log('[PaymentCallback] Transaction query result:', { txData, txError });
+          console.log('[PaymentCallback] Transaction query result:', { txData });
 
-          // If transaction exists and is successful
           if (txData && txData.status === 'SUCCESS') {
             clearCart();
             setStatus('success');
             return;
           }
 
-          // If failed
           if (txData && txData.status === 'FAILED') {
             setStatus('failed');
             return;
           }
         }
 
-        // Check order status (webhook might have updated it)
+        // Check if order is already marked as paid by webhook
         if (orderParam) {
-          const { data: orderData, error: orderError } = await supabase
+          const { data: orderData } = await supabase
             .from('orders')
-            .select('status, payment_id')
+            .select('status')
             .eq('id', orderParam)
             .maybeSingle();
 
-          console.log('[PaymentCallback] Order query result:', { orderData, orderError });
+          console.log('[PaymentCallback] Order query result:', { orderData });
 
-          if (!orderError && orderData && orderData.status === 'paid') {
+          if (orderData && orderData.status === 'paid') {
             clearCart();
             setStatus('success');
             return;
           }
         }
 
-        // Wait 3 seconds to give webhook time to process
-        console.log('[PaymentCallback] Waiting for webhook to process...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Wait 2 seconds for webhook to process
+        console.log('[PaymentCallback] Waiting for webhook...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Check again after waiting
         if (orderParam) {
@@ -100,8 +116,33 @@ const PaymentCallback = () => {
           }
         }
 
-        // If no confirmation after waiting, payment was likely cancelled or failed
-        console.log('[PaymentCallback] No payment confirmation received - payment cancelled or failed');
+        // If webhook hasn't updated yet, check with PhonePe directly
+        if (transactionId) {
+          console.log('[PaymentCallback] Checking payment status with PhonePe API');
+          const phonePeStatus = await checkPhonePeOrderStatus(transactionId);
+
+          if (phonePeStatus === 'COMPLETED') {
+            // Payment successful - confirm it in our system
+            if (orderParam) {
+              const { error: confirmError } = await supabase.rpc('confirm_payment_for_order', {
+                p_order_id: orderParam,
+                p_transaction_id: transactionId
+              });
+
+              if (!confirmError) {
+                clearCart();
+                setStatus('success');
+                return;
+              }
+            }
+          } else if (phonePeStatus === 'FAILED') {
+            setStatus('failed');
+            return;
+          }
+        }
+
+        // If still no confirmation, payment was cancelled or failed
+        console.log('[PaymentCallback] No payment confirmation - showing failed');
         setStatus('failed');
 
       } catch (error) {
