@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
-import { checkPaymentStatus, storePaymentDetails } from '@/lib/phonepe';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -18,47 +17,103 @@ const PaymentCallback = () => {
     const verifyPayment = async () => {
       const transactionId = searchParams.get('transactionId');
       const orderParam = searchParams.get('order');
+      
+      // PhonePe may also send these parameters
+      const code = searchParams.get('code');
+      const merchantId = searchParams.get('merchantId');
+      const providerReferenceId = searchParams.get('providerReferenceId');
 
-      if (!transactionId) {
+      if (!transactionId && !orderParam) {
         setStatus('failed');
+        toast({
+          title: "Error",
+          description: "Missing transaction information",
+          variant: "destructive"
+        });
         return;
       }
 
       setOrderId(orderParam);
 
       try {
-        // Check payment status with PhonePe
-        const paymentStatus = await checkPaymentStatus(transactionId);
+        // Check order status in database (webhook should have updated it)
+        if (orderParam) {
+          const { data: orderData, error: orderError } = await supabase
+            .from('orders')
+            .select('status, payment_id')
+            .eq('id', orderParam)
+            .single();
 
-        if (paymentStatus && paymentStatus.success) {
-          const paymentData = paymentStatus.data;
-
-          // Update order status based on payment result
-          if (paymentData.state === 'COMPLETED') {
-            await storePaymentDetails(orderParam || '', {
-              ...paymentData,
-              status: 'SUCCESS'
-            });
-            clearCart(); // Clear cart on successful payment
-            setStatus('success');
-          } else {
-            await storePaymentDetails(orderParam || '', {
-              ...paymentData,
-              status: 'FAILED'
-            });
+          if (orderError) {
+            console.error('Error fetching order:', orderError);
             setStatus('failed');
+            return;
           }
-        } else {
-          setStatus('failed');
+
+          // If order is marked as paid by webhook, show success
+          if (orderData.status === 'paid') {
+            clearCart();
+            setStatus('success');
+            toast({
+              title: "Payment Successful",
+              description: "Your order has been confirmed!",
+            });
+            return;
+          }
         }
+
+        // If we have a transaction ID, check payment_transactions table
+        if (transactionId) {
+          const { data: txData, error: txError } = await supabase
+            .from('payment_transactions')
+            .select('status, order_id')
+            .eq('merchant_transaction_id', transactionId)
+            .single();
+
+          if (!txError && txData) {
+            if (txData.status === 'SUCCESS') {
+              clearCart();
+              setStatus('success');
+              toast({
+                title: "Payment Successful",
+                description: "Your order has been confirmed!",
+              });
+              return;
+            } else if (txData.status === 'FAILED') {
+              setStatus('failed');
+              toast({
+                title: "Payment Failed",
+                description: "Your payment was not successful. Please try again.",
+                variant: "destructive"
+              });
+              return;
+            }
+          }
+        }
+
+        // If nothing found or status is still pending, wait a bit for webhook
+        setTimeout(() => {
+          setStatus('failed');
+          toast({
+            title: "Payment Verification Pending",
+            description: "We're still verifying your payment. Check your orders page in a few minutes.",
+            variant: "destructive"
+          });
+        }, 3000);
+
       } catch (error) {
         console.error('Payment verification failed:', error);
         setStatus('failed');
+        toast({
+          title: "Error",
+          description: "Failed to verify payment status",
+          variant: "destructive"
+        });
       }
     };
 
     verifyPayment();
-  }, [searchParams]);
+  }, [searchParams, clearCart]);
 
   const handleContinue = () => {
     if (status === 'success') {
