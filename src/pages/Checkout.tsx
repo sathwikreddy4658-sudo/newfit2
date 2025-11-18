@@ -350,11 +350,14 @@ const Checkout = () => {
       phoneNumber = '';
     }
 
+    // Generate merchant user ID - use actual user ID if authenticated, or generate a guest ID
+    const merchantUserId = authUser?.id || `GUEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     // Initiate PhonePe payment
     const paymentOptions = {
       amount: Math.round(discountedTotal), // Send in rupees - Edge Function converts to paisa
       merchantTransactionId,
-      merchantUserId: authUser.id,
+      merchantUserId,
       redirectUrl: `${window.location.origin}/payment/callback?transactionId=${merchantTransactionId}&order=${orderId}`,
       callbackUrl: `https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-webhook`,
       mobileNumber: phoneNumber,
@@ -367,7 +370,7 @@ const Checkout = () => {
       amount: { value: paymentOptions.amount, rupees: `₹${paymentOptions.amount}`, type: typeof paymentOptions.amount },
       merchantTransactionId: { value: paymentOptions.merchantTransactionId, type: typeof paymentOptions.merchantTransactionId },
       callbackUrl: { value: paymentOptions.callbackUrl, type: typeof paymentOptions.callbackUrl },
-      merchantUserId: paymentOptions.merchantUserId,
+      merchantUserId: { value: merchantUserId, isGuest: isGuestCheckout, type: typeof merchantUserId },
       mobileNumber: paymentOptions.mobileNumber
     });
 
