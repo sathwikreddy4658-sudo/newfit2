@@ -104,25 +104,13 @@ const Checkout = () => {
 
     setProcessing(true);
 
-    // Get authenticated user for payment (required for security)
+    // Get authenticated user for payment (optional for guest checkout)
     let authUser = user;
     if (!authUser && isGuestCheckout) {
-      // For guest checkout, we still need to get or create a user session
-      // to ensure payment tracking. Retrieve current user context.
+      // For guest checkout, check if there's a current session
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       authUser = currentUser;
-    }
-
-    // If still no authenticated user for guest, require login
-    if (!authUser) {
-      toast({
-        title: "Login Required",
-        description: "Guest checkout is not yet fully supported. Please log in to proceed with payment.",
-        variant: "destructive"
-      });
-      setProcessing(false);
-      navigate("/auth");
-      return;
+      // Guest checkout is allowed - authUser can be null
     }
 
     // Prepare order items for atomic creation
@@ -133,16 +121,24 @@ const Checkout = () => {
       quantity: item.quantity,
     }));
 
-    // Create order params - always use authenticated user_id
-    // For now, pass the original total (before discount) for validation
-    // The database function will validate items sum matches this total
+    // Create order params - use authenticated user_id if available, null for guests
     const orderParams = {
-      p_user_id: authUser.id,
+      p_user_id: authUser?.id || null, // Allow null for guest checkout
       p_total_price: totalPrice, // Original total (before discount) for validation
       p_address: isGuestCheckout ? guestData.address : profile.address,
       p_payment_id: null, // Will be updated after payment
       p_items: orderItems,
     };
+
+    // Store guest info in order for guest checkouts
+    let guestOrderData = null;
+    if (isGuestCheckout) {
+      guestOrderData = {
+        customer_name: guestData.name,
+        customer_email: guestData.email,
+        customer_phone: guestData.phone
+      };
+    }
 
     // Create order and items atomically using database function
     const { data, error } = await (supabase.rpc as any)('create_order_with_items', orderParams);
@@ -173,8 +169,25 @@ const Checkout = () => {
 
     const orderId = result.order_id;
 
+    // Add guest information to the order if it's a guest checkout
+    if (isGuestCheckout && guestOrderData) {
+      const { error: guestInfoError } = await supabase
+        .from("orders")
+        .update({
+          customer_name: guestOrderData.customer_name,
+          customer_email: guestOrderData.customer_email,
+          customer_phone: guestOrderData.customer_phone
+        })
+        .eq("id", orderId);
+
+      if (guestInfoError) {
+        console.warn("Error adding guest info to order:", guestInfoError);
+        // Don't fail the order, just log the warning
+      }
+    }
+
     // Track promo code usage if a promo code was applied (only for authenticated users)
-    if (promoCode && !isGuestCheckout) {
+    if (promoCode && !isGuestCheckout && authUser) {
       try {
         // Get promo code id first
         const { data: promoData, error: promoError } = await supabase

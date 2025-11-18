@@ -41,15 +41,26 @@ const PaymentCallback = () => {
 
         // Check the Edge Function response structure
         if (data.success && data.data) {
-          // PhonePe v2 API response structure: data.data contains the order status
+          // PhonePe v2 API response structure
           const orderData = data.data;
-          const state = orderData.state || orderData.status;
+          console.log('[PaymentCallback] Full PhonePe order data:', JSON.stringify(orderData, null, 2));
           
-          console.log('[PaymentCallback] Payment state from PhonePe:', state);
+          // Try multiple possible status paths in PhonePe response
+          const state = orderData.state || orderData.status || orderData.code;
           
-          if (state === 'COMPLETED' || state === 'SUCCESS') {
+          // Also check nested data structure
+          const nestedState = orderData.data?.state || orderData.data?.status;
+          const finalState = nestedState || state;
+          
+          console.log('[PaymentCallback] Payment state from PhonePe:', finalState);
+          
+          // PhonePe v2 uses these status values:
+          // COMPLETED/SUCCESS = successful payment
+          // FAILED/FAILURE = failed payment
+          // PENDING = payment in progress
+          if (finalState === 'COMPLETED' || finalState === 'SUCCESS' || finalState === 'PAYMENT_SUCCESS') {
             return 'COMPLETED';
-          } else if (state === 'FAILED' || state === 'FAILURE') {
+          } else if (finalState === 'FAILED' || finalState === 'FAILURE' || finalState === 'PAYMENT_ERROR') {
             return 'FAILED';
           } else {
             return 'PENDING';
