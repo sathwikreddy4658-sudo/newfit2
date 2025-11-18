@@ -105,20 +105,44 @@ serve(async (req: Request) => {
     }
 
     // Determine payment status based on PhonePe documentation:
-    // Use "event" parameter to identify event type
-    // Use "payload.state" for payment status (root-level field)
+    // PhonePe v2 Checkout API sends webhooks with different event names and state values
+    // We need to be flexible in detecting successful payments
     let paymentStatus: 'SUCCESS' | 'FAILED' | 'PENDING' = 'PENDING'
     
-    if (event === 'checkout.order.completed' && payload.state === 'COMPLETED') {
-      paymentStatus = 'SUCCESS'
-      console.log('[PhonePe Webhook] Order completed successfully');
-    } else if (event === 'checkout.order.failed' && payload.state === 'FAILED') {
-      paymentStatus = 'FAILED'
-      console.log('[PhonePe Webhook] Order failed');
+    console.log('[PhonePe Webhook] Received event and state:', { 
+      event, 
+      payloadState: payload.state,
+      fullPayload: JSON.stringify(payload, null, 2)
+    });
+    
+    // Check for SUCCESS indicators
+    // Event can be: checkout.order.completed, PAYMENT_SUCCESS, etc.
+    // State can be: COMPLETED, SUCCESS, PAYMENT_SUCCESS, etc.
+    const successEvents = ['checkout.order.completed', 'PAYMENT_SUCCESS', 'payment.success'];
+    const successStates = ['COMPLETED', 'SUCCESS', 'PAYMENT_SUCCESS'];
+    
+    const failedEvents = ['checkout.order.failed', 'PAYMENT_ERROR', 'payment.failed'];
+    const failedStates = ['FAILED', 'FAILURE', 'PAYMENT_ERROR', 'ERROR'];
+    
+    const isSuccessEvent = successEvents.some(e => event?.toLowerCase().includes(e.toLowerCase()));
+    const isSuccessState = successStates.some(s => payload.state === s);
+    
+    const isFailedEvent = failedEvents.some(e => event?.toLowerCase().includes(e.toLowerCase()));
+    const isFailedState = failedStates.some(s => payload.state === s);
+    
+    if (isSuccessEvent || isSuccessState) {
+      paymentStatus = 'SUCCESS';
+      console.log('[PhonePe Webhook] ✅ Order completed successfully');
+    } else if (isFailedEvent || isFailedState) {
+      paymentStatus = 'FAILED';
+      console.log('[PhonePe Webhook] ❌ Order failed');
     } else {
-      console.warn('[PhonePe Webhook] Unexpected event/state combination:', { event, state: payload.state });
-      // For safety, treat unexpected combinations as failed
-      paymentStatus = 'FAILED'
+      console.warn('[PhonePe Webhook] ⚠️ Uncertain event/state combination - defaulting to PENDING:', { 
+        event, 
+        state: payload.state 
+      });
+      // Don't automatically mark as FAILED - wait for more info
+      paymentStatus = 'PENDING';
     }
 
     console.log('[PhonePe Webhook] Processing status:', paymentStatus);
@@ -141,13 +165,35 @@ serve(async (req: Request) => {
     // Extract payment details from the paymentDetails array
     const paymentDetail = payload.paymentDetails?.[0];
     const phonepeTransactionId = paymentDetail?.transactionId || payload.orderId;
-    const paymentMode = paymentDetail?.paymentMode || 'UNKNOWN';
+    const rawPaymentMode = paymentDetail?.paymentMode || 'UNKNOWN';
+    
+    // Map PhonePe payment modes to our enum values
+    // PhonePe sends: UPI, UPI_QR, UPI_COLLECT, UPI_INTENT, CARD, DEBIT_CARD, CREDIT_CARD, NET_BANKING, WALLET
+    let paymentMode = rawPaymentMode;
+    const paymentModeMap: Record<string, string> = {
+      'UPI': 'UPI',
+      'UPI_QR': 'UPI_QR',
+      'UPI_COLLECT': 'UPI_COLLECT', 
+      'UPI_INTENT': 'UPI_INTENT',
+      'CARD': 'CARD',
+      'DEBIT_CARD': 'DEBIT_CARD',
+      'CREDIT_CARD': 'CREDIT_CARD',
+      'NET_BANKING': 'NET_BANKING',
+      'NETBANKING': 'NET_BANKING',
+      'WALLET': 'WALLET',
+      'PAY_PAGE': 'PAY_PAGE',
+    };
+    
+    // Use mapped value or default to UNKNOWN
+    paymentMode = paymentModeMap[rawPaymentMode] || 'UNKNOWN';
+    
     const errorCode = paymentDetail?.errorCode;
     const detailedErrorCode = paymentDetail?.detailedErrorCode;
 
     console.log('[PhonePe Webhook] Payment details:', {
       phonepeTransactionId,
-      paymentMode,
+      rawPaymentMode,
+      mappedPaymentMode: paymentMode,
       errorCode,
       detailedErrorCode,
       amount: payload.amount
