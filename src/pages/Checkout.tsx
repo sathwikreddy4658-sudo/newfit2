@@ -29,6 +29,7 @@ const Checkout = () => {
   const [processing, setProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successOrderData, setSuccessOrderData] = useState<{orderId: string, email: string, isGuest: boolean} | null>(null);
+  const [preventCartRedirect, setPreventCartRedirect] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('cod');
 
@@ -62,17 +63,26 @@ const Checkout = () => {
     if (successOrderData) {
       const timer = setTimeout(() => {
         if (successOrderData.isGuest) {
-          navigate('/order-confirmation', { 
-            state: { orderId: successOrderData.orderId, email: successOrderData.email } 
+          navigate('/guest-thank-you', { 
+            state: { 
+              orderId: successOrderData.orderId, 
+              email: successOrderData.email,
+              name: guestData.name
+            } 
           });
         } else {
-          navigate('/orders');
+          navigate('/user-thank-you', {
+            state: {
+              orderId: successOrderData.orderId,
+              email: successOrderData.email
+            }
+          });
         }
       }, 2000);
 
       return () => clearTimeout(timer);
     }
-  }, [successOrderData, navigate]);
+  }, [successOrderData, navigate, guestData.name]);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -202,6 +212,21 @@ const Checkout = () => {
         console.warn("Error adding guest info to order:", guestInfoError);
         // Don't fail the order, just log the warning
       }
+    } else if (!isGuestCheckout && authUser && profile) {
+      // For authenticated users, also save phone to order for admin visibility
+      const { error: userInfoError } = await supabase
+        .from("orders")
+        .update({
+          customer_name: profile.full_name,
+          customer_email: authUser.email,
+          customer_phone: profile.phone
+        })
+        .eq("id", orderId);
+
+      if (userInfoError) {
+        console.warn("Error adding user info to order:", userInfoError);
+        // Don't fail the order, just log the warning
+      }
     }
 
     // Track promo code usage if a promo code was applied (only for authenticated users)
@@ -287,6 +312,9 @@ const Checkout = () => {
 
       console.log('[Checkout] COD order confirmed successfully:', confirmData);
       
+      // Prevent cart redirect during success flow
+      setPreventCartRedirect(true);
+      
       // Clear cart and show success
       clearCart();
       setShowSuccess(true);
@@ -296,6 +324,8 @@ const Checkout = () => {
       if (isGuestCheckout) {
         sessionStorage.setItem('guestOrderId', orderId);
         sessionStorage.setItem('guestOrderEmail', guestData.email);
+        sessionStorage.setItem('guestOrderName', guestData.name);
+        sessionStorage.setItem('guestOrderPhone', guestData.phone);
       }
       
       setSuccessOrderData({
@@ -385,7 +415,7 @@ const Checkout = () => {
     }
   };
 
-  if (items.length === 0) {
+  if (items.length === 0 && !preventCartRedirect) {
     navigate("/products");
     return null;
   }
@@ -573,7 +603,9 @@ const Checkout = () => {
             <DialogTitle>Order Placed Successfully!</DialogTitle>
           </DialogHeader>
           <p>Your COD order has been confirmed. Please keep the exact amount ready for payment upon delivery.</p>
-          <Button onClick={() => navigate("/orders")} className="font-poppins font-bold">View Orders</Button>
+          <div className="text-sm text-muted-foreground mt-2">
+            Redirecting to your order confirmation...
+          </div>
         </DialogContent>
       </Dialog>
     </div>

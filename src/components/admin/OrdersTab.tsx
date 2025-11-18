@@ -640,17 +640,39 @@ const OrdersTab = () => {
                 </div>
 
                 {/* Customer Info */}
-                <div className="space-y-3">
-                  <div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">Customer</p>
-                    <p className="font-semibold">{order.customer_name || order.profiles?.name || "Guest"}</p>
-                    <p className="text-sm text-muted-foreground">{order.customer_email || order.profiles?.email}</p>
+                    {!order.user_id && order.customer_email && (
+                      <Badge variant="outline" className="text-xs">Guest</Badge>
+                    )}
                   </div>
-
+                  
+                  {/* Name */}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Name</p>
+                    <p className="font-semibold">{order.customer_name || order.profiles?.name || "N/A"}</p>
+                  </div>
+                  
+                  {/* Email */}
+                  {(order.customer_email || order.profiles?.email) && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <a 
+                        href={`mailto:${order.customer_email || order.profiles?.email}`}
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        {order.customer_email || order.profiles?.email}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {/* Phone */}
                   {customerPhone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-blue-600" />
-                      <a href={`tel:${customerPhone}`} className="text-blue-600 hover:underline font-medium">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <a href={`tel:${customerPhone}`} className="text-sm text-blue-600 hover:underline font-medium flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
                         {customerPhone}
                       </a>
                     </div>
@@ -718,9 +740,20 @@ const OrdersTab = () => {
                 <div className="border-t pt-4 mb-4">
                   <div className="flex items-start gap-2 mb-2">
                     <MapPin className="h-5 w-5 text-green-600 flex-shrink-0 mt-1" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Delivery Address</p>
                       <p className="text-sm mt-1 leading-relaxed">{order.address}</p>
+                      {customerPhone && (
+                        <div className="flex items-center gap-2 mt-2 text-sm">
+                          <Phone className="h-4 w-4 text-green-600 flex-shrink-0" />
+                          <a 
+                            href={`tel:${customerPhone}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {customerPhone}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

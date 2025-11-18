@@ -27,6 +27,9 @@ import PaymentCallback from "./pages/PaymentCallback";
 import Profile from "./pages/Profile";
 import Orders from "./pages/Orders";
 import OrderConfirmation from "./pages/OrderConfirmation";
+import TrackOrder from "./pages/TrackOrder";
+import GuestThankYou from "./pages/GuestThankYou";
+import UserThankYou from "./pages/UserThankYou";
 import AdminAuth from "./pages/admin/AdminAuth";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Blogs from "./pages/Blogs";
@@ -65,6 +68,9 @@ const App = () => (
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/order-confirmation" element={<OrderConfirmation />} />
+                <Route path="/track-order" element={<TrackOrder />} />
+                <Route path="/guest-thank-you" element={<GuestThankYou />} />
+                <Route path="/user-thank-you" element={<UserThankYou />} />
                 <Route path="/blogs" element={<Blogs />} />
                 <Route path="/blogs/:id" element={<BlogDetail />} />
                 <Route path="/admin/auth" element={<AdminAuth />} />

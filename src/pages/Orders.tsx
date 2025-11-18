@@ -39,14 +39,27 @@ const Orders = () => {
   }, [user]);
 
   const fetchOrders = async (userId: string) => {
-    const { data, error } = await supabase
+    // Fetch user's email first
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email;
+
+    // Fetch orders by user_id OR by email (for guest orders)
+    let query = supabase
       .from("orders")
       .select(`
         *,
         order_items (*)
       `)
-      .eq("user_id", userId)
       .order("created_at", { ascending: false });
+
+    // Get orders where user_id matches OR customer_email matches
+    if (userEmail) {
+      query = query.or(`user_id.eq.${userId},customer_email.eq.${userEmail}`);
+    } else {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       // Filter to show only successful orders:
@@ -109,9 +122,14 @@ const Orders = () => {
             <Card key={order.id} className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Order ID: {order.id.slice(0, 8)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      Order ID: {order.id.slice(0, 8)}
+                    </p>
+                    {!order.user_id && order.customer_email && (
+                      <Badge variant="outline" className="text-xs">Guest Order</Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {new Date(order.created_at).toLocaleDateString()}
                   </p>

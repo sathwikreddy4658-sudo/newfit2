@@ -24,19 +24,15 @@ const OrderConfirmation = () => {
       }
 
       try {
-        const { data, error } = await supabase
-          .from("orders")
-          .select(`
-            *,
-            order_items (*)
-          `)
-          .eq("id", orderId)
-          .single();
+        // Use secure RPC to fetch order with items and enforce email match
+        const { data, error } = await (supabase.rpc as any)(
+          'get_order_with_items_public',
+          { p_order_id: orderId, p_email: email || null }
+        );
 
         if (error) throw error;
 
-        // Verify email matches for guest orders
-        if (data.customer_email && data.customer_email !== email) {
+        if (!data) {
           navigate('/');
           return;
         }
@@ -188,10 +184,17 @@ const OrderConfirmation = () => {
 
         {/* Note for Guest Users */}
         <Card className="p-4 mt-6 bg-yellow-50 border-yellow-200">
-          <p className="text-sm text-yellow-900">
-            <strong>Important:</strong> Please save this page or take a screenshot. 
-            As a guest user, you can track your order by contacting support with your order ID: <strong>{order.id.slice(0, 8)}</strong>
+          <p className="text-sm text-yellow-900 mb-3">
+            <strong>Important:</strong> Please save your order details! 
+            Order ID: <strong>{order.id.slice(0, 8)}</strong>
           </p>
+          <Button 
+            onClick={() => navigate('/track-order')} 
+            variant="outline"
+            className="w-full border-yellow-600 text-yellow-900 hover:bg-yellow-100"
+          >
+            Track This & Other Orders
+          </Button>
         </Card>
       </div>
     </div>

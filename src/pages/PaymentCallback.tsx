@@ -31,7 +31,7 @@ const PaymentCallback = () => {
         });
 
         const data = await response.json();
-        console.log('[PaymentCallback] PhonePe API response:', data);
+        console.log('[PaymentCallback] PhonePe API response:', JSON.stringify(data, null, 2));
 
         // Check if the request was successful
         if (!response.ok) {
@@ -41,34 +41,45 @@ const PaymentCallback = () => {
 
         // Check the Edge Function response structure
         if (data.success && data.data) {
-          // PhonePe v2 API response structure
+          // PhonePe v2 API response structure from our Edge Function
           const orderData = data.data;
           console.log('[PaymentCallback] Full PhonePe order data:', JSON.stringify(orderData, null, 2));
           
-          // Try multiple possible status paths in PhonePe response
-          const state = orderData.state || orderData.status || orderData.code;
+          // PhonePe v2 API returns order status in a nested structure:
+          // Response: { success: true, data: { payload: { state: "COMPLETED" } } }
+          // OR: { success: true, data: { state: "COMPLETED" } }
+          const payload = orderData.payload || orderData;
+          const state = payload.state || payload.status || orderData.state || orderData.status;
           
-          // Also check nested data structure
-          const nestedState = orderData.data?.state || orderData.data?.status;
-          const finalState = nestedState || state;
+          console.log('[PaymentCallback] Extracted payment state:', state);
           
-          console.log('[PaymentCallback] Payment state from PhonePe:', finalState);
-          
-          // PhonePe v2 uses these status values:
-          // COMPLETED/SUCCESS = successful payment
-          // FAILED/FAILURE = failed payment
+          // PhonePe v2 status values:
+          // COMPLETED = successful payment
+          // FAILED = failed payment  
           // PENDING = payment in progress
-          if (finalState === 'COMPLETED' || finalState === 'SUCCESS' || finalState === 'PAYMENT_SUCCESS') {
+          if (state === 'COMPLETED' || state === 'SUCCESS' || state === 'PAYMENT_SUCCESS') {
             return 'COMPLETED';
-          } else if (finalState === 'FAILED' || finalState === 'FAILURE' || finalState === 'PAYMENT_ERROR') {
+          } else if (state === 'FAILED' || state === 'FAILURE' || state === 'PAYMENT_ERROR') {
             return 'FAILED';
+          } else if (state === 'PENDING') {
+            return 'PENDING';
           } else {
+            console.warn('[PaymentCallback] Unknown payment state:', state);
             return 'PENDING';
           }
         }
         
         // If response structure is different, log and return failed
         console.error('[PaymentCallback] Unexpected response structure:', data);
+        
+        // If response says not successful but we got a 200, might be payment pending/failed
+        if (data.success === false) {
+          if (data.code === 'PAYMENT_PENDING' || data.message?.includes('pending')) {
+            return 'PENDING';
+          }
+          return 'FAILED';
+        }
+        
         return 'FAILED';
       } catch (error) {
         console.error('[PaymentCallback] Error checking PhonePe status:', error);
@@ -83,7 +94,15 @@ const PaymentCallback = () => {
       const transactionId = searchParams.get('transactionId');
       const orderParam = searchParams.get('order');
       
+      // Log all URL parameters for debugging
+      console.log('[PaymentCallback] Received URL parameters:', {
+        transactionId,
+        order: orderParam,
+        allParams: Object.fromEntries(searchParams.entries())
+      });
+      
       if (!transactionId && !orderParam) {
+        console.error('[PaymentCallback] No transaction ID or order ID in URL');
         setStatus('failed');
         return;
       }
@@ -175,6 +194,11 @@ const PaymentCallback = () => {
             // Payment successful - update our records
             console.log('[PaymentCallback] Payment COMPLETED, updating transaction and order');
             
+            toast({
+              title: "Payment Verified",
+              description: "Payment confirmed with PhonePe. Updating your order...",
+            });
+            
             // Update payment transaction status
             const { error: txUpdateError } = await supabase
               .from('payment_transactions')
@@ -262,6 +286,8 @@ const PaymentCallback = () => {
 
             // Still pending - check PhonePe one final time
             const finalPhonePeStatus = await checkPhonePeOrderStatus(transactionId);
+            console.log('[PaymentCallback] Final PhonePe status check:', finalPhonePeStatus);
+            
             if (finalPhonePeStatus === 'COMPLETED') {
               // Update records
               await supabase
@@ -286,12 +312,28 @@ const PaymentCallback = () => {
               clearCart();
               setStatus('success');
               return;
+            } else if (finalPhonePeStatus === 'FAILED') {
+              console.log('[PaymentCallback] Final check: Payment FAILED');
+              setStatus('failed');
+              return;
             }
+            
+            // If still pending after all checks, show failed with appropriate message
+            console.log('[PaymentCallback] Payment still pending after all checks');
+            setStatus('failed');
+            return;
           }
         }
 
-        // If we reach here without a definitive status, payment was cancelled or user closed the payment window
-        console.log('[PaymentCallback] Payment not completed - user may have cancelled');
+        // If we reach here, no transaction ID was provided or status couldn't be determined
+        console.log('[PaymentCallback] Unable to verify payment status');
+        
+        toast({
+          title: "Verification Issue",
+          description: "We couldn't automatically verify your payment. Please check your orders page or contact support if you were charged.",
+          variant: "destructive",
+        });
+        
         setStatus('failed');
 
       } catch (error) {
@@ -303,11 +345,58 @@ const PaymentCallback = () => {
     verifyPayment();
   }, [searchParams, clearCart]);
 
-  const handleContinue = () => {
+  // Auto-redirect on success after 2 seconds
+  useEffect(() => {
     if (status === 'success') {
-      // Clear cart only on successful payment
-      // Note: Cart clearing should be handled in the context when payment succeeds
-      navigate('/orders');
+      const timer = setTimeout(() => {
+        handleContinue();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
+
+  const handleContinue = async () => {
+    if (status === 'success') {
+      // Check if user is authenticated or guest
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Get order details
+      let orderEmail = user?.email;
+      let customerName = '';
+      
+      if (orderId) {
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('customer_email, customer_name, user_id')
+          .eq('id', orderId)
+          .single();
+        
+        if (orderData) {
+          orderEmail = orderData.customer_email || orderEmail;
+          customerName = orderData.customer_name || '';
+          
+          // If order has no user_id, it's a guest order
+          if (!orderData.user_id) {
+            navigate('/guest-thank-you', {
+              state: {
+                orderId,
+                email: orderEmail,
+                name: customerName
+              }
+            });
+            return;
+          }
+        }
+      }
+      
+      // Authenticated user
+      navigate('/user-thank-you', {
+        state: {
+          orderId,
+          email: orderEmail
+        }
+      });
     } else {
       navigate('/checkout');
     }
@@ -332,9 +421,12 @@ const PaymentCallback = () => {
           <>
             <div className="text-green-500 text-6xl mb-4">✓</div>
             <h2 className="text-2xl font-bold mb-2 text-green-600">Payment Successful!</h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Your order has been placed successfully. You will receive a confirmation email shortly.
             </p>
+            <div className="text-sm text-muted-foreground">
+              Redirecting...
+            </div>
           </>
         ) : (
           <>
@@ -346,9 +438,11 @@ const PaymentCallback = () => {
           </>
         )}
 
-        <Button onClick={handleContinue} className="w-full">
-          {status === 'success' ? 'View Orders' : 'Try Again'}
-        </Button>
+        {status === 'failed' && (
+          <Button onClick={handleContinue} className="w-full">
+            Try Again
+          </Button>
+        )}
       </Card>
     </div>
   );
