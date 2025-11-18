@@ -12,13 +12,7 @@ CREATE POLICY "Users can update their own ratings" ON product_ratings
 -- Ensure the policy for admins to update ratings still exists
 DROP POLICY IF EXISTS "Admins can update all ratings" ON product_ratings;
 CREATE POLICY "Admins can update all ratings" ON product_ratings
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
+  FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
 
 -- When a user updates their rating, set the status back to 'pending' if it was 'approved'
 -- This trigger will automatically handle setting the status back to pending on edit

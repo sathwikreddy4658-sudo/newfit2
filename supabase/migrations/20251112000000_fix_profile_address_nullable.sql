@@ -3,7 +3,8 @@
 
 -- Make address nullable
 ALTER TABLE public.profiles
-ALTER COLUMN address DROP NOT NULL
+ALTER COLUMN address DROP NOT NULL;
+
 -- Update the handle_new_user function to handle address properly
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -32,4 +33,4 @@ EXCEPTION
     RAISE WARNING 'Error in handle_new_user: %', SQLERRM;
     RETURN NEW;
 END;
-$$
+$$;
