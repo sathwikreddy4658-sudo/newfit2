@@ -20,36 +20,48 @@ const PaymentCallback = () => {
       try {
         // Call PhonePe Order Status API via our Edge Function
         // The Edge Function will handle authentication with PhonePe
+        console.log('[PaymentCallback] Calling phonepe-check-status with:', merchantTransactionId);
+        
         const response = await fetch(`https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-check-status`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ merchantTransactionId: merchantTransactionId })
+          body: JSON.stringify({ merchantTransactionId })
         });
 
         const data = await response.json();
-        console.log('[PaymentCallback] PhonePe status check:', data);
+        console.log('[PaymentCallback] PhonePe API response:', data);
 
-        // Check the actual PhonePe response structure
+        // Check if the request was successful
+        if (!response.ok) {
+          console.error('[PaymentCallback] PhonePe check-status error:', response.status, data);
+          return 'FAILED';
+        }
+
+        // Check the Edge Function response structure
         if (data.success && data.data) {
-          const state = data.data.state;
+          // PhonePe v2 API response structure: data.data contains the order status
+          const orderData = data.data;
+          const state = orderData.state || orderData.status;
+          
           console.log('[PaymentCallback] Payment state from PhonePe:', state);
           
-          if (state === 'COMPLETED') {
+          if (state === 'COMPLETED' || state === 'SUCCESS') {
             return 'COMPLETED';
-          } else if (state === 'FAILED') {
+          } else if (state === 'FAILED' || state === 'FAILURE') {
             return 'FAILED';
           } else {
             return 'PENDING';
           }
         }
         
-        // If no success or no data, treat as failed
+        // If response structure is different, log and return failed
+        console.error('[PaymentCallback] Unexpected response structure:', data);
         return 'FAILED';
       } catch (error) {
         console.error('[PaymentCallback] Error checking PhonePe status:', error);
-        return null;
+        return 'FAILED';
       }
     };
 

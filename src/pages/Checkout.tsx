@@ -209,6 +209,8 @@ const Checkout = () => {
 
     // Handle COD payment
     if (paymentMethod === 'cod') {
+      console.log('[Checkout] Confirming COD order:', { orderId, merchantTransactionId });
+      
       // For COD, mark order as confirmed using database function
       // This bypasses RLS restrictions
       const { data: confirmData, error: confirmError } = await (supabase.rpc as any)('confirm_cod_order', {
@@ -217,16 +219,41 @@ const Checkout = () => {
       });
 
       if (confirmError) {
-        console.error('[Checkout] Error confirming COD order:', confirmError);
+        console.error('[Checkout] COD confirmation error:', {
+          code: confirmError.code,
+          message: confirmError.message,
+          details: confirmError.details,
+          hint: confirmError.hint
+        });
+        
+        // If order is already processed or not found, check current status
+        if (confirmError.message?.includes('already processed')) {
+          const { data: orderCheck } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('id', orderId)
+            .single();
+          
+          if (orderCheck && orderCheck.status === 'confirmed') {
+            console.log('[Checkout] Order already confirmed, proceeding...');
+            clearCart();
+            setShowSuccess(true);
+            setProcessing(false);
+            return;
+          }
+        }
+        
         toast({
           title: "Error",
-          description: "Failed to confirm COD order. Please try again.",
+          description: confirmError.message || "Failed to confirm COD order. Please try again.",
           variant: "destructive"
         });
         setProcessing(false);
         return;
       }
 
+      console.log('[Checkout] COD order confirmed successfully:', confirmData);
+      
       // Clear cart and show success
       clearCart();
       setShowSuccess(true);
