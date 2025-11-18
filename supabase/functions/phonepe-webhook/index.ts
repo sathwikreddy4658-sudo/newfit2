@@ -33,7 +33,7 @@ serve(async (req: Request) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Verify, x-client-info, apikey',
+        'Access-Control-Allow-Headers': 'Content-Type, X-Verify, Authorization, x-client-info, apikey',
         'Access-Control-Max-Age': '86400'
       }
     })
@@ -44,6 +44,26 @@ serve(async (req: Request) => {
       status: 405,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     })
+  }
+
+  // Verify basic authentication
+  const authHeader = req.headers.get('Authorization')
+  if (authHeader) {
+    const base64Credentials = authHeader.split(' ')[1]
+    const credentials = atob(base64Credentials)
+    const [username, password] = credentials.split(':')
+    
+    const expectedUsername = '6302582245'
+    const expectedPassword = 'Batsy123'
+    
+    if (username !== expectedUsername || password !== expectedPassword) {
+      console.error('[PhonePe Webhook] Authentication failed')
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+    console.log('[PhonePe Webhook] Authentication successful')
   }
 
   try {
