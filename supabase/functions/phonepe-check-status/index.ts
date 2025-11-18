@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const PHONEPE_MERCHANT_ID = Deno.env.get('PHONEPE_MERCHANT_ID') || 'M23DXJKWOH2QZ';
-const PHONEPE_CLIENT_ID = Deno.env.get('PHONEPE_CLIENT_ID') || 'SU2511071520405754774079';
-const PHONEPE_CLIENT_SECRET = Deno.env.get('PHONEPE_CLIENT_SECRET') || '';
+const PHONEPE_AUTH_TOKEN = Deno.env.get('PHONEPE_AUTH_TOKEN') || '';
 const PHONEPE_API_URL = Deno.env.get('PHONEPE_API_URL') || 'https://api.phonepe.com/apis/pg';
 
 serve(async (req: Request) => {
@@ -56,23 +55,22 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log('[PhonePe Check Status Edge Function]', { merchantTransactionId });
+    console.log('[PhonePe Check Status v2 API]', { merchantTransactionId });
 
     // Validate credentials
-    if (!PHONEPE_CLIENT_SECRET) {
-      console.error('[PhonePe Check Status] Missing PHONEPE_CLIENT_SECRET');
+    if (!PHONEPE_AUTH_TOKEN) {
+      console.error('[PhonePe Check Status] Missing PHONEPE_AUTH_TOKEN');
       console.error('[PhonePe Check Status] Environment variables:', {
         PHONEPE_MERCHANT_ID: PHONEPE_MERCHANT_ID ? 'SET' : 'MISSING',
-        PHONEPE_CLIENT_ID: PHONEPE_CLIENT_ID ? 'SET' : 'MISSING',
-        PHONEPE_CLIENT_SECRET: PHONEPE_CLIENT_SECRET ? 'SET' : 'MISSING',
+        PHONEPE_AUTH_TOKEN: PHONEPE_AUTH_TOKEN ? 'SET' : 'MISSING',
         PHONEPE_API_URL: PHONEPE_API_URL ? 'SET' : 'MISSING'
       });
       return new Response(
         JSON.stringify({
           success: false,
           code: 'CONFIG_ERROR',
-          message: 'PhonePe credentials not configured. Please add PHONEPE_CLIENT_SECRET to Supabase Edge Function secrets.',
-          details: 'Missing environment variable: PHONEPE_CLIENT_SECRET'
+          message: 'PhonePe credentials not configured. Please add PHONEPE_AUTH_TOKEN to Supabase Edge Function secrets.',
+          details: 'Missing environment variable: PHONEPE_AUTH_TOKEN'
         }),
         {
           status: 500,
@@ -84,20 +82,16 @@ serve(async (req: Request) => {
       );
     }
 
-    // Create Basic Auth header
-    const credentials = `${PHONEPE_CLIENT_ID}:${PHONEPE_CLIENT_SECRET}`;
-    const encodedCredentials = btoa(credentials);
-    const authHeader = 'Basic ' + encodedCredentials;
-
-    // Call PhonePe API
-    const phonepeUrl = `${PHONEPE_API_URL}/v1/status/${PHONEPE_MERCHANT_ID}/${merchantTransactionId}`;
-    console.log('[PhonePe Check Status] Calling URL:', phonepeUrl);
+    // Call PhonePe v2 Order Status API
+    // GET /checkout/v2/order/{merchantOrderId}/status
+    const phonepeUrl = `${PHONEPE_API_URL}/checkout/v2/order/${merchantTransactionId}/status?details=false`;
+    console.log('[PhonePe Check Status] Calling v2 API:', phonepeUrl);
 
     const response = await fetch(phonepeUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader
+        'Authorization': `O-Bearer ${PHONEPE_AUTH_TOKEN}`
       }
     });
 

@@ -19,6 +19,7 @@ const PaymentCallback = () => {
     const checkPhonePeOrderStatus = async (merchantTransactionId: string) => {
       try {
         // Call PhonePe Order Status API via our Edge Function
+        // The Edge Function will handle authentication with PhonePe
         const response = await fetch(`https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-check-status`, {
           method: 'POST',
           headers: {

@@ -140,6 +140,11 @@ const OrdersTab = () => {
                       <Badge variant={getStatusColor(order.status)} className="text-sm px-2 py-1">
                         {order.status.toUpperCase()}
                       </Badge>
+                      {order.payment_method === 'COD' && order.status === 'confirmed' && (
+                        <Badge className="bg-blue-100 text-blue-800 text-xs px-2 py-1">
+                          COD
+                        </Badge>
+                      )}
                     </div>
                   </div>
 

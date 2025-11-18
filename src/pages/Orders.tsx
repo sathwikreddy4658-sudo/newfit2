@@ -49,26 +49,18 @@ const Orders = () => {
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      // Filter to show only successfully placed orders (exclude cancelled)
-      setOrders(data.filter(order => order.status !== "cancelled"));
+      // Filter to show only successful orders:
+      // - paid: online payment successful
+      // - confirmed: COD orders
+      // Exclude: pending (payment not completed), cancelled
+      setOrders(data.filter(order => 
+        order.status === 'paid' || 
+        order.status === 'confirmed' || 
+        order.status === 'shipped' || 
+        order.status === 'delivered'
+      ));
     }
     setLoading(false);
-  };
-
-  const handleCancel = async (orderId: string, items: any[]) => {
-    // Stock will be restored automatically by database trigger
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: "cancelled" })
-      .eq("id", orderId);
-
-    if (error) {
-      toast({ title: "Cancellation failed", variant: "destructive" });
-      return;
-    }
-
-    toast({ title: "Order cancelled. Stock restored." });
-    if (user) fetchOrders(user.id);
   };
 
   const getStatusColor = (status: string) => {
@@ -77,11 +69,26 @@ const Orders = () => {
         return "default";
       case "shipped":
         return "secondary";
+      case "paid":
+        return "outline";
+      case "confirmed":
+        return "outline";
       case "cancelled":
         return "destructive";
       default:
         return "outline";
     }
+  };
+
+  const getStatusLabel = (order: any) => {
+    // Show payment method for confirmed/paid orders
+    if (order.status === 'confirmed' && order.payment_method === 'COD') {
+      return 'COD - Confirmed';
+    }
+    if (order.status === 'paid') {
+      return 'Paid';
+    }
+    return order.status.charAt(0).toUpperCase() + order.status.slice(1);
   };
 
   if (loading) {
@@ -106,9 +113,14 @@ const Orders = () => {
                   <p className="text-sm text-muted-foreground">
                     {new Date(order.created_at).toLocaleDateString()}
                   </p>
+                  {order.payment_method && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Payment: {order.payment_method}
+                    </p>
+                  )}
                 </div>
                 <Badge variant={getStatusColor(order.status)}>
-                  {order.status}
+                  {getStatusLabel(order)}
                 </Badge>
               </div>
 
@@ -125,16 +137,7 @@ const Orders = () => {
 
               <div className="flex justify-between items-center pt-4 border-t">
                 <span className="font-bold">Total: ₹{order.total_price}</span>
-                {order.status === "pending" && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleCancel(order.id, order.order_items)}
-                    className="font-poppins font-bold"
-                  >
-                    Cancel Order
-                  </Button>
-                )}
+                {/* Orders shown here are confirmed - cancellation must be done through admin/support */}
               </div>
             </Card>
           ))}
