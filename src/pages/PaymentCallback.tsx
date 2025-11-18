@@ -73,13 +73,13 @@ const PaymentCallback = () => {
         if (orderParam) {
           const { data: orderData, error: orderError } = await supabase
             .from('orders')
-            .select('status, payment_id, paid')
+            .select('status, payment_id')
             .eq('id', orderParam)
             .single();
 
           console.log('[PaymentCallback] Order query result:', { orderData, orderError });
 
-          if (!orderError && orderData && (orderData.status === 'paid' || orderData.paid === true)) {
+          if (!orderError && orderData && orderData.status === 'paid') {
             clearCart();
             setStatus('success');
             toast({
@@ -98,13 +98,15 @@ const PaymentCallback = () => {
         // we'll optimistically assume success since PhonePe redirects on success
         // This is a workaround until webhook is properly configured
         if (transactionId && orderParam) {
-          // Update order to paid status
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ status: 'paid', paid: true, payment_id: transactionId })
-            .eq('id', orderParam);
+          // Use RPC function to confirm payment (handles RLS properly)
+          const { error: confirmError } = await supabase.rpc('confirm_payment_for_order', {
+            p_order_id: orderParam,
+            p_transaction_id: transactionId
+          });
 
-          if (!updateError) {
+          console.log('[PaymentCallback] Confirm payment result:', { confirmError });
+
+          if (!confirmError) {
             clearCart();
             setStatus('success');
             toast({
@@ -112,6 +114,8 @@ const PaymentCallback = () => {
               description: "Your order has been confirmed!",
             });
             return;
+          } else {
+            console.error('[PaymentCallback] Failed to confirm payment:', confirmError);
           }
         }
 
