@@ -39,20 +39,8 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
   // Parse initial address if provided
   useEffect(() => {
     if (initialAddress) {
-      // Try to parse the existing address format
-      const parts = initialAddress.split(", ");
-      if (parts.length >= 4) {
-        setFormData(prev => ({
-          ...prev,
-          flat_no: "",
-          building_name: "",
-          street_address: parts[0] || prev.street_address,
-          city: parts[1] || prev.city,
-          state: parts[2] || prev.state,
-          pincode: parts[3]?.replace(/\D/g, "") || prev.pincode,
-          landmark: parts[4] || prev.landmark,
-        }));
-      }
+      // Don't auto-fill - just leave fields empty for user to fill
+      // This prevents automatic population of street address from other fields
     }
     if (initialPhone) {
       setPhone(initialPhone);
@@ -80,24 +68,18 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
       newErrors.phone = getPhoneNumberErrorMessage(phone);
     }
 
-    // Validate address
-    if (!validateAddress(formData.street_address)) {
-      newErrors.address = getAddressErrorMessage(formData.street_address);
+    // Validate required fields
+    if (!formData.street_address.trim()) {
+      newErrors.street_address = "Street address is required";
     }
-
-    // Validate city
-    if (!formData.city || formData.city.trim().length < 2) {
-      newErrors.city = "City must be at least 2 characters";
+    if (!formData.city.trim()) {
+      newErrors.city = "City is required";
     }
-
-    // Validate state
-    if (!formData.state || formData.state.trim().length < 2) {
-      newErrors.state = "State must be at least 2 characters";
+    if (!formData.state.trim()) {
+      newErrors.state = "State is required";
     }
-
-    // Validate pincode
-    if (!formData.pincode || !/^\d{6}$/.test(formData.pincode)) {
-      newErrors.pincode = "Pincode must be 6 digits";
+    if (!formData.pincode || formData.pincode.length !== 6) {
+      newErrors.pincode = "Valid 6-digit pincode is required";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -106,15 +88,7 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
       return;
     }
 
-    // Validate form data with schema
-    const validationResult = addressSchema.safeParse(formData);
-    if (!validationResult.success) {
-      const firstError = validationResult.error.errors[0];
-      toast.error(firstError.message);
-      return;
-    }
-
-    // Format address
+    // Format address from individual fields
     const addressParts = [
       formData.flat_no && formData.building_name
         ? `${formData.flat_no}, ${formData.building_name}`
@@ -180,24 +154,34 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
           {/* Address Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="flat_no">Flat/House Number (Optional)</Label>
+              <Label htmlFor="flat_no">Flat/House Number *</Label>
               <Input
                 id="flat_no"
                 type="text"
                 value={formData.flat_no}
                 onChange={(e) => handleInputChange("flat_no", e.target.value)}
                 placeholder="e.g., 123, A-456"
+                className={errors.flat_no ? "border-red-500 bg-red-50" : ""}
+                required
               />
+              {errors.flat_no && (
+                <p className="text-red-600 text-sm">{errors.flat_no}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="building_name">Building Name (Optional)</Label>
+              <Label htmlFor="building_name">Building Name *</Label>
               <Input
                 id="building_name"
                 type="text"
                 value={formData.building_name}
                 onChange={(e) => handleInputChange("building_name", e.target.value)}
                 placeholder="e.g., Shiva Towers, Green Park"
+                className={errors.building_name ? "border-red-500 bg-red-50" : ""}
+                required
               />
+              {errors.building_name && (
+                <p className="text-red-600 text-sm">{errors.building_name}</p>
+              )}
             </div>
           </div>
 
@@ -209,10 +193,11 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
               onChange={(e) => handleInputChange("street_address", e.target.value)}
               placeholder="Enter complete street address"
               rows={2}
-              className={errors.address ? "border-red-500 bg-red-50" : ""}
+              className={errors.street_address ? "border-red-500 bg-red-50" : ""}
+              required
             />
-            {errors.address && (
-              <p className="text-red-600 text-sm">{errors.address}</p>
+            {errors.street_address && (
+              <p className="text-red-600 text-sm">{errors.street_address}</p>
             )}
           </div>
 

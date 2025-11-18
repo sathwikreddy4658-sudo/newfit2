@@ -13,7 +13,7 @@ serve(async (req: Request) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
         'Access-Control-Max-Age': '86400',
       },
     });
@@ -128,6 +128,8 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
+        code: 'SUCCESS',
+        message: 'Payment status retrieved successfully',
         data: data
       }),
       {

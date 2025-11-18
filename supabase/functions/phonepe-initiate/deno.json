@@ -1,1 +1,8 @@
-esm_build_options = { jsfmt = false }
+{
+  "esm": true,
+  "fmt": {
+    "semiColons": true,
+    "singleQuote": true,
+    "proseWrap": "preserve"
+  }
+}

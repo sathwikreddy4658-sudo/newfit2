@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { sanitizeError } from "@/lib/errorUtils";
 import { guestCheckoutSchema } from "@/lib/validation";
-import { initiatePhonePePayment, storePaymentDetails } from "@/lib/phonepe";
+import { initiatePhonePePayment, createPaymentTransaction } from "@/lib/phonepe";
 import AddressForm from "@/components/AddressForm";
 import { Loader2 } from "lucide-react";
 import {
@@ -29,6 +29,7 @@ const Checkout = () => {
   const [processing, setProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('cod');
 
   // Guest checkout state
   const isGuestCheckout = location.state?.isGuest || false;
@@ -89,11 +90,40 @@ const Checkout = () => {
         return;
       }
       setGuestErrors({});
-    } else if (!user || !profile) {
-      return;
+    } else {
+      // For authenticated users, ensure user is loaded
+      if (!user || !profile) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue with payment.",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     setProcessing(true);
+
+    // Get authenticated user for payment (required for security)
+    let authUser = user;
+    if (!authUser && isGuestCheckout) {
+      // For guest checkout, we still need to get or create a user session
+      // to ensure payment tracking. Retrieve current user context.
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      authUser = currentUser;
+    }
+
+    // If still no authenticated user for guest, require login
+    if (!authUser) {
+      toast({
+        title: "Login Required",
+        description: "Guest checkout is not yet fully supported. Please log in to proceed with payment.",
+        variant: "destructive"
+      });
+      setProcessing(false);
+      navigate("/auth");
+      return;
+    }
 
     // Prepare order items for atomic creation
     const orderItems = items.map(item => ({
@@ -103,31 +133,16 @@ const Checkout = () => {
       quantity: item.quantity,
     }));
 
-    // Create order params - database function expects user_id as first parameter
-    // For guest checkout, we need to use a guest user or create one first
-    let orderParams: any;
-    let finalUserId = user?.id;
-
-    if (isGuestCheckout) {
-      // For guest checkout, create or use guest user
-      // Store guest details in order notes for admin
-      orderParams = {
-        p_user_id: finalUserId || '00000000-0000-0000-0000-000000000000', // UUID placeholder for guest
-        p_total_price: discountedTotal,
-        p_address: guestData.address,
-        p_payment_id: null, // Will be updated after payment
-        p_items: orderItems,
-      };
-    } else {
-      // Create authenticated user order
-      orderParams = {
-        p_user_id: user.id,
-        p_total_price: discountedTotal,
-        p_address: profile.address,
-        p_payment_id: null, // Will be updated after payment
-        p_items: orderItems,
-      };
-    }
+    // Create order params - always use authenticated user_id
+    // For now, pass the original total (before discount) for validation
+    // The database function will validate items sum matches this total
+    const orderParams = {
+      p_user_id: authUser.id,
+      p_total_price: totalPrice, // Original total (before discount) for validation
+      p_address: isGuestCheckout ? guestData.address : profile.address,
+      p_payment_id: null, // Will be updated after payment
+      p_items: orderItems,
+    };
 
     // Create order and items atomically using database function
     const { data, error } = await (supabase.rpc as any)('create_order_with_items', orderParams);
@@ -174,7 +189,7 @@ const Checkout = () => {
             .insert({
               promo_code_id: promoData.id,
               order_id: orderId,
-              user_id: user.id,
+              user_id: authUser.id,
             });
         }
       } catch (error) {
@@ -186,33 +201,111 @@ const Checkout = () => {
     // Generate unique transaction ID
     const merchantTransactionId = `MT${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
 
+    // Handle COD payment
+    if (paymentMethod === 'cod') {
+      // For COD, mark order as confirmed and skip online payment
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'confirmed',
+          payment_method: 'COD',
+          payment_id: merchantTransactionId
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('[Checkout] Error updating order for COD:', updateError);
+        toast({
+          title: "Error",
+          description: "Failed to confirm COD order. Please try again.",
+          variant: "destructive"
+        });
+        setProcessing(false);
+        return;
+      }
+
+      // Clear cart and show success
+      clearCart();
+      setShowSuccess(true);
+      setProcessing(false);
+      
+      // Redirect to orders page after 2 seconds
+      setTimeout(() => {
+        navigate('/orders');
+      }, 2000);
+      
+      return;
+    }
+
+    // Handle online payment (PhonePe)
+    // Get phone number from authenticated user profile or guest data
+    let phoneNumber = guestData.phone;
+    if (!phoneNumber && profile) {
+      // Try to get from user profile phone field if it exists
+      phoneNumber = profile.phone;
+    }
+    
+    // Ensure phone number is never undefined/null
+    if (!phoneNumber || typeof phoneNumber !== 'string') {
+      phoneNumber = '';
+    }
+
     // Initiate PhonePe payment
     const paymentOptions = {
-      amount: Math.round(discountedTotal * 100), // Convert to paisa
+      amount: Math.round(discountedTotal), // Send in rupees - Edge Function converts to paisa
       merchantTransactionId,
-      merchantUserId: isGuestCheckout ? guestData.email : user.id,
+      merchantUserId: authUser.id,
       redirectUrl: `${window.location.origin}/payment/callback?transactionId=${merchantTransactionId}&order=${orderId}`,
-      callbackUrl: `${window.location.origin}/api/payment/callback`,
-      mobileNumber: isGuestCheckout ? guestData.phone : undefined,
+      callbackUrl: `https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-webhook`,
+      mobileNumber: phoneNumber,
       deviceContext: {
         deviceOS: navigator.platform.includes('Mac') ? 'MAC' : 'WINDOWS'
       }
     };
 
+    console.log('[Checkout] About to initiate payment with options:', {
+      amount: { value: paymentOptions.amount, rupees: `₹${paymentOptions.amount}`, type: typeof paymentOptions.amount },
+      merchantTransactionId: { value: paymentOptions.merchantTransactionId, type: typeof paymentOptions.merchantTransactionId },
+      callbackUrl: { value: paymentOptions.callbackUrl, type: typeof paymentOptions.callbackUrl },
+      merchantUserId: paymentOptions.merchantUserId,
+      mobileNumber: paymentOptions.mobileNumber
+    });
+
     const paymentResponse = await initiatePhonePePayment(paymentOptions);
 
-    if (paymentResponse.success && paymentResponse.data?.instrumentResponse?.redirectInfo?.url) {
-      // Store payment details
-      await storePaymentDetails(orderId, {
-        order_id: orderId,
-        merchant_transaction_id: merchantTransactionId,
-        amount: paymentOptions.amount,
-        status: 'INITIATED'
-      });
+    console.log('[Checkout] Payment response received:', {
+      success: paymentResponse.success,
+      code: paymentResponse.code,
+      message: paymentResponse.message,
+      data: paymentResponse.data
+    });
 
-      // Redirect to PhonePe payment page
-      window.location.href = paymentResponse.data.instrumentResponse.redirectInfo.url;
+    // PhonePe v2.0 API returns redirectUrl directly in response
+    const redirectUrl = paymentResponse.data?.redirectUrl;
+
+    if (paymentResponse.success && redirectUrl) {
+      // Create payment transaction record for tracking
+      // Order status will be updated by webhook after payment confirmation
+      try {
+        await createPaymentTransaction(orderId, merchantTransactionId, paymentOptions.amount);
+        console.log('[Checkout] Payment transaction recorded:', { orderId, merchantTransactionId });
+      } catch (error) {
+        console.error('[Checkout] Error creating payment transaction record:', error);
+        // Don't fail checkout for this - webhook will handle it
+      }
+
+      console.log('[Checkout] Opening PhonePe payment page (redirect):', redirectUrl);
+      // Use full-page redirect - PhonePe's page will load in their own domain
+      // This avoids CSP issues since the page runs on phonepe.com, not on our domain
+      window.location.href = redirectUrl;
     } else {
+      console.error('[Checkout] Payment initiation failed:', {
+        success: paymentResponse.success,
+        hasRedirectUrl: !!redirectUrl,
+        code: paymentResponse.code,
+        message: paymentResponse.message
+      });
+      
       toast({
         title: "Payment initiation failed",
         description: paymentResponse.message || "Unable to initiate payment. Please try again.",
@@ -347,6 +440,38 @@ const Checkout = () => {
               <div className="flex justify-between font-bold text-lg pt-2 border-t">
                 <span>Total</span>
                 <span>₹{discountedTotal.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="font-semibold mb-2">Payment Method</h3>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cod"
+                    checked={paymentMethod === 'cod'}
+                    onChange={() => setPaymentMethod('cod')}
+                    className="w-4 h-4"
+                  />
+                  <span>Cash on Delivery (COD)</span>
+                </label>
+                <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 opacity-60">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="online"
+                    checked={paymentMethod === 'online'}
+                    onChange={() => setPaymentMethod('online')}
+                    className="w-4 h-4"
+                    disabled
+                  />
+                  <div>
+                    <div>Online Payment (PhonePe)</div>
+                    <div className="text-xs text-red-500">Currently unavailable - Contact support</div>
+                  </div>
+                </label>
               </div>
             </div>
 

@@ -359,8 +359,17 @@ const ProductDetail = () => {
         </div>
 
         <div>
-          <h1 className="font-saira font-black uppercase text-[#5e4338] text-5xl mb-6">{product.name}</h1>
-          <p className="font-poppins font-black uppercase text-[#3b2a20] text-lg mb-4">PROTEIN BAR</p>
+          <div className="flex items-start gap-4 mb-6">
+            <div className="flex-1">
+              <h1 className="font-saira font-black uppercase text-[#5e4338] text-5xl mb-2">{product.name}</h1>
+              <p className="font-poppins font-black uppercase text-[#3b2a20] text-lg">PROTEIN BAR</p>
+            </div>
+            {product.stock === 0 && (
+              <div className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">
+                OUT OF STOCK
+              </div>
+            )}
+          </div>
           <div className="flex gap-2 mb-6">
             <Button
               variant="outline"
@@ -440,11 +449,11 @@ const ProductDetail = () => {
           <div className="flex gap-2 mb-4">
             <Button
               onClick={handleAddToCart}
-              disabled={product.stock < selectedQuantity}
-              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-4 text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150"
+              disabled={product.stock === 0 || product.stock < selectedQuantity}
+              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-4 text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
-              Add to Cart
+              {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
             </Button>
             {cartQuantity >= minOrderQuantity && (
               <Button

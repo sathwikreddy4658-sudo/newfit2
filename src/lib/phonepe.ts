@@ -8,15 +8,16 @@ import CryptoJS from 'crypto-js';
 
 // PhonePe API Configuration for Production
 const PHONEPE_MERCHANT_ID = import.meta.env.VITE_PHONEPE_MERCHANT_ID || '';
-const PHONEPE_CLIENT_ID = import.meta.env.VITE_PHONEPE_CLIENT_ID || '';
-const PHONEPE_CLIENT_SECRET = import.meta.env.VITE_PHONEPE_CLIENT_SECRET || '';
 const PHONEPE_API_URL = import.meta.env.VITE_PHONEPE_API_URL || 'https://api.phonepe.com/apis/pg';
 const PHONEPE_CALLBACK_URL = import.meta.env.VITE_PHONEPE_CALLBACK_URL || '';
 
 // Validate configuration
-if (!PHONEPE_MERCHANT_ID || !PHONEPE_CLIENT_ID || !PHONEPE_CLIENT_SECRET) {
-  console.warn('⚠️ PhonePe credentials not fully configured');
+if (!PHONEPE_MERCHANT_ID || !PHONEPE_API_URL) {
+  console.warn('⚠️ PhonePe merchant configuration incomplete');
 }
+
+// NOTE: PHONEPE_CLIENT_ID and PHONEPE_CLIENT_SECRET are NEVER exposed to client
+// They are only available in Supabase Edge Function environment variables
 
 export interface PhonePePaymentOptions {
   amount: number; // Amount in paisa (1 INR = 100 paisa)
@@ -35,8 +36,14 @@ export interface PhonePeOrderResponse {
   code: string;
   message: string;
   data?: {
-    merchantId: string;
-    merchantTransactionId: string;
+    // PhonePe v2.0 Standard Checkout response
+    orderId?: string;
+    state?: 'PENDING' | 'COMPLETED' | 'FAILED';
+    redirectUrl?: string;
+    expireAt?: number;
+    // Legacy v1 fields (for backward compatibility)
+    merchantId?: string;
+    merchantTransactionId?: string;
     instrumentResponse?: {
       redirectInfo?: {
         url: string;
@@ -94,27 +101,38 @@ export async function initiatePhonePePayment(
         amount: options.amount
       });
 
-      // Call Supabase Edge Function instead of direct API call
-      const { data, error } = await supabase.functions.invoke('phonepe-initiate', {
-        body: {
-          merchantTransactionId: options.merchantTransactionId,
-          amount: options.amount,
-          mobileNumber: options.mobileNumber || '',
-          callbackUrl: options.callbackUrl,
-          merchantUserId: options.merchantUserId,
-          redirectUrl: options.redirectUrl
-        }
+      const requestBody = {
+        merchantTransactionId: options.merchantTransactionId,
+        amount: options.amount,
+        callbackUrl: options.callbackUrl,
+        merchantUserId: options.merchantUserId,
+        redirectUrl: options.redirectUrl
+      };
+
+      console.log('[PhonePe] Request body being sent:', requestBody);
+
+      // Use fetch directly to get full response details
+      const response = await fetch('https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe_initiate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
+        },
+        body: JSON.stringify(requestBody)
       });
 
-      if (error) {
-        throw new Error(`Edge Function error: ${error.message}`);
+      console.log('[PhonePe] Response status:', response.status);
+
+      const data = await response.json();
+      console.log('[PhonePe] Response data:', data);
+
+      if (!response.ok) {
+        console.error('[PhonePe] Non-2xx response:', {
+          status: response.status,
+          data: data
+        });
+        throw new Error(`Edge Function returned ${response.status}: ${data.message || JSON.stringify(data)}`);
       }
-
-      console.log('[PhonePe] Payment initiation response:', {
-        success: data?.success,
-        code: data?.code,
-        message: data?.message
-      });
 
       if (data?.success) {
         return {
@@ -138,6 +156,15 @@ export async function initiatePhonePePayment(
       }
     } catch (error: unknown) {
       console.error(`[PhonePe] Payment initiation attempt ${attempt + 1} failed:`, error);
+      
+      if (error instanceof Error) {
+        console.error('[PhonePe] Error details:', {
+          message: error.message,
+          stack: error.stack,
+          toString: error.toString()
+        });
+      }
+      
       lastError = error instanceof Error ? error : new Error(String(error));
 
       // Wait before retry (exponential backoff)

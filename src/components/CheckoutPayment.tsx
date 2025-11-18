@@ -34,7 +34,7 @@ export const CheckoutPayment: React.FC<CheckoutPaymentProps> = ({
       const merchantTransactionId = `${orderId}-${Date.now()}`;
 
       // Get current URL for redirect
-      const redirectUrl = `${window.location.origin}/payment-callback`;
+      const redirectUrl = `${window.location.origin}/payment/callback`;
 
       // Initiate payment
       const response = await initiatePhonePePayment({

@@ -1,4 +1,9 @@
--- Drop and recreate create_order_with_items function with comprehensive input validation
+-- Add discount tracking to orders table
+ALTER TABLE public.orders 
+ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0 CHECK (discount_amount >= 0),
+ADD COLUMN IF NOT EXISTS original_total DECIMAL(10,2);
+
+-- Create an updated version of create_order_with_items that accepts discount
 DROP FUNCTION IF EXISTS public.create_order_with_items(uuid, numeric, text, text, jsonb);
 
 CREATE OR REPLACE FUNCTION public.create_order_with_items(
@@ -6,7 +11,8 @@ CREATE OR REPLACE FUNCTION public.create_order_with_items(
   p_total_price numeric, 
   p_address text, 
   p_payment_id text, 
-  p_items jsonb
+  p_items jsonb,
+  p_discount_amount numeric DEFAULT 0
 )
 RETURNS TABLE(order_id uuid, success boolean, error_message text)
 LANGUAGE plpgsql
@@ -20,10 +26,16 @@ DECLARE
   v_calculated_total NUMERIC := 0;
   v_item_quantity INTEGER;
   v_item_price NUMERIC;
+  v_original_total NUMERIC;
 BEGIN
   -- Validate total price range (positive and reasonable)
   IF p_total_price <= 0 OR p_total_price > 10000000 THEN
     RAISE EXCEPTION 'Invalid total price: must be between 0.01 and 10,000,000';
+  END IF;
+  
+  -- Validate discount amount
+  IF p_discount_amount < 0 OR p_discount_amount > p_total_price THEN
+    RAISE EXCEPTION 'Invalid discount amount: must be between 0 and %', p_total_price;
   END IF;
   
   -- Validate address length
@@ -71,37 +83,36 @@ BEGIN
       RAISE EXCEPTION 'Invalid product ID for %', v_item->>'product_name';
     END IF;
     
-    -- Add to calculated total
-    v_calculated_total := v_calculated_total + (v_item_price * v_item_quantity);
-  END LOOP;
-  
-  -- Verify submitted total matches calculated total (allow 0.01 variance for rounding)
-  IF ABS(p_total_price - v_calculated_total) > 0.01 THEN
-    RAISE EXCEPTION 'Total price mismatch: expected %, got %', v_calculated_total, p_total_price;
-  END IF;
-  
-  -- Start transaction (implicit in function)
-  
-  -- Create the order (user_id can be null for guest checkout)
-  INSERT INTO orders (user_id, total_price, address, payment_id, status)
-  VALUES (p_user_id, p_total_price, p_address, p_payment_id, 'pending')
-  RETURNING id INTO v_order_id;
-  
-  -- Create order items and validate stock
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    -- Check current stock
+    -- Check current stock (for validation purposes, not deduction)
     SELECT stock INTO v_current_stock
     FROM products
-    WHERE id = (v_item->>'product_id')::UUID
-    FOR UPDATE; -- Lock the row
+    WHERE id = (v_item->>'product_id')::UUID;
     
-    -- Validate sufficient stock
+    -- Validate sufficient stock is available
     IF v_current_stock < (v_item->>'quantity')::INTEGER THEN
       RAISE EXCEPTION 'Insufficient stock for product %', v_item->>'product_name';
     END IF;
     
-    -- Insert order item
+    -- Add to calculated total
+    v_calculated_total := v_calculated_total + (v_item_price * v_item_quantity);
+  END LOOP;
+  
+  -- Calculate original total (before discount)
+  v_original_total := p_total_price + p_discount_amount;
+  
+  -- Verify submitted total matches calculated total (allow 0.01 variance for rounding)
+  IF ABS(v_original_total - v_calculated_total) > 0.01 THEN
+    RAISE EXCEPTION 'Total price mismatch: expected %, got %', v_calculated_total, v_original_total;
+  END IF;
+  
+  -- Create the order (user_id can be null for guest checkout)
+  INSERT INTO orders (user_id, total_price, address, payment_id, status, discount_amount, original_total)
+  VALUES (p_user_id, p_total_price, p_address, p_payment_id, 'pending', p_discount_amount, v_original_total)
+  RETURNING id INTO v_order_id;
+  
+  -- Create order items (WITHOUT deducting stock)
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
     INSERT INTO order_items (
       order_id,
       product_id,
@@ -116,11 +127,6 @@ BEGIN
       (v_item->>'product_price')::NUMERIC,
       (v_item->>'quantity')::INTEGER
     );
-    
-    -- Decrement stock
-    UPDATE products
-    SET stock = stock - (v_item->>'quantity')::INTEGER
-    WHERE id = (v_item->>'product_id')::UUID;
   END LOOP;
   
   -- Return success

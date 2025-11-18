@@ -55,6 +55,70 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("promoCode", JSON.stringify(promoCode));
   }, [promoCode]);
 
+  // Verify stock availability when cart is loaded or changes
+  useEffect(() => {
+    if (items.length === 0) return;
+
+    const verifyStockAndCleanup = async () => {
+      const productIds = [...new Set(items.map(item => item.id))];
+      
+      try {
+        // Fetch current stock for all products in cart
+        const { data: products, error } = await supabase
+          .from('products')
+          .select('id, stock, name')
+          .in('id', productIds);
+
+        if (error) {
+          console.error('[Cart] Error fetching product stock:', error);
+          return;
+        }
+
+        if (!products) return;
+
+        // Check for out-of-stock items
+        const outOfStockIds = products
+          .filter(p => p.stock === 0)
+          .map(p => ({ id: p.id, name: p.name }));
+
+        if (outOfStockIds.length > 0) {
+          console.log('[Cart] Found out-of-stock items:', outOfStockIds);
+          
+          // Remove out-of-stock items
+          setItems((prev) => {
+            const updated = prev.filter(
+              item => !outOfStockIds.find(oos => oos.id === item.id)
+            );
+            
+            if (updated.length < prev.length) {
+              outOfStockIds.forEach(oos => {
+                toast.error(`"${oos.name}" is out of stock and has been removed from your cart.`);
+              });
+            }
+            
+            return updated;
+          });
+        }
+
+        // Update stock information for cart items
+        setItems((prev) =>
+          prev.map((item) => {
+            const product = products.find(p => p.id === item.id);
+            return product ? { ...item, stock: product.stock } : item;
+          })
+        );
+      } catch (error) {
+        console.error('[Cart] Error verifying stock:', error);
+      }
+    };
+
+    // Verify stock on mount and every 30 seconds
+    verifyStockAndCleanup();
+    const interval = setInterval(verifyStockAndCleanup, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const addItem = (item: Omit<CartItem, "quantity" | "protein"> & { quantity?: number; protein?: string }) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.id === item.id && i.protein === (item.protein || "15g"));

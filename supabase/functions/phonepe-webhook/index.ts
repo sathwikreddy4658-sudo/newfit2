@@ -33,7 +33,8 @@ serve(async (req: Request) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Verify'
+        'Access-Control-Allow-Headers': 'Content-Type, X-Verify, x-client-info, apikey',
+        'Access-Control-Max-Age': '86400'
       }
     })
   }
@@ -41,7 +42,7 @@ serve(async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
       status: 405,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     })
   }
 
@@ -113,12 +114,13 @@ serve(async (req: Request) => {
       )
     }
 
-    // If payment successful, update order status
+    // If payment successful, update order status and deduct stock
     if (paymentStatus === 'SUCCESS') {
       const { error: orderError } = await supabase
         .from('orders')
         .update({
-          paid_status: true,
+          paid: true,
+          status: 'paid',
           payment_id: merchantTransactionId,
           updated_at: new Date().toISOString()
         })
@@ -129,6 +131,20 @@ serve(async (req: Request) => {
         // Don't fail webhook for order update errors
       } else {
         console.log('[PhonePe Webhook] Order marked as paid:', transactionData.order_id)
+        
+        // Deduct stock for this order
+        try {
+          const { data: deductResult, error: deductError } = await supabase
+            .rpc('deduct_stock_for_order', { p_order_id: transactionData.order_id })
+          
+          if (deductError) {
+            console.error('[PhonePe Webhook] Stock deduction error:', deductError)
+          } else {
+            console.log('[PhonePe Webhook] Stock deducted for order:', transactionData.order_id)
+          }
+        } catch (stockError) {
+          console.error('[PhonePe Webhook] Error calling deduct_stock_for_order:', stockError)
+        }
       }
 
       // Optional: Send confirmation email

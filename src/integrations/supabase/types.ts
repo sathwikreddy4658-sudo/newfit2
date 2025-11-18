@@ -66,9 +66,11 @@ export interface Database {
           id: string
           items: Json
           order_number: string
+          paid: boolean
           status: string
           total_amount: number
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -78,6 +80,7 @@ export interface Database {
           id?: string
           items: Json
           order_number: string
+          paid?: boolean
           status?: string
           total_amount: number
           updated_at?: string
@@ -90,6 +93,7 @@ export interface Database {
           id?: string
           items?: Json
           order_number?: string
+          paid?: boolean
           status?: string
           total_amount?: number
           updated_at?: string

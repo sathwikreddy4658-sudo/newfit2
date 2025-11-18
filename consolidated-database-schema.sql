@@ -62,7 +62,7 @@ CREATE TABLE public.products (
 -- Orders table
 CREATE TABLE public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Nullable for guest checkout
   total_price DECIMAL(10,2) NOT NULL CHECK (total_price >= 0),
   payment_id TEXT,
   address TEXT NOT NULL,
