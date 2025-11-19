@@ -24,7 +24,7 @@ const Contact = () => {
           <div className="font-saira font-medium text-base space-y-2">
             <p style={{ color: '#3b2a20' }}>For help with orders, shipping, or general inquiries:</p>
             <div style={{ borderLeft: '4px solid #b5edce', borderRadius: '4px', paddingLeft: '8px' }}>
-              <p style={{ color: '#5e4338' }}>📧 <a href="mailto:care@freelit.in" style={{ color: '#5e4338' }}>care@freelit.in</a></p>
+              <p style={{ color: '#5e4338' }}>📧 <a href="mailto:care@freelit.in" style={{ color: '#5e4338', textDecoration: 'underline', textDecorationColor: '#000000' }}>care@freelit.in</a></p>
               <p style={{ color: '#5e4338' }}>📞 +91 6302254190</p>
             </div>
             <p style={{ color: '#3b2a20' }}>We usually respond within 24–48 hours on business days.</p>
@@ -49,7 +49,7 @@ const Contact = () => {
           </h3>
           <div className="font-saira font-medium text-base">
             <p style={{ color: '#3b2a20' }}>
-              If you're a creator, nutrition expert, or brand that shares our values and would like to collaborate, email us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce' }}>care@freelit.in</a>.
+              If you're a creator, nutrition expert, or brand that shares our values and would like to collaborate, email us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce', textDecoration: 'underline', textDecorationColor: '#000000' }}>care@freelit.in</a>.
             </p>
           </div>
         </div>

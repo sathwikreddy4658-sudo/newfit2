@@ -85,7 +85,7 @@ const Privacy = () => {
         {/* Contact */}
         <div className="mb-8" style={{ borderLeft: '4px solid #b5edce', paddingLeft: '12px' }}>
           <p className="font-poppins font-light text-base" style={{ color: '#5e4338' }}>
-            For questions about your data, reach us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce' }}>care@freelit.in</a>.
+            For questions about your data, reach us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce', textDecoration: 'underline', textDecorationColor: '#000000' }}>care@freelit.in</a>.
           </p>
         </div>
       </div>

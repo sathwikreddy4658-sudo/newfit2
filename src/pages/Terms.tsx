@@ -48,8 +48,8 @@ const Terms = () => {
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
             <p>We do our best to show every product as it truly is.</p>
-            <p>Because we use real ingredients, small variations in color, shape, or texture can happen — that’s how you know it’s made naturally.</p>
-            <p>If anything feels unclear about a product, please reach out to us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce' }}>care@freelit.in</a> before placing your order, we’re happy to explain.</p>
+            <p>Because we use real ingredients, small variations in color, shape, or texture can happen — that's how you know it's made naturally.</p>
+            <p>If anything feels unclear about a product, please reach out to us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce', textDecoration: 'underline', textDecorationColor: '#000000' }}>care@freelit.in</a> before placing your order, we're happy to explain.</p>
           </div>
         </div>
 
