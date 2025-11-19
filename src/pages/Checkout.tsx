@@ -285,11 +285,11 @@ const Checkout = () => {
       quantity: item.quantity,
     }));
 
-    // Create order params - use cart subtotal (items only) for validation
-    // Database function validates against items total, not final total with shipping/COD
+    // Create order params - CRITICAL: Send items total WITHOUT promo discount
+    // Database validates items total, promo discount is applied AFTER order creation
     const orderParams = {
       p_user_id: authUser?.id || null, // Allow null for guest checkout
-      p_total_price: discountedTotal || totalPrice, // Send cart subtotal for validation
+      p_total_price: totalPrice, // Send ORIGINAL items total (without promo discount)
       p_address: isGuestCheckout ? guestData.address : profile.address,
       p_payment_id: null, // Will be updated after payment
       p_items: orderItems,

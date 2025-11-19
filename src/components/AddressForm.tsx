@@ -163,10 +163,10 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
       // Wait a bit for the check to complete
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Check if delivery check was successful
+      // Warn if delivery check failed but continue with address save
       if (!deliveryChecked) {
-        toast.error('Unable to verify delivery. Please check your pincode.');
-        return;
+        toast.warning('Could not verify delivery. Please check delivery manually.');
+        // Don't return - continue saving address
       }
     }
 
