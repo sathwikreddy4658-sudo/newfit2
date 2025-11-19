@@ -214,18 +214,37 @@ const Checkout = () => {
       }
     } else if (!isGuestCheckout && authUser && profile) {
       // For authenticated users, also save phone to order for admin visibility
+      console.log('[Checkout] Saving authenticated user info to order:', {
+        orderId,
+        customer_name: profile.full_name,
+        customer_email: authUser.email,
+        customer_phone: profile.phone
+      });
+      
       const { error: userInfoError } = await supabase
         .from("orders")
         .update({
-          customer_name: profile.full_name,
+          customer_name: profile.full_name || authUser.email?.split('@')[0] || 'User',
           customer_email: authUser.email,
-          customer_phone: profile.phone
+          customer_phone: profile.phone || ''
         })
         .eq("id", orderId);
 
       if (userInfoError) {
-        console.warn("Error adding user info to order:", userInfoError);
-        // Don't fail the order, just log the warning
+        console.error('[Checkout] Error adding user info to order:', userInfoError);
+        // Try to update with just email if other fields are missing
+        const { error: fallbackError } = await supabase
+          .from("orders")
+          .update({
+            customer_email: authUser.email
+          })
+          .eq("id", orderId);
+        
+        if (fallbackError) {
+          console.error('[Checkout] Fallback update also failed:', fallbackError);
+        }
+      } else {
+        console.log('[Checkout] User info saved successfully to order');
       }
     }
 

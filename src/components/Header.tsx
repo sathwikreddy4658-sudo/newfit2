@@ -33,12 +33,13 @@ const Header = () => {
   return (
     <header className="border-b sticky top-0 bg-background z-50">
       <div className="container mx-auto px-4 py-4 bg-[b5edce]">
-        <div className="flex items-center justify-center md:justify-between">
-          <div className="md:hidden absolute left-4 z-10">
+        <div className="flex items-center justify-between md:justify-between">
+          {/* Mobile: Left side - Menu + Logo */}
+          <div className="md:hidden flex items-center gap-2">
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  <Menu className="h-8 w-8 text-[#b5edce]" />
+                  <Menu className="h-8 w-8 text-black" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[300px] sm:w-[400px] bg-black/25 border-0">
@@ -69,16 +70,24 @@ const Header = () => {
                         <Button variant="ghost" className="text-white hover:bg-white/10 font-poppins font-bold text-lg py-6 w-full justify-start border-b border-white/20">Profile</Button>
                       </Link>
                     </>
-                  ) : (
-                    <Link to="/auth" onClick={() => setIsOpen(false)}>
-                      <Button variant="ghost" className="text-white hover:bg-white/10 font-poppins font-bold text-lg py-6 w-full justify-start border-b border-white/20">Sign In</Button>
-                    </Link>
-                  )}
+                  ) : null}
                 </nav>
               </SheetContent>
             </Sheet>
+            <Link to="/" className="flex items-center">
+              <img src={logo} alt="Freelit" className="h-10" />
+            </Link>
           </div>
-          <div className="md:hidden absolute right-4 z-10 flex items-center gap-2">
+          
+          {/* Mobile: Right side - Sign In (if not logged in) + Cart + Logout (if logged in) */}
+          <div className="md:hidden flex items-center gap-2">
+            {!user && (
+              <Link to="/auth">
+                <Button variant="ghost" size="sm" className="bg-white hover:bg-[#b5edce]/50 font-poppins font-bold text-sm">
+                  Sign In
+                </Button>
+              </Link>
+            )}
             {user && (
               <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
@@ -95,9 +104,11 @@ const Header = () => {
               </Button>
             </Link>
           </div>
-          <div className="flex items-center md:justify-start">
+          
+          {/* Desktop: Logo */}
+          <div className="hidden md:flex items-center">
             <Link to="/" className="flex items-center">
-              <img src={logo} alt="Freelit" className="h-10 md:h-12" />
+              <img src={logo} alt="Freelit" className="h-12" />
             </Link>
           </div>
 
