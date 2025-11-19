@@ -574,7 +574,8 @@ const Checkout = () => {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           {isGuestCheckout ? (
-            <>\n              <Card className="p-6 mb-6 border-l-4 border-l-blue-500 shadow-md">
+            <>
+              <Card className="p-6 mb-6 border-l-4 border-l-blue-500 shadow-md">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">1</span>
                   <h2 className="text-xl font-bold">Your Information</h2>
@@ -762,7 +763,8 @@ const Checkout = () => {
             <div className="flex items-center gap-2 mb-4">
               <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">{isGuestCheckout ? '3' : '2'}</span>
               <h2 className="text-xl font-bold">Order Summary</h2>
-            </div>\n            <h3 className="font-semibold mb-4 text-gray-700">Price Details</h3>
+            </div>
+            <h3 className="font-semibold mb-4 text-gray-700">Price Details</h3>
 
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-sm">

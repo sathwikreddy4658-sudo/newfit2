@@ -207,6 +207,10 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
       setDeliveryInfo(null);
       setDeliveryError('');
     }
+    // Auto-check delivery when pincode is complete (6 digits)
+    if (field === 'pincode' && value.length === 6) {
+      setTimeout(() => handleCheckDelivery(), 300);
+    }
   };
 
   return (
@@ -344,9 +348,9 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
                 type="button"
                 onClick={handleCheckDelivery}
                 disabled={checkingDelivery || formData.pincode.length !== 6}
-                variant="outline"
                 size="sm"
-                className="w-full mt-2 text-sm"
+                className="w-full mt-2 text-sm font-poppins font-extrabold text-white hover:opacity-90"
+                style={{ backgroundColor: '#5e4338' }}
               >
                 {checkingDelivery ? (
                   <>
