@@ -44,6 +44,7 @@ const Checkout = () => {
   const [checkingDelivery, setCheckingDelivery] = useState(false);
   const [deliveryChecked, setDeliveryChecked] = useState(false);
   const [deliveryError, setDeliveryError] = useState('');
+  const [addressSaved, setAddressSaved] = useState(false);
 
   // Calculate shipping discount from promo code
   const getShippingDiscount = () => {
@@ -192,6 +193,21 @@ const Checkout = () => {
         description: "Please check delivery availability for your pincode",
         variant: "destructive"
       });
+      return;
+    }
+
+    // Check if address is saved - if not, prompt user
+    if (!addressSaved) {
+      toast({
+        title: "Address Not Saved",
+        description: "Please save your delivery address by clicking 'Save Address & Continue' button first",
+        variant: "destructive"
+      });
+      // Scroll to address form
+      const addressForm = document.querySelector('[data-address-form]');
+      if (addressForm) {
+        addressForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
@@ -615,7 +631,7 @@ const Checkout = () => {
                 </div>
               </Card>
 
-              <Card className="p-6 mb-6 border-l-4 border-l-green-500 shadow-md">
+              <Card className="p-6 mb-6 border-l-4 border-l-green-500 shadow-md" data-address-form>
                 <div className="bg-green-50 -m-6 mb-4 p-4 border-b-2 border-green-200">
                   <div className="flex items-center gap-2">
                     <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">2</span>
@@ -624,7 +640,10 @@ const Checkout = () => {
                   <p className="text-sm text-green-700 mt-2 ml-10">⚡ Enter your pincode and click "Check Delivery" button below</p>
                 </div>
                 <AddressForm
-                  onAddressSubmit={(address, phone) => setGuestData({ ...guestData, address, phone: phone || guestData.phone })}
+                  onAddressSubmit={(address, phone) => {
+                    setGuestData({ ...guestData, address, phone: phone || guestData.phone });
+                    setAddressSaved(true);
+                  }}
                   initialAddress={guestData.address}
                   initialPhone={guestData.phone}
                   onDeliveryCheck={(data) => {
@@ -640,7 +659,7 @@ const Checkout = () => {
             </>
           ) : (
             <>
-              <Card className="p-6 mb-6 border-l-4 border-l-green-500 shadow-md">
+              <Card className="p-6 mb-6 border-l-4 border-l-green-500 shadow-md" data-address-form>
                 <div className="bg-green-50 -m-6 mb-4 p-4 border-b-2 border-green-200">
                   <div className="flex items-center gap-2">
                     <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">1</span>
@@ -656,6 +675,7 @@ const Checkout = () => {
                       .update({ address, phone })
                       .eq("id", user.id);
                     setProfile({ ...profile, address, phone });
+                    setAddressSaved(true);
                   }}
                   initialAddress={profile?.address}
                   initialPhone={profile?.phone}

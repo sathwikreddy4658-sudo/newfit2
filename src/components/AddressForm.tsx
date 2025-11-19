@@ -123,17 +123,11 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Reset errors
     const newErrors: Record<string, string> = {};
-
-    // Check if delivery has been verified
-    if (!deliveryChecked) {
-      toast.error('Please check delivery availability for your pincode first');
-      return;
-    }
 
     // Validate phone number
     if (!phone) {
@@ -160,6 +154,20 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
       setErrors(newErrors);
       toast.error("Please fix the errors before continuing");
       return;
+    }
+
+    // Auto-trigger delivery check if not already checked
+    if (!deliveryChecked && formData.pincode.length === 6) {
+      toast.info('Checking delivery availability...');
+      await handleCheckDelivery();
+      // Wait a bit for the check to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if delivery check was successful
+      if (!deliveryChecked) {
+        toast.error('Unable to verify delivery. Please check your pincode.');
+        return;
+      }
     }
 
     // Format address from individual fields
