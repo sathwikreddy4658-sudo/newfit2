@@ -12,7 +12,9 @@ import { sanitizeError } from "@/lib/errorUtils";
 import { guestCheckoutSchema } from "@/lib/validation";
 import { initiatePhonePePayment, createPaymentTransaction } from "@/lib/phonepe";
 import AddressForm from "@/components/AddressForm";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Truck } from "lucide-react";
+import { calculateOrderPrice, validatePaymentMethod } from "@/lib/pricingEngine";
+import { getShippingRate } from "@/lib/pincodeService";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +34,16 @@ const Checkout = () => {
   const [preventCartRedirect, setPreventCartRedirect] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('cod');
+
+  // Pricing and delivery state
+  const [selectedPincode, setSelectedPincode] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [shippingCharge, setShippingCharge] = useState(0);
+  const [isCODAvailable, setIsCODAvailable] = useState(false);
+  const [estimatedDays, setEstimatedDays] = useState(0);
+  const [checkingDelivery, setCheckingDelivery] = useState(false);
+  const [deliveryChecked, setDeliveryChecked] = useState(false);
+  const [deliveryError, setDeliveryError] = useState('');
 
   // Guest checkout state
   const isGuestCheckout = location.state?.isGuest || false;
@@ -93,9 +105,81 @@ const Checkout = () => {
     setProfile(data);
   };
 
+  // Check delivery availability
+  const handleCheckDelivery = async () => {
+    if (!selectedPincode || selectedPincode.length < 6) {
+      setDeliveryError('Please enter a valid 6-digit pincode');
+      toast({
+        title: "Invalid Pincode",
+        description: "Please enter a valid 6-digit pincode",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setCheckingDelivery(true);
+    setDeliveryError('');
+    
+    try {
+      const pincodeNum = parseInt(selectedPincode);
+      const rate = await getShippingRate(pincodeNum);
+
+      if (!rate.serviceable) {
+        setDeliveryError('Delivery not available for this pincode');
+        setDeliveryChecked(false);
+        toast({
+          title: "Not Serviceable",
+          description: "We don't deliver to this pincode yet.",
+          variant: "destructive"
+        });
+      } else {
+        setSelectedState(rate.state || '');
+        setShippingCharge(rate.charge || 0);
+        setEstimatedDays(rate.estimatedDays || 0);
+        setIsCODAvailable(rate.codAvailable || false);
+        setDeliveryChecked(true);
+        setDeliveryError('');
+        toast({
+          title: "Delivery Available!",
+          description: `Shipping charge: ₹${rate.charge} | Estimated delivery: ${rate.estimatedDays} days`,
+        });
+      }
+    } catch (error) {
+      console.error('Error checking delivery:', error);
+      setDeliveryError('Error checking delivery availability');
+      toast({
+        title: "Error",
+        description: "Failed to check delivery availability",
+        variant: "destructive"
+      });
+    } finally {
+      setCheckingDelivery(false);
+    }
+  };
+
 
 
   const handlePayment = async () => {
+    // Check if delivery has been verified
+    if (!deliveryChecked) {
+      toast({
+        title: "Delivery Not Checked",
+        description: "Please check delivery availability for your pincode",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if COD is selected but not available
+    if (paymentMethod === 'cod' && !isCODAvailable) {
+      toast({
+        title: "COD Not Available",
+        description: "Cash on Delivery is not available for this area. Please choose online payment.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Check if terms are accepted
     if (!termsAccepted) {
       toast({
@@ -132,6 +216,14 @@ const Checkout = () => {
 
     setProcessing(true);
 
+    // Calculate final price based on payment method
+    const finalPricing = calculateOrderPrice(
+      discountedTotal || totalPrice,
+      shippingCharge,
+      paymentMethod === 'online' ? 'prepaid' : 'cod',
+      selectedState
+    );
+
     // Get authenticated user for payment (optional for guest checkout)
     let authUser = user;
     if (!authUser && isGuestCheckout) {
@@ -149,10 +241,10 @@ const Checkout = () => {
       quantity: item.quantity,
     }));
 
-    // Create order params - use authenticated user_id if available, null for guests
+    // Create order params - use final total for order amount
     const orderParams = {
       p_user_id: authUser?.id || null, // Allow null for guest checkout
-      p_total_price: totalPrice, // Original total (before discount) for validation
+      p_total_price: finalPricing.total, // Use final calculated total
       p_address: isGuestCheckout ? guestData.address : profile.address,
       p_payment_id: null, // Will be updated after payment
       p_items: orderItems,
@@ -374,7 +466,7 @@ const Checkout = () => {
 
     // Initiate PhonePe payment
     const paymentOptions = {
-      amount: Math.round(discountedTotal), // Send in rupees - Edge Function converts to paisa
+      amount: Math.round(finalPricing.total), // Send final total in rupees - Edge Function converts to paisa
       merchantTransactionId,
       merchantUserId,
       redirectUrl: `${window.location.origin}/payment/callback?transactionId=${merchantTransactionId}&order=${orderId}`,
@@ -494,6 +586,63 @@ const Checkout = () => {
                   initialPhone={guestData.phone}
                 />
               </Card>
+
+              {/* Delivery Checker */}
+              <Card className="p-6 mb-4 bg-blue-50 border-blue-200">
+                <h3 className="font-semibold mb-3 text-blue-900">Check Delivery Availability</h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="guest-pincode">Pincode</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="guest-pincode"
+                        placeholder="Enter 6-digit pincode"
+                        value={selectedPincode}
+                        onChange={(e) => {
+                          setSelectedPincode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                          setDeliveryChecked(false);
+                        }}
+                        maxLength={6}
+                      />
+                      <Button
+                        onClick={handleCheckDelivery}
+                        disabled={checkingDelivery || !selectedPincode}
+                        variant="outline"
+                        className="whitespace-nowrap"
+                      >
+                        {checkingDelivery ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Truck className="w-4 h-4 mr-2" />
+                        )}
+                        Check
+                      </Button>
+                    </div>
+                  </div>
+
+                  {deliveryChecked && !deliveryError && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="font-semibold">Delivery Available!</span>
+                      </div>
+                      <p className="text-xs">
+                        {selectedState} • Shipping: ₹{shippingCharge} • Delivery in {estimatedDays} days
+                      </p>
+                      {!isCODAvailable && (
+                        <p className="text-xs text-orange-600 mt-1">⚠️ COD not available for this area</p>
+                      )}
+                    </div>
+                  )}
+
+                  {deliveryError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      {deliveryError}
+                    </div>
+                  )}
+                </div>
+              </Card>
             </>
           ) : (
             <>
@@ -511,6 +660,63 @@ const Checkout = () => {
                   initialAddress={profile?.address}
                   initialPhone={profile?.phone}
                 />
+              </Card>
+
+              {/* Delivery Checker */}
+              <Card className="p-6 mb-4 bg-blue-50 border-blue-200">
+                <h3 className="font-semibold mb-3 text-blue-900">Check Delivery Availability</h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="pincode">Pincode</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="pincode"
+                        placeholder="Enter 6-digit pincode"
+                        value={selectedPincode}
+                        onChange={(e) => {
+                          setSelectedPincode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                          setDeliveryChecked(false);
+                        }}
+                        maxLength={6}
+                      />
+                      <Button
+                        onClick={handleCheckDelivery}
+                        disabled={checkingDelivery || !selectedPincode}
+                        variant="outline"
+                        className="whitespace-nowrap"
+                      >
+                        {checkingDelivery ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Truck className="w-4 h-4 mr-2" />
+                        )}
+                        Check
+                      </Button>
+                    </div>
+                  </div>
+
+                  {deliveryChecked && !deliveryError && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="font-semibold">Delivery Available!</span>
+                      </div>
+                      <p className="text-xs">
+                        {selectedState} • Shipping: ₹{shippingCharge} • Delivery in {estimatedDays} days
+                      </p>
+                      {!isCODAvailable && (
+                        <p className="text-xs text-orange-600 mt-1">⚠️ COD not available for this area</p>
+                      )}
+                    </div>
+                  )}
+
+                  {deliveryError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      {deliveryError}
+                    </div>
+                  )}
+                </div>
               </Card>
             </>
           )}
@@ -546,24 +752,86 @@ const Checkout = () => {
           </Card>
 
           <Card className="p-6 sticky top-4">
-            <h2 className="text-xl font-bold mb-4">Payment Summary</h2>
+            <h2 className="text-xl font-bold mb-4">Price Details</h2>
 
             <div className="space-y-2 mb-4">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>₹{totalPrice}</span>
+              <div className="flex justify-between text-sm">
+                <span>MRP (Inclusive of all taxes)</span>
+                <span className="font-medium">₹{totalPrice}</span>
               </div>
+              
               {promoCode && discountAmount > 0 && (
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-sm text-green-600">
                   <span>Discount ({promoCode.discount_percentage}%)</span>
                   <span>-₹{discountAmount.toFixed(2)}</span>
                 </div>
               )}
+
+              {deliveryChecked && (
+                <>
+                  <div className="flex justify-between text-sm pt-2 border-t">
+                    <span>Subtotal</span>
+                    <span>₹{(discountedTotal || totalPrice).toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm">
+                    <span className="flex items-center gap-1">
+                      <Truck className="w-4 h-4" />
+                      Shipping {calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState).isFreeDelivery ? '(Free)' : ''}
+                    </span>
+                    <span>
+                      {calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState).isFreeDelivery ? (
+                        <>
+                          <span className="text-green-600 font-medium">₹0</span>
+                          <span className="text-xs text-gray-400 line-through ml-1">₹{shippingCharge}</span>
+                        </>
+                      ) : (
+                        `₹${shippingCharge}`
+                      )}
+                    </span>
+                  </div>
+
+                  {paymentMethod === 'cod' && isCODAvailable && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span>COD Handling Charges</span>
+                        <span>₹35</span>
+                      </div>
+                      {(discountedTotal || totalPrice) <= 600 && (
+                        <div className="flex justify-between text-sm">
+                          <span>COD Charges</span>
+                          <span>₹30</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {paymentMethod === 'online' && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Prepaid Discount (5%)</span>
+                      <span>-₹{((discountedTotal || totalPrice) * 0.05).toFixed(2)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+
               <div className="flex justify-between font-bold text-lg pt-2 border-t">
                 <span>Total</span>
-                <span>₹{discountedTotal.toFixed(2)}</span>
+                <span>
+                  {deliveryChecked 
+                    ? `₹${calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState).total.toFixed(2)}`
+                    : `₹${(discountedTotal || totalPrice).toFixed(2)}`
+                  }
+                </span>
               </div>
             </div>
+
+            {!deliveryChecked && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 mb-4 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>Please check delivery availability for your pincode to see shipping charges</span>
+              </div>
+            )}
 
             <div className="mb-4" data-payment-section>
               <h3 className="font-semibold mb-2">Payment Method</h3>
@@ -571,24 +839,41 @@ const Checkout = () => {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cod')}
+                  disabled={!deliveryChecked || !isCODAvailable}
                   className={`w-full p-4 rounded-lg border-2 transition-all duration-200 font-medium ${
-                    paymentMethod === 'cod'
+                    !deliveryChecked || !isCODAvailable
+                      ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed'
+                      : paymentMethod === 'cod'
                       ? 'bg-[#5e4338] text-white border-[#5e4338]'
                       : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5'
                   }`}
                 >
                   Cash on Delivery (COD)
+                  {!deliveryChecked || !isCODAvailable ? (
+                    <div className="text-xs mt-1 text-gray-500">
+                      {!deliveryChecked ? 'Check delivery availability first' : 'Not available for this area'}
+                    </div>
+                  ) : null}
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('online')}
+                  disabled={!deliveryChecked}
                   className={`w-full p-4 rounded-lg border-2 transition-all duration-200 font-medium ${
-                    paymentMethod === 'online'
+                    !deliveryChecked
+                      ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed'
+                      : paymentMethod === 'online'
                       ? 'bg-[#5e4338] text-white border-[#5e4338]'
                       : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5'
                   }`}
                 >
                   Online Payment
+                  {paymentMethod === 'online' && (
+                    <div className="text-xs mt-1 text-white/90">Get 5% discount</div>
+                  )}
+                  {!deliveryChecked && (
+                    <div className="text-xs mt-1 text-gray-500">Check delivery availability first</div>
+                  )}
                 </button>
               </div>
             </div>
