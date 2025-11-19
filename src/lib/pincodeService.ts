@@ -1,66 +1,74 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Shipping rate configuration based on distance/regions
- * You can customize these based on your business logic
+ * State-based shipping rate configuration
+ * You can customize these based on your actual rates from Shipneer
  */
-const SHIPPING_RATES = {
-  // Local delivery (same state/nearby)
-  local: {
-    charge: 40,
-    estimatedDays: 1,
-    codAvailable: true,
-  },
-  // Regional delivery (within 500km)
-  regional: {
-    charge: 60,
-    estimatedDays: 2,
-    codAvailable: true,
-  },
-  // National delivery (500-1000km)
-  national: {
-    charge: 100,
-    estimatedDays: 3,
-    codAvailable: true,
-  },
-  // Remote areas (>1000km or specific regions)
-  remote: {
-    charge: 150,
-    estimatedDays: 4,
-    codAvailable: false,
-  },
-};
+const STATE_SHIPPING_RATES: Record<string, { charge: number; estimatedDays: number; codAvailable: boolean }> = {
+  // Southern States
+  'KARNATAKA': { charge: 60, estimatedDays: 2, codAvailable: true },
+  'TELANGANA': { charge: 40, estimatedDays: 1, codAvailable: true },
+  'ANDHRA PRADESH': { charge: 60, estimatedDays: 2, codAvailable: true },
+  'TAMIL NADU': { charge: 80, estimatedDays: 3, codAvailable: true },
+  'KERALA': { charge: 90, estimatedDays: 3, codAvailable: true },
 
-// Manufacturing hub
-const MANUFACTURING_PINCODE = 500067;
+  // Western States
+  'MAHARASHTRA': { charge: 60, estimatedDays: 2, codAvailable: true },
+  'GUJARAT': { charge: 70, estimatedDays: 2, codAvailable: true },
+  'GOA': { charge: 100, estimatedDays: 3, codAvailable: true },
 
-// You can provide rate data for specific pincodes from Shipneer's calculator
-// This is manually created based on your rate calculator results
-const CUSTOM_RATES = {
-  // Example: Add pincodes that you've manually calculated rates for
-  // Format: { pincode: { charge: 50, estimatedDays: 2, codAvailable: true } }
+  // Northern States
+  'DELHI': { charge: 80, estimatedDays: 2, codAvailable: true },
+  'UTTAR PRADESH': { charge: 90, estimatedDays: 3, codAvailable: true },
+  'HARYANA': { charge: 70, estimatedDays: 2, codAvailable: true },
+  'PUNJAB': { charge: 80, estimatedDays: 2, codAvailable: true },
+  'RAJASTHAN': { charge: 90, estimatedDays: 3, codAvailable: true },
+  'HIMACHAL PRADESH': { charge: 100, estimatedDays: 3, codAvailable: true },
+  'JAMMU & KASHMIR': { charge: 150, estimatedDays: 5, codAvailable: false },
+  'UTTARAKHAND': { charge: 100, estimatedDays: 3, codAvailable: true },
+
+  // Eastern States
+  'WEST BENGAL': { charge: 100, estimatedDays: 3, codAvailable: true },
+  'BIHAR': { charge: 100, estimatedDays: 3, codAvailable: true },
+  'JHARKHAND': { charge: 100, estimatedDays: 3, codAvailable: true },
+  'ORISSA': { charge: 90, estimatedDays: 3, codAvailable: true },
+
+  // North Eastern States
+  'ASSAM': { charge: 120, estimatedDays: 4, codAvailable: false },
+  'MANIPUR': { charge: 150, estimatedDays: 5, codAvailable: false },
+  'MEGHALAYA': { charge: 150, estimatedDays: 5, codAvailable: false },
+  'MIZORAM': { charge: 150, estimatedDays: 5, codAvailable: false },
+  'NAGALAND': { charge: 150, estimatedDays: 5, codAvailable: false },
+  'TRIPURA': { charge: 140, estimatedDays: 4, codAvailable: false },
+  'ARUNACHAL PRADESH': { charge: 150, estimatedDays: 5, codAvailable: false },
+  'SIKKIM': { charge: 140, estimatedDays: 4, codAvailable: false },
+
+  // Central States
+  'MADHYA PRADESH': { charge: 80, estimatedDays: 2, codAvailable: true },
+  'CHATTISGARH': { charge: 80, estimatedDays: 2, codAvailable: true },
+
+  // Union Territories & Special
+  'CHANDIGARH U.T.': { charge: 70, estimatedDays: 2, codAvailable: true },
+  'PONDICHERRY U.T.': { charge: 100, estimatedDays: 3, codAvailable: true },
+  'LAKSHADWEEP U.T.': { charge: 300, estimatedDays: 7, codAvailable: false },
+  'ANDAMAN & NICOBAR U.T.': { charge: 300, estimatedDays: 7, codAvailable: false },
+  'DADRA & NAGAR HAVELI U.T.': { charge: 70, estimatedDays: 2, codAvailable: true },
+  'DAMAN & DIU U.T.': { charge: 70, estimatedDays: 2, codAvailable: true },
 };
 
 /**
  * Check if a pincode is serviceable
- * @param {number} pincode - The pincode to check
- * @returns {Promise<Object>} - Serviceability data or null if not serviceable
  */
-export async function checkPincodeServiceability(pincode) {
+export async function checkPincodeServiceability(pincode: number) {
   try {
-    const { data, error } = await supabase
-      .from('pincodes')
+    const { data, error } = await (supabase
+      .from('pincodes' as any)
       .select('*')
       .eq('pincode', pincode)
-      .single();
+      .single() as any);
 
-    if (error) {
-      console.error('Pincode lookup error:', error);
+    if (error || !data || !data.delivery_available) {
       return null;
-    }
-
-    if (!data || !data.delivery_available) {
-      return null; // Not serviceable
     }
 
     return data;
@@ -71,19 +79,54 @@ export async function checkPincodeServiceability(pincode) {
 }
 
 /**
- * Get shipping rate for a pincode
- * @param {number} pincode - The pincode to get rate for
- * @returns {Promise<Object>} - Shipping rate and COD availability
+ * Get shipping rate for a pincode (STATE-BASED PRICING!)
  */
-export async function getShippingRate(pincode) {
-  // Check if we have custom rate for this pincode
-  if (CUSTOM_RATES[pincode]) {
-    return CUSTOM_RATES[pincode];
-  }
+export async function getShippingRate(pincode: number) {
+  try {
+    const { data, error } = await (supabase
+      .from('pincodes' as any)
+      .select('*')
+      .eq('pincode', pincode)
+      .single() as any);
 
-  // Check serviceability first
-  const serviceable = await checkPincodeServiceability(pincode);
-  if (!serviceable) {
+    if (error || !data || !data.delivery_available) {
+      return {
+        charge: null,
+        estimatedDays: null,
+        codAvailable: false,
+        serviceable: false,
+      };
+    }
+
+    // Get state-based rate
+    const stateName = (data.state || '').toUpperCase().trim();
+    const stateRate = STATE_SHIPPING_RATES[stateName];
+
+    if (!stateRate) {
+      // Fallback to generic rate if state not found
+      return {
+        charge: 100,
+        estimatedDays: 3,
+        codAvailable: data.cod_available,
+        serviceable: true,
+        state: data.state,
+        district: data.district,
+      };
+    }
+
+    // Combine Shipneer's COD flag with state rate
+    const codAvailable = data.cod_available && stateRate.codAvailable;
+
+    return {
+      charge: stateRate.charge,
+      estimatedDays: stateRate.estimatedDays,
+      codAvailable,
+      serviceable: true,
+      state: data.state,
+      district: data.district,
+    };
+  } catch (error) {
+    console.error('Error getting shipping rate:', error);
     return {
       charge: null,
       estimatedDays: null,
@@ -91,43 +134,12 @@ export async function getShippingRate(pincode) {
       serviceable: false,
     };
   }
-
-  // For now, use a default rate based on regions
-  // You can enhance this by:
-  // 1. Calculating actual distance from 500067
-  // 2. Storing region info in the database
-  // 3. Using Shipneer's rate calculator API once you scale
-
-  let rateType = 'regional'; // Default
-
-  // Simple heuristic: pincodes starting with 5 (Telangana/nearby states)
-  const pincodeStr = String(pincode);
-  if (pincodeStr.startsWith('5') || pincodeStr.startsWith('50')) {
-    rateType = 'local'; // Telangana/nearby
-  } else if (pincodeStr.startsWith('1') || pincodeStr.startsWith('2') || pincodeStr.startsWith('3')) {
-    rateType = 'national'; // Northern India
-  } else if (pincodeStr.startsWith('6') || pincodeStr.startsWith('7') || pincodeStr.startsWith('8')) {
-    rateType = 'national'; // Eastern/Southern India
-  }
-
-  const rate = SHIPPING_RATES[rateType];
-
-  return {
-    charge: rate.charge,
-    estimatedDays: rate.estimatedDays,
-    codAvailable: serviceable.cod_available && rate.codAvailable,
-    serviceable: true,
-    rateType,
-  };
 }
 
 /**
  * Validate pincode for checkout
- * @param {number} pincode - The pincode to validate
- * @param {boolean} isCOD - Whether user is trying to use COD
- * @returns {Promise<Object>} - Validation result
  */
-export async function validatePincodeForCheckout(pincode, isCOD = false) {
+export async function validatePincodeForCheckout(pincode: number, isCOD = false) {
   if (!pincode || isNaN(pincode)) {
     return {
       valid: false,
@@ -162,11 +174,9 @@ export async function validatePincodeForCheckout(pincode, isCOD = false) {
 }
 
 /**
- * Get checkout summary for a pincode
- * @param {number} pincode - The pincode
- * @returns {Promise<Object>} - Complete checkout info
+ * Get checkout info for a pincode
  */
-export async function getCheckoutInfo(pincode) {
+export async function getCheckoutInfo(pincode: number) {
   const rate = await getShippingRate(pincode);
 
   return {
@@ -175,37 +185,9 @@ export async function getCheckoutInfo(pincode) {
     shippingCharge: rate.charge,
     estimatedDeliveryDays: rate.estimatedDays,
     codAvailable: rate.codAvailable,
-    rateType: rate.rateType,
+    state: rate.state,
+    district: rate.district,
   };
-}
-
-/**
- * Add custom rate for a pincode (admin function)
- * Call this after you manually calculate rates from Shipneer's calculator
- */
-export function addCustomRate(pincode, charge, estimatedDays, codAvailable = true) {
-  CUSTOM_RATES[pincode] = {
-    charge,
-    estimatedDays,
-    codAvailable,
-  };
-}
-
-/**
- * Bulk add custom rates from your rate calculator results
- */
-export function addCustomRates(ratesArray) {
-  // ratesArray format: [
-  //   { pincode: 110001, charge: 50, estimatedDays: 1, codAvailable: true },
-  //   { pincode: 110002, charge: 50, estimatedDays: 1, codAvailable: true },
-  // ]
-  ratesArray.forEach(rate => {
-    CUSTOM_RATES[rate.pincode] = {
-      charge: rate.charge,
-      estimatedDays: rate.estimatedDays,
-      codAvailable: rate.codAvailable !== false,
-    };
-  });
 }
 
 export default {
@@ -213,6 +195,5 @@ export default {
   getShippingRate,
   validatePincodeForCheckout,
   getCheckoutInfo,
-  addCustomRate,
-  addCustomRates,
+  STATE_SHIPPING_RATES,
 };

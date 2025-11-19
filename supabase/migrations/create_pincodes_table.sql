@@ -2,18 +2,24 @@
 CREATE TABLE IF NOT EXISTS pincodes (
   id BIGSERIAL PRIMARY KEY,
   pincode INTEGER NOT NULL UNIQUE,
+  state TEXT,
+  district TEXT,
+  postal_division TEXT,
+  taluk TEXT,
   delivery_available BOOLEAN NOT NULL DEFAULT false,
   cod_available BOOLEAN NOT NULL DEFAULT false,
-  city_state TEXT,
   shipping_charge DECIMAL(10, 2),
   estimated_days INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create index on pincode for fast lookups
+-- Create indexes for fast lookups
 CREATE INDEX IF NOT EXISTS idx_pincode ON pincodes(pincode);
+CREATE INDEX IF NOT EXISTS idx_state ON pincodes(state);
+CREATE INDEX IF NOT EXISTS idx_district ON pincodes(district);
 CREATE INDEX IF NOT EXISTS idx_delivery_cod ON pincodes(delivery_available, cod_available);
+CREATE INDEX IF NOT EXISTS idx_state_cod ON pincodes(state, cod_available);
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE pincodes ENABLE ROW LEVEL SECURITY;
