@@ -1,4 +1,7 @@
 -- Create pincodes table in Supabase
+-- Maps to Shipneer CSV format:
+-- - delivery column: 'Y' or 'N' (from Shipneer)
+-- - cod column: 'Y' or 'N' (from Shipneer)
 CREATE TABLE IF NOT EXISTS pincodes (
   id BIGSERIAL PRIMARY KEY,
   pincode INTEGER NOT NULL UNIQUE,
@@ -6,6 +9,9 @@ CREATE TABLE IF NOT EXISTS pincodes (
   district TEXT,
   postal_division TEXT,
   taluk TEXT,
+  delivery TEXT DEFAULT 'N',  -- 'Y' or 'N' from Shipneer CSV
+  cod TEXT DEFAULT 'N',       -- 'Y' or 'N' from Shipneer CSV
+  -- Legacy columns (for backwards compatibility)
   delivery_available BOOLEAN NOT NULL DEFAULT false,
   cod_available BOOLEAN NOT NULL DEFAULT false,
   shipping_charge DECIMAL(10, 2),

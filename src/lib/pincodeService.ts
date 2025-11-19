@@ -59,7 +59,8 @@ const STATE_SHIPPING_RATES: Record<string, { charge: number; estimatedDays: numb
 };
 
 /**
- * Check if a pincode is serviceable
+ * Check if a pincode is serviceable using Shipneer's Delivery column
+ * Looks for 'Y' in the Delivery column to determine deliverability
  */
 export async function checkPincodeServiceability(pincode: number) {
   try {
@@ -69,7 +70,14 @@ export async function checkPincodeServiceability(pincode: number) {
       .eq('pincode', pincode)
       .single() as any);
 
-    if (error || !data || !data.delivery_available) {
+    if (error || !data) {
+      return null;
+    }
+
+    // Check if delivery column has 'Y' (Shipneer format)
+    const isDeliverable = data.delivery === 'Y' || data.delivery_available === true;
+
+    if (!isDeliverable) {
       return null;
     }
 
@@ -82,6 +90,8 @@ export async function checkPincodeServiceability(pincode: number) {
 
 /**
  * Get shipping rate for a pincode (STATE-BASED PRICING!)
+ * Uses Shipneer's Delivery column ('Y' = deliverable)
+ * Uses Shipneer's COD column ('Y' = COD available)
  */
 export async function getShippingRate(pincode: number) {
   try {
@@ -91,7 +101,19 @@ export async function getShippingRate(pincode: number) {
       .eq('pincode', pincode)
       .single() as any);
 
-    if (error || !data || !data.delivery_available) {
+    if (error || !data) {
+      return {
+        charge: null,
+        estimatedDays: null,
+        codAvailable: false,
+        serviceable: false,
+      };
+    }
+
+    // Check Shipneer's Delivery column for 'Y' (meaning deliverable)
+    const isDeliverable = data.delivery === 'Y' || data.delivery_available === true;
+
+    if (!isDeliverable) {
       return {
         charge: null,
         estimatedDays: null,
@@ -106,18 +128,21 @@ export async function getShippingRate(pincode: number) {
 
     if (!stateRate) {
       // Fallback to generic rate if state not found
+      const codAvailableInShipneer = data.cod === 'Y' || data.cod_available === true;
       return {
         charge: 100,
         estimatedDays: 3,
-        codAvailable: data.cod_available,
+        codAvailable: codAvailableInShipneer,
         serviceable: true,
         state: data.state,
         district: data.district,
       };
     }
 
-    // Combine Shipneer's COD flag with state rate
-    const codAvailable = data.cod_available && stateRate.codAvailable;
+    // Check Shipneer's COD column for 'Y' (meaning COD available for this pincode)
+    const shipneerCodAvailable = data.cod === 'Y' || data.cod_available === true;
+    // Combine Shipneer's COD flag with state-based rule
+    const codAvailable = shipneerCodAvailable && stateRate.codAvailable;
 
     return {
       charge: stateRate.charge,
