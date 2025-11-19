@@ -241,10 +241,13 @@ const Checkout = () => {
 
     setProcessing(true);
 
+    // Calculate shipping discount from promo code (CRITICAL FIX)
+    const shippingDiscount = getShippingDiscount();
+
     // Calculate final price based on payment method
     const finalPricing = calculateOrderPrice(
       discountedTotal || totalPrice,
-      shippingCharge,
+      Math.max(0, shippingCharge - shippingDiscount), // Apply shipping discount
       paymentMethod === 'online' ? 'prepaid' : 'cod',
       selectedState
     );
@@ -561,15 +564,21 @@ const Checkout = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+    <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold mb-2">Secure Checkout</h1>
+        <p className="text-gray-600 text-lg">Complete your order - Safe & Secure Payment</p>
+      </div>
+      <h1 className="text-3xl font-bold mb-8 sr-only">Checkout</h1>
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           {isGuestCheckout ? (
-            <>
-              <Card className="p-6 mb-4">
-                <h2 className="text-xl font-bold mb-4">Guest Information</h2>
+            <>\n              <Card className="p-6 mb-6 border-l-4 border-l-blue-500 shadow-md">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">1</span>
+                  <h2 className="text-xl font-bold">Your Information</h2>
+                </div>
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="guest-name">Full Name</Label>
@@ -605,7 +614,14 @@ const Checkout = () => {
                 </div>
               </Card>
 
-              <Card className="p-6 mb-4">
+              <Card className="p-6 mb-6 border-l-4 border-l-green-500 shadow-md">
+                <div className="bg-green-50 -m-6 mb-4 p-4 border-b-2 border-green-200">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">2</span>
+                    <h2 className="text-xl font-bold text-green-900">Delivery Address & Availability</h2>
+                  </div>
+                  <p className="text-sm text-green-700 mt-2 ml-10">⚡ Enter your pincode and click "Check Delivery" button below</p>
+                </div>
                 <AddressForm
                   onAddressSubmit={(address, phone) => setGuestData({ ...guestData, address, phone: phone || guestData.phone })}
                   initialAddress={guestData.address}
@@ -623,8 +639,14 @@ const Checkout = () => {
             </>
           ) : (
             <>
-              <Card className="p-6 mb-4">
-                <h2 className="text-xl font-bold mb-4">Delivery Address</h2>
+              <Card className="p-6 mb-6 border-l-4 border-l-green-500 shadow-md">
+                <div className="bg-green-50 -m-6 mb-4 p-4 border-b-2 border-green-200">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">1</span>
+                    <h2 className="text-xl font-bold text-green-900">Delivery Address & Availability</h2>
+                  </div>
+                  <p className="text-sm text-green-700 mt-2 ml-10">⚡ Enter your pincode and click "Check Delivery" button below</p>
+                </div>
                 <AddressForm
                   onAddressSubmit={(address, phone) => {
                     // Update profile address and phone in database
@@ -736,8 +758,11 @@ const Checkout = () => {
             </div>
           </Card>
 
-          <Card className="p-6 sticky top-4">
-            <h2 className="text-xl font-bold mb-4">Price Details</h2>
+          <Card className="p-6 sticky top-4 border-l-4 border-l-primary shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">{isGuestCheckout ? '3' : '2'}</span>
+              <h2 className="text-xl font-bold">Order Summary</h2>
+            </div>\n            <h3 className="font-semibold mb-4 text-gray-700">Price Details</h3>
 
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-sm">
