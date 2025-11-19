@@ -582,8 +582,8 @@ const Checkout = () => {
   return (
     <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-2">Secure Checkout</h1>
-        <p className="text-gray-600 text-lg">Complete your order - Safe & Secure Payment</p>
+        <h1 className="text-4xl font-saira font-black text-[#3b2a20] mb-2">CHECKOUT</h1>
+        <p className="text-gray-600 text-lg">Complete your order</p>
       </div>
       <h1 className="text-3xl font-bold mb-8 sr-only">Checkout</h1>
 
@@ -637,7 +637,7 @@ const Checkout = () => {
                     <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">2</span>
                     <h2 className="text-xl font-bold text-green-900">Delivery Address & Availability</h2>
                   </div>
-                  <p className="text-sm text-green-700 mt-2 ml-10">⚡ Enter your pincode and click "Check Delivery" button below</p>
+                  <p className="text-sm text-green-700 mt-2 ml-10">Enter your pincode and click "Check Delivery" button below</p>
                 </div>
                 <AddressForm
                   onAddressSubmit={(address, phone) => {
