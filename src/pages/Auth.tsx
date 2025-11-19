@@ -471,7 +471,7 @@ const Auth = () => {
               <button
                 type="button"
                 onClick={handleResetPassword}
-                className="text-sm text-[#b5edce] hover:text-[#a3d9c9] transition-colors font-poppins"
+                className="text-base text-gray-700 hover:text-gray-900 transition-colors font-poppins font-medium"
               >
                 Forgot Password?
               </button>
@@ -482,7 +482,7 @@ const Auth = () => {
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-base text-gray-700 hover:text-gray-900 transition-colors font-medium"
               >
                 {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
               </button>
