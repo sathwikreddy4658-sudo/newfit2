@@ -2,58 +2,60 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * State-based shipping rate configuration
- * You can customize these based on your actual rates from Shipneer
+ * Actual rates from Shipneer (500g parcel tier)
+ * Base rates observed: Karnataka ₹45-55, Srinagar ₹85-90
+ * These include the 500g base tier (no increase from 250g)
  */
 const STATE_SHIPPING_RATES: Record<string, { charge: number; estimatedDays: number; codAvailable: boolean }> = {
-  // Southern States
-  'KARNATAKA': { charge: 60, estimatedDays: 2, codAvailable: true },
-  'TELANGANA': { charge: 40, estimatedDays: 1, codAvailable: true },
-  'ANDHRA PRADESH': { charge: 60, estimatedDays: 2, codAvailable: true },
-  'TAMIL NADU': { charge: 80, estimatedDays: 3, codAvailable: true },
-  'KERALA': { charge: 90, estimatedDays: 3, codAvailable: true },
+  // Southern States - Based on Karnataka observation (45-55)
+  'KARNATAKA': { charge: 50, estimatedDays: 2, codAvailable: true },
+  'TELANGANA': { charge: 45, estimatedDays: 1, codAvailable: true },
+  'ANDHRA PRADESH': { charge: 50, estimatedDays: 2, codAvailable: true },
+  'TAMIL NADU': { charge: 60, estimatedDays: 3, codAvailable: true },
+  'KERALA': { charge: 70, estimatedDays: 3, codAvailable: true },
 
   // Western States
   'MAHARASHTRA': { charge: 60, estimatedDays: 2, codAvailable: true },
-  'GUJARAT': { charge: 70, estimatedDays: 2, codAvailable: true },
-  'GOA': { charge: 100, estimatedDays: 3, codAvailable: true },
+  'GUJARAT': { charge: 55, estimatedDays: 2, codAvailable: true },
+  'GOA': { charge: 75, estimatedDays: 3, codAvailable: true },
 
   // Northern States
-  'DELHI': { charge: 80, estimatedDays: 2, codAvailable: true },
-  'UTTAR PRADESH': { charge: 90, estimatedDays: 3, codAvailable: true },
-  'HARYANA': { charge: 70, estimatedDays: 2, codAvailable: true },
-  'PUNJAB': { charge: 80, estimatedDays: 2, codAvailable: true },
-  'RAJASTHAN': { charge: 90, estimatedDays: 3, codAvailable: true },
-  'HIMACHAL PRADESH': { charge: 100, estimatedDays: 3, codAvailable: true },
-  'JAMMU & KASHMIR': { charge: 150, estimatedDays: 5, codAvailable: false },
-  'UTTARAKHAND': { charge: 100, estimatedDays: 3, codAvailable: true },
+  'DELHI': { charge: 65, estimatedDays: 2, codAvailable: true },
+  'UTTAR PRADESH': { charge: 70, estimatedDays: 3, codAvailable: true },
+  'HARYANA': { charge: 60, estimatedDays: 2, codAvailable: true },
+  'PUNJAB': { charge: 65, estimatedDays: 2, codAvailable: true },
+  'RAJASTHAN': { charge: 70, estimatedDays: 3, codAvailable: true },
+  'HIMACHAL PRADESH': { charge: 75, estimatedDays: 3, codAvailable: true },
+  'JAMMU & KASHMIR': { charge: 88, estimatedDays: 5, codAvailable: false }, // Based on Srinagar observation (85-90)
+  'UTTARAKHAND': { charge: 75, estimatedDays: 3, codAvailable: true },
 
   // Eastern States
-  'WEST BENGAL': { charge: 100, estimatedDays: 3, codAvailable: true },
-  'BIHAR': { charge: 100, estimatedDays: 3, codAvailable: true },
-  'JHARKHAND': { charge: 100, estimatedDays: 3, codAvailable: true },
-  'ORISSA': { charge: 90, estimatedDays: 3, codAvailable: true },
+  'WEST BENGAL': { charge: 75, estimatedDays: 3, codAvailable: true },
+  'BIHAR': { charge: 75, estimatedDays: 3, codAvailable: true },
+  'JHARKHAND': { charge: 75, estimatedDays: 3, codAvailable: true },
+  'ORISSA': { charge: 70, estimatedDays: 3, codAvailable: true },
 
-  // North Eastern States
-  'ASSAM': { charge: 120, estimatedDays: 4, codAvailable: false },
-  'MANIPUR': { charge: 150, estimatedDays: 5, codAvailable: false },
-  'MEGHALAYA': { charge: 150, estimatedDays: 5, codAvailable: false },
-  'MIZORAM': { charge: 150, estimatedDays: 5, codAvailable: false },
-  'NAGALAND': { charge: 150, estimatedDays: 5, codAvailable: false },
-  'TRIPURA': { charge: 140, estimatedDays: 4, codAvailable: false },
-  'ARUNACHAL PRADESH': { charge: 150, estimatedDays: 5, codAvailable: false },
-  'SIKKIM': { charge: 140, estimatedDays: 4, codAvailable: false },
+  // North Eastern States (Remote - Higher rates, NO COD)
+  'ASSAM': { charge: 100, estimatedDays: 4, codAvailable: false },
+  'MANIPUR': { charge: 120, estimatedDays: 5, codAvailable: false },
+  'MEGHALAYA': { charge: 120, estimatedDays: 5, codAvailable: false },
+  'MIZORAM': { charge: 120, estimatedDays: 5, codAvailable: false },
+  'NAGALAND': { charge: 120, estimatedDays: 5, codAvailable: false },
+  'TRIPURA': { charge: 110, estimatedDays: 4, codAvailable: false },
+  'ARUNACHAL PRADESH': { charge: 120, estimatedDays: 5, codAvailable: false },
+  'SIKKIM': { charge: 110, estimatedDays: 4, codAvailable: false },
 
   // Central States
-  'MADHYA PRADESH': { charge: 80, estimatedDays: 2, codAvailable: true },
-  'CHATTISGARH': { charge: 80, estimatedDays: 2, codAvailable: true },
+  'MADHYA PRADESH': { charge: 65, estimatedDays: 2, codAvailable: true },
+  'CHATTISGARH': { charge: 65, estimatedDays: 2, codAvailable: true },
 
   // Union Territories & Special
-  'CHANDIGARH U.T.': { charge: 70, estimatedDays: 2, codAvailable: true },
-  'PONDICHERRY U.T.': { charge: 100, estimatedDays: 3, codAvailable: true },
-  'LAKSHADWEEP U.T.': { charge: 300, estimatedDays: 7, codAvailable: false },
-  'ANDAMAN & NICOBAR U.T.': { charge: 300, estimatedDays: 7, codAvailable: false },
-  'DADRA & NAGAR HAVELI U.T.': { charge: 70, estimatedDays: 2, codAvailable: true },
-  'DAMAN & DIU U.T.': { charge: 70, estimatedDays: 2, codAvailable: true },
+  'CHANDIGARH U.T.': { charge: 60, estimatedDays: 2, codAvailable: true },
+  'PONDICHERRY U.T.': { charge: 75, estimatedDays: 3, codAvailable: true },
+  'LAKSHADWEEP U.T.': { charge: 250, estimatedDays: 7, codAvailable: false },
+  'ANDAMAN & NICOBAR U.T.': { charge: 250, estimatedDays: 7, codAvailable: false },
+  'DADRA & NAGAR HAVELI U.T.': { charge: 55, estimatedDays: 2, codAvailable: true },
+  'DAMAN & DIU U.T.': { charge: 55, estimatedDays: 2, codAvailable: true },
 };
 
 /**
