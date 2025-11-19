@@ -76,8 +76,9 @@ export const COD_CHARGES = {
  * Pricing Rules
  */
 export const PRICING_RULES = {
-  FREE_DELIVERY_MIN_ORDER: 400, // ₹400 minimum for free delivery
+  FREE_DELIVERY_MIN_ORDER: 400, // ₹400 minimum for free delivery (only if shipping < ₹45)
   FREE_DELIVERY_MAX_SHIPPING: 45, // Only if shipping cost < ₹45
+  FREE_DELIVERY_GUARANTEED: 600, // ₹600+ orders get free delivery regardless of shipping cost
   COD_MAX_ORDER_VALUE: 1300, // COD only available for orders < ₹1300
   COD_CHARGE_MAX_ORDER: 600, // COD charges apply only for orders <= ₹600
   COD_CHARGE_AMOUNT: 30, // ₹30 COD charge
@@ -125,7 +126,13 @@ export function calculateOrderPrice(
   }
 
   // Calculate free delivery eligibility
-  if (
+  // Orders ₹600+ always get free delivery
+  if (cartTotal >= PRICING_RULES.FREE_DELIVERY_GUARANTEED) {
+    response.isFreeDelivery = true;
+    response.shippingCharge = 0;
+  }
+  // Orders ₹400-₹599 get free delivery only if shipping < ₹45
+  else if (
     cartTotal >= PRICING_RULES.FREE_DELIVERY_MIN_ORDER &&
     shippingCharge < PRICING_RULES.FREE_DELIVERY_MAX_SHIPPING
   ) {
@@ -135,14 +142,10 @@ export function calculateOrderPrice(
     response.shippingCharge = shippingCharge;
   }
 
-  // Add COD charges (only if applicable)
+  // Add COD handling charges (flat ₹35 for all COD orders)
   if (paymentMethod === 'cod' && response.canUseCOD) {
-    // COD charges apply only for orders <= 600
-    if (cartTotal <= PRICING_RULES.COD_CHARGE_MAX_ORDER) {
-      response.codCharge = PRICING_RULES.COD_CHARGE_AMOUNT;
-    }
-    // Add COD surcharge to shipping if it's a COD order (30-40 rupees)
-    response.shippingCharge += 35; // Mid-range of 30-40
+    // Flat COD handling charge
+    response.codCharge = 35;
   }
 
   // Apply prepaid discount (5% off)

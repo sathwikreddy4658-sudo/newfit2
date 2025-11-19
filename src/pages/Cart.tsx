@@ -121,6 +121,13 @@ const Cart = () => {
               </Card>
             </Link>
           ))}
+          
+          {/* Free Delivery Banner */}
+          <div className="mt-6 p-4 bg-green-50 border-2 border-green-500 rounded-lg text-center">
+            <p className="font-poppins font-bold text-black text-lg">
+               FREE DELIVERY ON ORDERS ₹600 OR MORE! 
+            </p>
+          </div>
         </div>
 
         <div>
@@ -134,11 +141,15 @@ const Cart = () => {
                 Have a promo code?
               </Label>
               {promoCode ? (
-                <div className="flex items-center justify-between bg-green-50 p-2 rounded border border-green-200">
-                  <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-green-600" />
+                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
+                  <div className="flex items-center gap-3">
+                    <Tag className="w-5 h-5 text-green-600" />
                     <span className="font-mono font-bold text-green-700">{promoCode.code}</span>
-                    <span className="text-sm text-green-600">({promoCode.discount_percentage}% off)</span>
+                    <span className="text-sm text-green-600">
+                      {promoCode.promo_type === 'shipping_discount' 
+                        ? `(${promoCode.shipping_discount_percentage}% off shipping)` 
+                        : `(${promoCode.discount_percentage}% off)`}
+                    </span>
                   </div>
                   <Button
                     variant="ghost"

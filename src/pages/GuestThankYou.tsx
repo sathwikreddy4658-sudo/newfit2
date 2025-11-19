@@ -112,51 +112,51 @@ const GuestThankYou = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-4 md:py-8">
       <div className="max-w-2xl mx-auto">
         {/* Success Header */}
-        <Card className="p-8 text-center mb-6 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-          <CheckCircle className="h-20 w-20 text-green-600 mx-auto mb-4" />
-          <h1 className="text-4xl font-bold text-green-800 mb-3">
+        <Card className="p-4 md:p-8 text-center mb-4 md:mb-6 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+          <CheckCircle className="h-12 w-12 md:h-20 md:w-20 text-green-600 mx-auto mb-3 md:mb-4" />
+          <h1 className="text-2xl md:text-4xl font-bold text-green-800 mb-2 md:mb-3">
             Thank You For Your Order!
           </h1>
-          <p className="text-green-700 text-lg mb-2">
+          <p className="text-green-700 text-sm md:text-lg mb-2">
             You will receive a confirmation email shortly at:
           </p>
-          <p className="text-green-900 font-semibold text-lg">
+          <p className="text-green-900 font-semibold text-sm md:text-lg break-all">
             {email}
           </p>
           {orderId && (
-            <p className="text-sm text-green-600 mt-3">
+            <p className="text-xs md:text-sm text-green-600 mt-2 md:mt-3">
               Order ID: <span className="font-mono font-bold">{orderId.slice(0, 8)}</span>
             </p>
           )}
         </Card>
 
         {/* Sign Up Incentive */}
-        <Card className="p-6 mb-6 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
-          <div className="flex items-start gap-4">
-            <Sparkles className="h-8 w-8 text-purple-600 flex-shrink-0 mt-1" />
+        <Card className="p-4 md:p-6 mb-4 md:mb-6 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+          <div className="flex flex-col md:flex-row items-start gap-3 md:gap-4">
+            <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-purple-600 flex-shrink-0 mt-1" />
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-purple-900 mb-3">
+              <h2 className="text-xl md:text-2xl font-bold text-purple-900 mb-2 md:mb-3">
                 Create Your Account Now!
               </h2>
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2 mb-3 md:mb-4">
                 <div className="flex items-center gap-2 text-purple-800">
-                  <TrendingUp className="h-5 w-5" />
-                  <p className="font-semibold">Track this order and all future orders</p>
+                  <TrendingUp className="h-4 w-4 md:h-5 md:w-5" />
+                  <p className="text-sm md:text-base font-semibold">Track this order and all future orders</p>
                 </div>
                 <div className="flex items-center gap-2 text-purple-800">
-                  <Mail className="h-5 w-5" />
-                  <p className="font-semibold">Receive exclusive promotions and offers</p>
+                  <Mail className="h-4 w-4 md:h-5 md:w-5" />
+                  <p className="text-sm md:text-base font-semibold">Receive exclusive promotions and offers</p>
                 </div>
                 <div className="flex items-center gap-2 text-purple-800">
-                  <CheckCircle className="h-5 w-5" />
-                  <p className="font-semibold">Faster checkout for future purchases</p>
+                  <CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
+                  <p className="text-sm md:text-base font-semibold">Faster checkout for future purchases</p>
                 </div>
               </div>
               
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 md:p-3 mb-3 md:mb-4">
                 <p className="text-sm text-yellow-900">
                   <strong>⚠️ Important:</strong> Guest orders are <strong>NOT</strong> visible later if you sign up separately. 
                   Create your account now to link this order to your profile!
@@ -164,7 +164,7 @@ const GuestThankYou = () => {
               </div>
 
               {/* Quick Sign Up Form */}
-              <div className="space-y-3 bg-white p-4 rounded-lg border">
+              <div className="space-y-2 md:space-y-3 bg-white p-3 md:p-4 rounded-lg border">
                 <div>
                   <Label htmlFor="email" className="text-sm">Email (Already Saved)</Label>
                   <Input
@@ -238,8 +238,8 @@ const GuestThankYou = () => {
         </div>
 
         {/* Additional Info */}
-        <Card className="p-4 mt-6 bg-blue-50 border-blue-200">
-          <p className="text-sm text-blue-900">
+        <Card className="p-3 md:p-4 mt-4 md:mt-6 bg-blue-50 border-blue-200">
+          <p className="text-xs md:text-sm text-blue-900">
             💡 <strong>Did you know?</strong> Registered users get early access to sales, 
             personalized product recommendations, and can easily track all their orders in one place!
           </p>

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Phone } from "lucide-react";
+import { MapPin, Phone, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { addressSchema } from "@/lib/validation";
 import { toast } from "sonner";
 import {
@@ -14,15 +14,17 @@ import {
   getAddressErrorMessage,
   getPhoneNumberErrorMessage,
 } from "@/lib/addressValidation";
+import { getShippingRate } from "@/lib/pincodeService";
 
 interface AddressFormProps {
   onAddressSubmit: (address: string, phone?: string) => void;
   initialAddress?: string;
   initialPhone?: string;
   isLoading?: boolean;
+  onDeliveryCheck?: (data: { pincode: string; state: string; shippingCharge: number; isCODAvailable: boolean; estimatedDays: number }) => void;
 }
 
-const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading }: AddressFormProps) => {
+const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading, onDeliveryCheck }: AddressFormProps) => {
   const [formData, setFormData] = useState({
     flat_no: "",
     building_name: "",
@@ -35,6 +37,17 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
 
   const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Delivery check state
+  const [checkingDelivery, setCheckingDelivery] = useState(false);
+  const [deliveryChecked, setDeliveryChecked] = useState(false);
+  const [deliveryError, setDeliveryError] = useState('');
+  const [deliveryInfo, setDeliveryInfo] = useState<{
+    state: string;
+    shippingCharge: number;
+    isCODAvailable: boolean;
+    estimatedDays: number;
+  } | null>(null);
 
   // Parse initial address if provided
   useEffect(() => {
@@ -55,11 +68,72 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
     }
   };
 
+  const handleCheckDelivery = async () => {
+    if (!formData.pincode || formData.pincode.length !== 6) {
+      toast.error('Please enter a valid 6-digit pincode');
+      return;
+    }
+
+    setCheckingDelivery(true);
+    setDeliveryError('');
+    setDeliveryChecked(false);
+
+    try {
+      const pincodeNum = parseInt(formData.pincode);
+      const rate = await getShippingRate(pincodeNum);
+
+      if (!rate.serviceable) {
+        setDeliveryError('Delivery not available for this pincode');
+        setDeliveryChecked(false);
+        toast.error('Delivery not available for this pincode');
+      } else {
+        setDeliveryInfo({
+          state: rate.state || '',
+          shippingCharge: rate.charge || 0,
+          isCODAvailable: rate.codAvailable || false,
+          estimatedDays: rate.estimatedDays || 3,
+        });
+        setDeliveryChecked(true);
+        setDeliveryError('');
+        
+        // Auto-fill state if available
+        if (rate.state && !formData.state) {
+          setFormData(prev => ({ ...prev, state: rate.state }));
+        }
+
+        // Notify parent component
+        if (onDeliveryCheck) {
+          onDeliveryCheck({
+            pincode: formData.pincode,
+            state: rate.state || '',
+            shippingCharge: rate.charge || 0,
+            isCODAvailable: rate.codAvailable || false,
+            estimatedDays: rate.estimatedDays || 3,
+          });
+        }
+
+        toast.success('Delivery available for this pincode!');
+      }
+    } catch (error) {
+      console.error('Error checking delivery:', error);
+      setDeliveryError('Error checking delivery availability');
+      toast.error('Error checking delivery availability');
+    } finally {
+      setCheckingDelivery(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Reset errors
     const newErrors: Record<string, string> = {};
+
+    // Check if delivery has been verified
+    if (!deliveryChecked) {
+      toast.error('Please check delivery availability for your pincode first');
+      return;
+    }
 
     // Validate phone number
     if (!phone) {
@@ -126,6 +200,12 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+    // Reset delivery check if pincode changes
+    if (field === 'pincode' && deliveryChecked) {
+      setDeliveryChecked(false);
+      setDeliveryInfo(null);
+      setDeliveryError('');
     }
   };
 
@@ -257,6 +337,51 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading 
               />
               {errors.pincode && (
                 <p className="text-red-600 text-sm">{errors.pincode}</p>
+              )}
+              
+              {/* Check Delivery Button - Always visible */}
+              <Button
+                type="button"
+                onClick={handleCheckDelivery}
+                disabled={checkingDelivery || formData.pincode.length !== 6}
+                variant="outline"
+                size="sm"
+                className="w-full mt-2 text-sm"
+              >
+                {checkingDelivery ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Check Delivery
+                  </>
+                )}
+              </Button>
+              
+              {/* Delivery Status */}
+              {deliveryChecked && deliveryInfo && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                  <div className="flex items-center gap-2 text-green-700 font-medium mb-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Delivery Available!
+                  </div>
+                  <p className="text-xs text-green-600">
+                    {deliveryInfo.state} • ₹{deliveryInfo.shippingCharge}
+                  </p>
+                  {!deliveryInfo.isCODAvailable && (
+                    <p className="text-xs text-orange-600 mt-1">⚠️ COD not available</p>
+                  )}
+                </div>
+              )}
+              
+              {deliveryError && (
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {deliveryError}
+                </div>
               )}
             </div>
           </div>

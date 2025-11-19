@@ -45,6 +45,31 @@ const Checkout = () => {
   const [deliveryChecked, setDeliveryChecked] = useState(false);
   const [deliveryError, setDeliveryError] = useState('');
 
+  // Calculate shipping discount from promo code
+  const getShippingDiscount = () => {
+    if (!promoCode || promoCode.promo_type !== 'shipping_discount') return 0;
+    if (!deliveryChecked || !selectedState || !shippingCharge) return 0;
+
+    // Check if state is allowed
+    if (promoCode.allowed_states && promoCode.allowed_states.length > 0) {
+      const stateMatch = promoCode.allowed_states.some(
+        allowedState => selectedState.toUpperCase().includes(allowedState.toUpperCase())
+      );
+      if (!stateMatch) return 0;
+    }
+
+    // Check if pincode pattern is allowed
+    if (promoCode.allowed_pincodes && promoCode.allowed_pincodes.length > 0) {
+      const pincodeMatch = promoCode.allowed_pincodes.some(pattern => {
+        const regex = new RegExp('^' + pattern.replace('%', '.*'));
+        return regex.test(selectedPincode);
+      });
+      if (!pincodeMatch) return 0;
+    }
+
+    return (shippingCharge * (promoCode.shipping_discount_percentage || 0)) / 100;
+  };
+
   // Guest checkout state
   const isGuestCheckout = location.state?.isGuest || false;
   const [guestData, setGuestData] = useState({
@@ -241,10 +266,11 @@ const Checkout = () => {
       quantity: item.quantity,
     }));
 
-    // Create order params - use final total for order amount
+    // Create order params - use cart subtotal (items only) for validation
+    // Database function validates against items total, not final total with shipping/COD
     const orderParams = {
       p_user_id: authUser?.id || null, // Allow null for guest checkout
-      p_total_price: finalPricing.total, // Use final calculated total
+      p_total_price: discountedTotal || totalPrice, // Send cart subtotal for validation
       p_address: isGuestCheckout ? guestData.address : profile.address,
       p_payment_id: null, // Will be updated after payment
       p_items: orderItems,
@@ -584,64 +610,15 @@ const Checkout = () => {
                   onAddressSubmit={(address, phone) => setGuestData({ ...guestData, address, phone: phone || guestData.phone })}
                   initialAddress={guestData.address}
                   initialPhone={guestData.phone}
+                  onDeliveryCheck={(data) => {
+                    setSelectedPincode(data.pincode);
+                    setSelectedState(data.state);
+                    setShippingCharge(data.shippingCharge);
+                    setIsCODAvailable(data.isCODAvailable);
+                    setEstimatedDays(data.estimatedDays);
+                    setDeliveryChecked(true);
+                  }}
                 />
-              </Card>
-
-              {/* Delivery Checker */}
-              <Card className="p-6 mb-4 bg-blue-50 border-blue-200">
-                <h3 className="font-semibold mb-3 text-blue-900">Check Delivery Availability</h3>
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="guest-pincode">Pincode</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="guest-pincode"
-                        placeholder="Enter 6-digit pincode"
-                        value={selectedPincode}
-                        onChange={(e) => {
-                          setSelectedPincode(e.target.value.replace(/\D/g, '').slice(0, 6));
-                          setDeliveryChecked(false);
-                        }}
-                        maxLength={6}
-                      />
-                      <Button
-                        onClick={handleCheckDelivery}
-                        disabled={checkingDelivery || !selectedPincode}
-                        variant="outline"
-                        className="whitespace-nowrap"
-                      >
-                        {checkingDelivery ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Truck className="w-4 h-4 mr-2" />
-                        )}
-                        Check
-                      </Button>
-                    </div>
-                  </div>
-
-                  {deliveryChecked && !deliveryError && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-                      <div className="flex items-center gap-2 mb-1">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span className="font-semibold">Delivery Available!</span>
-                      </div>
-                      <p className="text-xs">
-                        {selectedState} • Shipping: ₹{shippingCharge} • Delivery in {estimatedDays} days
-                      </p>
-                      {!isCODAvailable && (
-                        <p className="text-xs text-orange-600 mt-1">⚠️ COD not available for this area</p>
-                      )}
-                    </div>
-                  )}
-
-                  {deliveryError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      {deliveryError}
-                    </div>
-                  )}
-                </div>
               </Card>
             </>
           ) : (
@@ -659,11 +636,19 @@ const Checkout = () => {
                   }}
                   initialAddress={profile?.address}
                   initialPhone={profile?.phone}
+                  onDeliveryCheck={(data) => {
+                    setSelectedPincode(data.pincode);
+                    setSelectedState(data.state);
+                    setShippingCharge(data.shippingCharge);
+                    setIsCODAvailable(data.isCODAvailable);
+                    setEstimatedDays(data.estimatedDays);
+                    setDeliveryChecked(true);
+                  }}
                 />
               </Card>
 
-              {/* Delivery Checker */}
-              <Card className="p-6 mb-4 bg-blue-50 border-blue-200">
+              {/* Delivery Checker - REMOVED, now integrated in AddressForm */}
+              <Card className="p-6 mb-4 bg-blue-50 border-blue-200 hidden">
                 <h3 className="font-semibold mb-3 text-blue-900">Check Delivery Availability</h3>
                 <div className="space-y-3">
                   <div>
@@ -760,10 +745,19 @@ const Checkout = () => {
                 <span className="font-medium">₹{totalPrice}</span>
               </div>
               
-              {promoCode && discountAmount > 0 && (
+              {promoCode && promoCode.promo_type === 'percentage' && discountAmount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Discount ({promoCode.discount_percentage}%)</span>
                   <span>-₹{discountAmount.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {promoCode && promoCode.promo_type === 'shipping_discount' && getShippingDiscount() > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-blue-600">
+                    🎉 Shipping Discount ({promoCode.shipping_discount_percentage}%)
+                  </span>
+                  <span className="text-blue-600 font-medium">({promoCode.code})</span>
                 </div>
               )}
 
@@ -777,33 +771,42 @@ const Checkout = () => {
                   <div className="flex justify-between text-sm">
                     <span className="flex items-center gap-1">
                       <Truck className="w-4 h-4" />
-                      Shipping {calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState).isFreeDelivery ? '(Free)' : ''}
+                      Shipping
                     </span>
                     <span>
-                      {calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState).isFreeDelivery ? (
-                        <>
-                          <span className="text-green-600 font-medium">₹0</span>
-                          <span className="text-xs text-gray-400 line-through ml-1">₹{shippingCharge}</span>
-                        </>
-                      ) : (
-                        `₹${shippingCharge}`
-                      )}
+                      {(() => {
+                        const pricing = calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState);
+                        const shippingDiscount = getShippingDiscount();
+                        const finalShipping = Math.max(0, pricing.shippingCharge - shippingDiscount);
+                        
+                        if (pricing.isFreeDelivery) {
+                          return (
+                            <>
+                              <span className="text-green-600 font-medium">₹0</span>
+                              <span className="text-xs text-gray-400 line-through ml-1">₹{shippingCharge}</span>
+                            </>
+                          );
+                        }
+                        
+                        if (shippingDiscount > 0) {
+                          return (
+                            <>
+                              <span className="text-green-600 font-medium">₹{finalShipping.toFixed(2)}</span>
+                              <span className="text-xs text-gray-400 line-through ml-1">₹{pricing.shippingCharge}</span>
+                            </>
+                          );
+                        }
+                        
+                        return `₹${pricing.shippingCharge}`;
+                      })()}
                     </span>
                   </div>
 
                   {paymentMethod === 'cod' && isCODAvailable && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span>COD Handling Charges</span>
-                        <span>₹35</span>
-                      </div>
-                      {(discountedTotal || totalPrice) <= 600 && (
-                        <div className="flex justify-between text-sm">
-                          <span>COD Charges</span>
-                          <span>₹30</span>
-                        </div>
-                      )}
-                    </>
+                    <div className="flex justify-between text-sm">
+                      <span>COD Handling Charges</span>
+                      <span>₹35</span>
+                    </div>
                   )}
 
                   {paymentMethod === 'online' && (
@@ -819,7 +822,18 @@ const Checkout = () => {
                 <span>Total</span>
                 <span>
                   {deliveryChecked 
-                    ? `₹${calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState).total.toFixed(2)}`
+                    ? (() => {
+                        const pricing = calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState);
+                        const shippingDiscount = getShippingDiscount();
+                        let finalTotal = pricing.total;
+                        
+                        // Apply shipping discount from promo
+                        if (shippingDiscount > 0) {
+                          finalTotal = finalTotal - shippingDiscount;
+                        }
+                        
+                        return `₹${finalTotal.toFixed(2)}`;
+                      })()
                     : `₹${(discountedTotal || totalPrice).toFixed(2)}`
                   }
                 </span>

@@ -16,6 +16,10 @@ export interface CartItem {
 interface PromoCode {
   code: string;
   discount_percentage: number;
+  promo_type?: 'percentage' | 'shipping_discount';
+  shipping_discount_percentage?: number;
+  allowed_states?: string[];
+  allowed_pincodes?: string[];
 }
 
 interface CartContextType {
@@ -178,7 +182,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Get the promo code details (for both authenticated and guest users)
       const { data, error } = await supabase
         .from("promo_codes")
-        .select("code, discount_percentage")
+        .select("code, discount_percentage, promo_type, shipping_discount_percentage, allowed_states, allowed_pincodes")
         .eq("code", code.toUpperCase())
         .eq("active", true)
         .single();
@@ -189,7 +193,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setPromoCode(data);
-      toast.success(`Promo code ${data.code} applied! ${data.discount_percentage}% discount`);
+      
+      if (data.promo_type === 'shipping_discount') {
+        const discountText = data.shipping_discount_percentage === 100 ? 'Free shipping' : `${data.shipping_discount_percentage}% off shipping`;
+        toast.success(`Promo code ${data.code} applied! ${discountText}${data.allowed_states ? ' for ' + data.allowed_states.join(', ') : ''}`);
+      } else {
+        toast.success(`Promo code ${data.code} applied! ${data.discount_percentage}% discount`);
+      }
       return true;
     } catch (error) {
       console.error("Error applying promo code:", error);
