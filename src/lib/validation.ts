@@ -116,6 +116,18 @@ export const productSchema = z.object({
     .int('Stock must be a whole number')
     .min(0, 'Stock cannot be negative')
     .max(100000, 'Stock must be less than 100,000'),
+  stock_status_15g: z.boolean()
+    .default(true),
+  stock_status_20g: z.boolean()
+    .default(true),
+  combo_3_discount: z.number()
+    .min(0, 'Discount must be 0 or greater')
+    .max(100, 'Discount cannot exceed 100%')
+    .default(5),
+  combo_6_discount: z.number()
+    .min(0, 'Discount must be 0 or greater')
+    .max(100, 'Discount cannot exceed 100%')
+    .default(7),
   nutrition: z.string()
     .trim()
     .min(1, 'Nutrition info is required')

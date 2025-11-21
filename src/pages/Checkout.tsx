@@ -81,6 +81,14 @@ const Checkout = () => {
   });
   const [guestErrors, setGuestErrors] = useState<any>({});
 
+  // User checkout contact info state
+  const [userContactData, setUserContactData] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  });
+  const [userContactErrors, setUserContactErrors] = useState<any>({});
+
 
 
   useEffect(() => {
@@ -129,6 +137,15 @@ const Checkout = () => {
       .eq("id", userId)
       .single();
     setProfile(data);
+    
+    // Pre-fill user contact data from profile
+    if (data) {
+      setUserContactData({
+        name: data.full_name || user?.email?.split('@')[0] || '',
+        email: user?.email || '',
+        phone: data.phone || ''
+      });
+    }
   };
 
   // Check delivery availability
@@ -253,6 +270,47 @@ const Checkout = () => {
         });
         return;
       }
+
+      // Validate user contact information
+      const contactErrors: any = {};
+      
+      if (!userContactData.name || userContactData.name.trim().length < 2) {
+        contactErrors.name = "Name must be at least 2 characters";
+      }
+      
+      if (!userContactData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userContactData.email)) {
+        contactErrors.email = "Valid email is required";
+      }
+      
+      if (!userContactData.phone || !/^[6-9]\d{9}$/.test(userContactData.phone)) {
+        contactErrors.phone = "Valid 10-digit phone number is required (starting with 6-9)";
+      }
+
+      if (Object.keys(contactErrors).length > 0) {
+        setUserContactErrors(contactErrors);
+        toast({
+          title: "Contact Information Required",
+          description: "Please fill in all contact information correctly",
+          variant: "destructive"
+        });
+        // Scroll to contact info section
+        const contactInfo = document.querySelector('[data-contact-info]');
+        if (contactInfo) {
+          contactInfo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return;
+      }
+
+      // Update profile with contact data
+      await supabase
+        .from("profiles" as any)
+        .update({ 
+          full_name: userContactData.name,
+          phone: userContactData.phone
+        })
+        .eq("id", user.id);
+
+      setUserContactErrors({});
     }
 
     setProcessing(true);
@@ -350,36 +408,25 @@ const Checkout = () => {
         // Don't fail the order, just log the warning
       }
     } else if (!isGuestCheckout && authUser && profile) {
-      // For authenticated users, also save phone to order for admin visibility
+      // For authenticated users, save contact info to order for admin visibility
       console.log('[Checkout] Saving authenticated user info to order:', {
         orderId,
-        customer_name: profile.full_name,
-        customer_email: authUser.email,
-        customer_phone: profile.phone
+        customer_name: userContactData.name,
+        customer_email: userContactData.email,
+        customer_phone: userContactData.phone
       });
       
       const { error: userInfoError } = await supabase
         .from("orders")
         .update({
-          customer_name: profile.full_name || authUser.email?.split('@')[0] || 'User',
-          customer_email: authUser.email,
-          customer_phone: profile.phone || ''
+          customer_name: userContactData.name,
+          customer_email: userContactData.email,
+          customer_phone: userContactData.phone
         })
         .eq("id", orderId);
 
       if (userInfoError) {
         console.error('[Checkout] Error adding user info to order:', userInfoError);
-        // Try to update with just email if other fields are missing
-        const { error: fallbackError } = await supabase
-          .from("orders")
-          .update({
-            customer_email: authUser.email
-          })
-          .eq("id", orderId);
-        
-        if (fallbackError) {
-          console.error('[Checkout] Fallback update also failed:', fallbackError);
-        }
       } else {
         console.log('[Checkout] User info saved successfully to order');
       }
@@ -659,26 +706,66 @@ const Checkout = () => {
             </>
           ) : (
             <>
+              <Card className="p-6 mb-6 border-l-4 border-l-blue-500 shadow-md" data-contact-info>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">1</span>
+                  <h2 className="text-xl font-bold">Your Contact Information</h2>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="user-name">Full Name *</Label>
+                    <Input
+                      id="user-name"
+                      value={userContactData.name}
+                      onChange={(e) => setUserContactData({ ...userContactData, name: e.target.value })}
+                      className={userContactErrors.name ? "border-red-500" : ""}
+                      placeholder="Enter your full name"
+                    />
+                    {userContactErrors.name && <p className="text-red-500 text-sm mt-1">{userContactErrors.name}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="user-phone">Phone Number *</Label>
+                    <Input
+                      id="user-phone"
+                      value={userContactData.phone}
+                      onChange={(e) => {
+                        const newPhone = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setUserContactData({ ...userContactData, phone: newPhone });
+                        // Also update profile phone so AddressForm receives it
+                        setProfile({ ...profile, phone: newPhone });
+                      }}
+                      className={userContactErrors.phone ? "border-red-500" : ""}
+                      placeholder="Enter 10-digit phone number"
+                      maxLength={10}
+                    />
+                    {userContactErrors.phone && <p className="text-red-500 text-sm mt-1">{userContactErrors.phone}</p>}
+                    <p className="text-xs text-gray-500 mt-1">Required for order delivery updates. This will auto-fill in the address section below.</p>
+                  </div>
+                </div>
+              </Card>
+
               <Card className="p-6 mb-6 border-l-4 border-l-green-500 shadow-md" data-address-form>
                 <div className="bg-green-50 -m-6 mb-4 p-4 border-b-2 border-green-200">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">1</span>
+                    <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">2</span>
                     <h2 className="text-xl font-bold text-green-900">Delivery Address & Availability</h2>
                   </div>
-                  <p className="text-sm text-green-700 mt-2 ml-10">⚡ Enter your pincode and click "Check Delivery" button below</p>
+                  <p className="text-sm text-green-700 mt-2 ml-10">Enter your pincode and click "Check Delivery" button below</p>
                 </div>
                 <AddressForm
                   onAddressSubmit={(address, phone) => {
+                    // Use phone from contact info if available, otherwise use the one from address form
+                    const finalPhone = userContactData.phone || phone;
                     // Update profile address and phone in database
                     supabase
                       .from("profiles" as any)
-                      .update({ address, phone })
+                      .update({ address, phone: finalPhone })
                       .eq("id", user.id);
-                    setProfile({ ...profile, address, phone });
+                    setProfile({ ...profile, address, phone: finalPhone });
                     setAddressSaved(true);
                   }}
                   initialAddress={profile?.address}
-                  initialPhone={profile?.phone}
+                  initialPhone={userContactData.phone || profile?.phone}
                   onDeliveryCheck={(data) => {
                     setSelectedPincode(data.pincode);
                     setSelectedState(data.state);

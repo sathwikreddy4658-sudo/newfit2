@@ -125,7 +125,7 @@ const Cart = () => {
           {/* Free Delivery Banner */}
           <div className="mt-6 p-4 bg-green-50 border-2 border-green-500 rounded-lg text-center">
             <p className="font-poppins font-bold text-black text-lg">
-               FREE DELIVERY ON ORDERS ₹600 OR MORE! 
+               FREE DELIVERY ON ORDERS ABOVE ₹600! 
             </p>
           </div>
         </div>

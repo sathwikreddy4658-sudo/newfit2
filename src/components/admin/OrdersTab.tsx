@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MapPin, CreditCard, Package, Trash2, Download, FileSpreadsheet } from "lucide-react";
+import { Phone, MapPin, CreditCard, Package, Trash2, Download, FileSpreadsheet, Bell, BellOff } from "lucide-react";
 
 const OrdersTab = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -16,8 +16,15 @@ const OrdersTab = () => {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [lastOrderCount, setLastOrderCount] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
+    // Create audio element for notification sound
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGi78OScTgwMUKbj8LJnHwU2kdfy0HgsBS15yPLaizsKElyz6OqnWhELRp/h8sFuIAUsgs/y24k4CDtwvPDmnFALCU+m4+6xaB4FN5HY8tN5KwUsec3y24o6ChJbuOjqp1sQC0ee4PKyaCIEL4LR8tyJNwg8cb3w5p1QCwlPpuPwsWkdBTaR2PLUeSwGLnrO8t2LOwkRXLjn6KZcEglInOPzs2gjBS+D0vPbiTYJPXK+8OadUQsIUqjl77NlHwU3kdny1XopCC17yvPcijkKElq36OamXRAKSZrk87FrIwUvhNDz24o5CTtz0PDlnE4OCVGo5O+yZSAENY7X8tR7LAgseczy3Yo5ChFctufpo10RCkqZ5PKyayMFL4TQ89yJOwg7c9Tw5ZxODglSqeTwsWYfBDaP2PTSeyYHKnjL8t2LOwoSW7jn6qVdEApKmePys2wkBzCG0vLciToJOXTT8OWcUQ8HU6vk77NnHwQ3j9j00XsnCCt5y/LdizsLElqw5+mlXhAKSZnl8bNrJAYwhNL03Io3CjpzvfHmnFAPB1Sr4/CxaSAFN4/Y89V6KQkreMvy3Is7ChFcr+nqpVsRCkma5fO0aykFLofR8t2KOAo6c73v6JtQDQhUq+PwsmlBBjiP2PPUfCYIK3jL89yJPQoRXK/p6qRbEgpKmeTztGomBSyF0fPdijoJO3K77+maTxAHVKjj8LFpIAU6j9n01HkkCCp3zPPaizwJEluw6OqmXBIJS5jk9LNsKAcuhNL02Ik4Czxx0fDlnU8OBVSo5PCxaBsGPJHX9NJ6JQcrd8r03Yo7CRJbsOjqplsSCEuY5PSzbCkFL4PS9NyKNws8ctHw5Z1PDwVVqOTwsWgcBjyP1/LQeicHKnXJ89yLOwsQXLDo66VbEwtLmOT0s20oBi+E0vTbijoKPHHR8OadUA8FVKbk8LFoHAY8j9bz0HonBip1yfPcizUQXLDp6qVdEwpKl+T0tW4nBy6D0fTdijoKPHHR8OacUQ8FVKfi8LFnHgY8jtfz0HonByl1yfPcizUQXLDp66VdEwpKl+T0tW4nBy6D0fTdijoKPHDQ8OadUQ8FU6fi8LFnHgY8jtfz0HonBil1yfPcizUQXLDp66VdEwpKl+T0tW4nBy6D0fTdijoKPHDQ8OadUQ8FU6fi8LFnHgY8jtfz0HonBil1yfPcizUQXLDp66VdEwpKl+T0tW4nBy6D0fTdijoKPHDQ8OadUQ8FU6fi8LFnHgY8jtfz0HonBil1yfPcizUQXLDp66VdEwpKl+T0tW4nBy6D0fTdijoKPHDQ8OadUQ8FU6fi8LFnHgY8jtfz0HonBil1yfPcizUQXLDp66VdEwpKl+T0tW4n');
+    
     fetchOrders();
 
     const channel = supabase
@@ -25,14 +32,60 @@ const OrdersTab = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => fetchOrders()
+        (payload) => {
+          console.log('Order change detected:', payload);
+          fetchOrders();
+          
+          // If it's a new order (INSERT event), show notification
+          if (payload.eventType === 'INSERT' && notificationsEnabled && !isInitialLoad.current) {
+            playNotificationSound();
+            showNewOrderNotification(payload.new);
+          }
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [notificationsEnabled]);
+
+  const playNotificationSound = () => {
+    if (audioRef.current && notificationsEnabled) {
+      audioRef.current.play().catch(err => console.log('Audio play failed:', err));
+    }
+  };
+
+  const showNewOrderNotification = (orderData: any) => {
+    // Browser notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('🎉 New Order Received!', {
+        body: `Order ID: ${orderData.id.slice(0, 8)} | Amount: ₹${orderData.total_price}`,
+        icon: '/icon.png',
+        tag: orderData.id,
+        requireInteraction: true
+      });
+    }
+
+    // Toast notification
+    toast({
+      title: "🎉 New Order Received!",
+      description: `Order ID: ${orderData.id.slice(0, 8)} | Amount: ₹${orderData.total_price}`,
+      duration: 8000,
+    });
+  };
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        toast({
+          title: "Notifications Enabled",
+          description: "You will now receive browser notifications for new orders",
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     filterOrdersByDate();
@@ -128,6 +181,19 @@ const OrdersTab = () => {
 
     setOrders(enrichedOrders);
     setFilteredOrders(enrichedOrders);
+    
+    // Track order count for new order detection
+    if (isInitialLoad.current) {
+      setLastOrderCount(enrichedOrders.length);
+      isInitialLoad.current = false;
+    } else if (enrichedOrders.length > lastOrderCount) {
+      // New orders detected
+      const newOrdersCount = enrichedOrders.length - lastOrderCount;
+      if (notificationsEnabled && newOrdersCount > 0) {
+        playNotificationSound();
+      }
+      setLastOrderCount(enrichedOrders.length);
+    }
   };
 
   const handleStatusChange = async (orderId: string, newStatus: "pending" | "confirmed" | "paid" | "shipped" | "delivered" | "cancelled") => {
@@ -516,7 +582,38 @@ const OrdersTab = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Orders Management</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold">Orders Management</h2>
+          <Button
+            variant={notificationsEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              if (!notificationsEnabled) {
+                requestNotificationPermission();
+              }
+              setNotificationsEnabled(!notificationsEnabled);
+              toast({
+                title: notificationsEnabled ? "Notifications Disabled" : "Notifications Enabled",
+                description: notificationsEnabled 
+                  ? "You will no longer receive order alerts" 
+                  : "You will now be notified of new orders",
+              });
+            }}
+            className="gap-2"
+          >
+            {notificationsEnabled ? (
+              <>
+                <Bell className="h-4 w-4" />
+                Alerts ON
+              </>
+            ) : (
+              <>
+                <BellOff className="h-4 w-4" />
+                Alerts OFF
+              </>
+            )}
+          </Button>
+        </div>
         
         <div className="flex gap-2">
           {selectedOrders.size > 0 && (

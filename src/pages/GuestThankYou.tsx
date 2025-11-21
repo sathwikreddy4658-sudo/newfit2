@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, Mail, Lock, Sparkles, TrendingUp } from "lucide-react";
+import { CheckCircle, Mail, Lock, Sparkles, TrendingUp, MapPin, CreditCard } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const GuestThankYou = () => {
@@ -14,11 +14,44 @@ const GuestThankYou = () => {
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [order, setOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const orderId = location.state?.orderId || sessionStorage.getItem('guestOrderId');
   const email = location.state?.email || sessionStorage.getItem('guestOrderEmail');
   const customerName = location.state?.name || sessionStorage.getItem('guestOrderName');
   const customerPhone = sessionStorage.getItem('guestOrderPhone') || '';
+
+  useEffect(() => {
+    // Fetch order details
+    const fetchOrder = async () => {
+      if (!orderId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items (*)
+          `)
+          .eq('id', orderId)
+          .single();
+
+        if (!error && data) {
+          setOrder(data);
+        }
+      } catch (err) {
+        console.error('Error fetching order:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [orderId]);
 
   const handleCreateAccount = async () => {
     if (!password || password.length < 6) {
@@ -56,6 +89,18 @@ const GuestThankYou = () => {
       if (signUpError) throw signUpError;
 
       if (authData.user) {
+        // Update the user's profile with address from the order
+        if (order?.address) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ address: order.address })
+            .eq('id', authData.user.id);
+
+          if (profileError) {
+            console.error('Error updating profile with address:', profileError);
+          }
+        }
+
         // Link the guest order to this new user account via secure RPC
         if (orderId) {
           const { error: linkError } = await (supabase.rpc as any)(
@@ -111,46 +156,119 @@ const GuestThankYou = () => {
     navigate('/');
   };
 
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+      </div>
+    );
+  }
+
+  const isCOD = order?.payment_id?.startsWith('COD-');
+  const paymentMethod = isCOD ? 'Cash on Delivery' : 'Online Payment';
+
   return (
     <div className="container mx-auto px-4 py-4 md:py-8">
       <div className="max-w-2xl mx-auto">
         {/* Success Header */}
-        <Card className="p-4 md:p-8 text-center mb-4 md:mb-6 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-          <CheckCircle className="h-12 w-12 md:h-20 md:w-20 text-green-600 mx-auto mb-3 md:mb-4" />
-          <h1 className="text-2xl md:text-4xl font-bold text-green-800 mb-2 md:mb-3">
-            Thank You For Your Order!
+        <Card className="p-4 md:p-8 text-center mb-4 md:mb-6 border-[#3b2a20]" style={{ backgroundColor: '#3b2a20' }}>
+          <CheckCircle className="h-12 w-12 md:h-20 md:w-20 mx-auto mb-3 md:mb-4 animate-bounce" style={{ color: '#b5edce' }} />
+          <h1 className="text-2xl md:text-4xl font-saira font-black mb-2 md:mb-3 uppercase text-white">
+            Thank You For Your Order
           </h1>
-          <p className="text-green-700 text-sm md:text-lg mb-2">
+          <p className="text-sm md:text-lg mb-2" style={{ color: '#b5edce' }}>
             You will receive a confirmation email shortly at:
           </p>
-          <p className="text-green-900 font-semibold text-sm md:text-lg break-all">
+          <p className="font-semibold text-sm md:text-lg break-all" style={{ color: '#b5edce' }}>
             {email}
           </p>
           {orderId && (
-            <p className="text-xs md:text-sm text-green-600 mt-2 md:mt-3">
-              Order ID: <span className="font-mono font-bold">{orderId.slice(0, 8)}</span>
-            </p>
+            <div className="mt-3 md:mt-4 p-2 md:p-3 rounded-lg inline-block" style={{ backgroundColor: 'rgba(181, 237, 206, 0.2)' }}>
+              <p className="text-xs md:text-sm" style={{ color: '#b5edce' }}>Order ID</p>
+              <p className="text-lg md:text-xl font-mono font-bold" style={{ color: '#b5edce' }}>
+                {orderId.slice(0, 8)}
+              </p>
+            </div>
           )}
         </Card>
 
+        {/* Order Summary */}
+        {order && (
+          <Card className="p-4 md:p-6 mb-4 md:mb-6">
+            <h2 className="text-lg md:text-2xl font-bold mb-4 text-gray-800">Order Summary</h2>
+            
+            {/* Order Items */}
+            <div className="mb-6">
+              <h3 className="font-semibold text-gray-700 mb-3">Items Ordered</h3>
+              <div className="space-y-2">
+                {order.order_items?.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm md:text-base">{item.product_name}</span>
+                    <span className="text-sm md:text-base font-semibold">
+                      {item.quantity}x ₹{item.product_price}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Total Price */}
+            <div className="border-t pt-4 mb-6">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-bold">Total Amount</span>
+                <span className="text-xl md:text-2xl font-bold text-primary">₹{order.total_price}</span>
+              </div>
+            </div>
+
+            {/* Delivery Address */}
+            {order.address && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-blue-600 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-1">Delivery Address</h4>
+                    <p className="text-sm text-gray-700">{order.address}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Method */}
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <CreditCard className="h-5 w-5 text-purple-600 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-1">Payment Method</h4>
+                  <p className="text-sm text-gray-700">{paymentMethod}</p>
+                  {isCOD && (
+                    <p className="text-xs text-orange-600 mt-2">
+                       -Please have the exact amount ready for payment upon delivery
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Sign Up Incentive */}
-        <Card className="p-4 md:p-6 mb-4 md:mb-6 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+        <Card className="p-4 md:p-6 mb-4 md:mb-6 border-[#b5edce]" style={{ backgroundColor: 'rgba(181, 237, 206, 0.3)' }}>
           <div className="flex flex-col md:flex-row items-start gap-3 md:gap-4">
-            <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-purple-600 flex-shrink-0 mt-1" />
+            <Sparkles className="h-6 w-6 md:h-8 md:w-8 flex-shrink-0 mt-1" style={{ color: '#3b2a20' }} />
             <div className="flex-1">
-              <h2 className="text-xl md:text-2xl font-bold text-purple-900 mb-2 md:mb-3">
-                Create Your Account Now!
+              <h2 className="text-xl md:text-2xl font-saira font-black mb-2 md:mb-3 uppercase" style={{ color: '#3b2a20' }}>
+                Create Your Account Now
               </h2>
               <div className="space-y-2 mb-3 md:mb-4">
-                <div className="flex items-center gap-2 text-purple-800">
+                <div className="flex items-center gap-2" style={{ color: '#3b2a20' }}>
                   <TrendingUp className="h-4 w-4 md:h-5 md:w-5" />
                   <p className="text-sm md:text-base font-semibold">Track this order and all future orders</p>
                 </div>
-                <div className="flex items-center gap-2 text-purple-800">
+                <div className="flex items-center gap-2" style={{ color: '#3b2a20' }}>
                   <Mail className="h-4 w-4 md:h-5 md:w-5" />
                   <p className="text-sm md:text-base font-semibold">Receive exclusive promotions and offers</p>
                 </div>
-                <div className="flex items-center gap-2 text-purple-800">
+                <div className="flex items-center gap-2" style={{ color: '#3b2a20' }}>
                   <CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
                   <p className="text-sm md:text-base font-semibold">Faster checkout for future purchases</p>
                 </div>
@@ -158,7 +276,7 @@ const GuestThankYou = () => {
               
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 md:p-3 mb-3 md:mb-4">
                 <p className="text-sm text-yellow-900">
-                  <strong>⚠️ Important:</strong> Guest orders are <strong>NOT</strong> visible later if you sign up separately. 
+                  <strong> Important:</strong> Guest orders are <strong>NOT</strong> visible later if you sign up separately. 
                   Create your account now to link this order to your profile!
                 </p>
               </div>

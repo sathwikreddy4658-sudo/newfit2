@@ -25,6 +25,8 @@ const ProductsTab = () => {
     price_15g: "",
     price_20g: "",
     stock: "",
+    stock_status_15g: "true",
+    stock_status_20g: "true",
     nutrition: "",
     description: "",
     protein: "",
@@ -34,6 +36,8 @@ const ProductsTab = () => {
     shelf_life: "",
     allergens: "",
     min_order_quantity: "",
+    combo_3_discount: "5",
+    combo_6_discount: "7",
     is_hidden: false,
   });
   const [productsPageImageFile, setProductsPageImageFile] = useState<File | null>(null);
@@ -59,6 +63,8 @@ const ProductsTab = () => {
       price_15g: "",
       price_20g: "",
       stock: "",
+      stock_status_15g: "true",
+      stock_status_20g: "true",
       nutrition: "",
       description: "",
       protein: "",
@@ -68,7 +74,9 @@ const ProductsTab = () => {
       shelf_life: "",
       allergens: "",
       min_order_quantity: "",
-      is_hidden: false, // Make sure this is false by default
+      combo_3_discount: "5",
+      combo_6_discount: "7",
+      is_hidden: false,
     });
     setEditingProduct(null);
     setImageFiles([]);
@@ -149,6 +157,10 @@ const ProductsTab = () => {
       const price20g = parseFloat(formData.price_20g);
       const stock = parseInt(formData.stock);
       const minOrderQuantity = formData.min_order_quantity ? parseInt(formData.min_order_quantity) : null;
+      const stockStatus15g = formData.stock_status_15g === "true";
+      const stockStatus20g = formData.stock_status_20g === "true";
+      const combo3Discount = formData.combo_3_discount ? parseFloat(formData.combo_3_discount) : 5;
+      const combo6Discount = formData.combo_6_discount ? parseFloat(formData.combo_6_discount) : 7;
 
       // Debug logging
       console.log('Form data:', {
@@ -216,7 +228,11 @@ const ProductsTab = () => {
         price_15g: price15g,
         price_20g: price20g,
         stock,
+        stock_status_15g: stockStatus15g,
+        stock_status_20g: stockStatus20g,
         min_order_quantity: minOrderQuantity,
+        combo_3_discount: combo3Discount,
+        combo_6_discount: combo6Discount,
       };
 
       // Validate product data before submitting
@@ -361,6 +377,8 @@ const ProductsTab = () => {
       price_15g: product.price_15g?.toString() || "",
       price_20g: product.price_20g?.toString() || "",
       stock: product.stock.toString(),
+      stock_status_15g: product.stock_status_15g !== undefined ? product.stock_status_15g.toString() : "true",
+      stock_status_20g: product.stock_status_20g !== undefined ? product.stock_status_20g.toString() : "true",
       nutrition: product.nutrition,
       description: product.description || "",
       protein: product.protein || "",
@@ -370,6 +388,8 @@ const ProductsTab = () => {
       shelf_life: product.shelf_life || "",
       allergens: product.allergens || "",
       min_order_quantity: product.min_order_quantity?.toString() || "",
+      combo_3_discount: product.combo_3_discount?.toString() || "5",
+      combo_6_discount: product.combo_6_discount?.toString() || "7",
       is_hidden: product.is_hidden || false,
     });
     setExistingImages(product.images || []);
@@ -459,7 +479,7 @@ const ProductsTab = () => {
                   />
                 </div>
                 <div>
-                  <Label>Stock *</Label>
+                  <Label>Total Stock *</Label>
                   <Input
                     type="number"
                     value={formData.stock}
@@ -468,12 +488,64 @@ const ProductsTab = () => {
                   />
                 </div>
                 <div>
+                  <Label>15g Variant Stock Status *</Label>
+                  <Select
+                    value={formData.stock_status_15g}
+                    onValueChange={(value) => setFormData({ ...formData, stock_status_15g: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select stock status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">In Stock</SelectItem>
+                      <SelectItem value="false">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>20g Variant Stock Status *</Label>
+                  <Select
+                    value={formData.stock_status_20g}
+                    onValueChange={(value) => setFormData({ ...formData, stock_status_20g: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select stock status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">In Stock</SelectItem>
+                      <SelectItem value="false">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label>Min Order Quantity</Label>
                   <Input
                     type="number"
                     value={formData.min_order_quantity}
                     onChange={(e) => setFormData({ ...formData, min_order_quantity: e.target.value })}
                     placeholder="Leave empty for no minimum"
+                  />
+                </div>
+                <div>
+                  <Label>3-Pack Discount (%)</Label>
+                  <Input
+                    type="number"
+                    value={formData.combo_3_discount}
+                    onChange={(e) => setFormData({ ...formData, combo_3_discount: e.target.value })}
+                    placeholder="Default: 5"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+                <div>
+                  <Label>6-Pack Discount (%)</Label>
+                  <Input
+                    type="number"
+                    value={formData.combo_6_discount}
+                    onChange={(e) => setFormData({ ...formData, combo_6_discount: e.target.value })}
+                    placeholder="Default: 7"
+                    min="0"
+                    max="100"
                   />
                 </div>
               </div>

@@ -374,28 +374,67 @@ const ProductDetail = () => {
             <Button
               variant="outline"
               onClick={() => setSelectedProtein("15g")}
+              disabled={product.stock_status_15g === false}
               className={cn(
-                "flex-1 px-6 py-3 font-poppins font-bold text-sm uppercase border-0",
-                selectedProtein === "15g" ? "bg-[#b5edce] text-black" : "bg-white text-black"
+                "flex-1 px-6 py-3 font-poppins font-bold text-sm uppercase border-0 relative",
+                selectedProtein === "15g" ? "bg-[#b5edce] text-black" : "bg-white text-black",
+                product.stock_status_15g === false && "opacity-50 cursor-not-allowed"
               )}
             >
-              15g Protein
+              <div className="flex flex-col items-center">
+                <span>15g Protein</span>
+                {product.stock_status_15g === false && (
+                  <span className="text-xs text-red-600 font-semibold mt-1">Out of Stock</span>
+                )}
+              </div>
             </Button>
             <Button
               variant="outline"
               onClick={() => setSelectedProtein("20g")}
+              disabled={product.stock_status_20g === false}
               className={cn(
-                "flex-1 px-6 py-3 font-poppins font-bold text-sm uppercase border-0",
-                selectedProtein === "20g" ? "bg-[#b5edce] text-black" : "bg-white text-black"
+                "flex-1 px-6 py-3 font-poppins font-bold text-sm uppercase border-0 relative",
+                selectedProtein === "20g" ? "bg-[#b5edce] text-black" : "bg-white text-black",
+                product.stock_status_20g === false && "opacity-50 cursor-not-allowed"
               )}
             >
-              20g Protein
+              <div className="flex flex-col items-center">
+                <span>20g Protein</span>
+                {product.stock_status_20g === false && (
+                  <span className="text-xs text-red-600 font-semibold mt-1">Out of Stock</span>
+                )}
+              </div>
             </Button>
           </div>
           <div className="flex items-center gap-4 mb-8">
-          <p className="font-montserrat text-4xl font-black text-black">
-            ₹{selectedProtein === "15g" ? product.price_15g * selectedQuantity : product.price_20g * selectedQuantity}
-          </p>
+          {(() => {
+            const basePrice = selectedProtein === "15g" ? product.price_15g : product.price_20g;
+            const subtotal = basePrice * selectedQuantity;
+            let finalPrice = subtotal;
+            let discount = 0;
+            
+            // Apply combo pack discount
+            if (selectedQuantity === 3 && product.combo_3_discount) {
+              discount = (subtotal * product.combo_3_discount) / 100;
+              finalPrice = subtotal - discount;
+            } else if (selectedQuantity === 6 && product.combo_6_discount) {
+              discount = (subtotal * product.combo_6_discount) / 100;
+              finalPrice = subtotal - discount;
+            }
+            
+            return (
+              <div>
+                <p className="font-montserrat text-4xl font-black text-black">
+                  ₹{finalPrice.toFixed(2)}
+                </p>
+                {discount > 0 && (
+                  <p className="text-sm text-green-600 font-bold">
+                    Save ₹{discount.toFixed(2)} ({selectedQuantity === 3 ? product.combo_3_discount : product.combo_6_discount}%)
+                  </p>
+                )}
+              </div>
+            );
+          })()}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -423,37 +462,58 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          <div className="flex gap-2 mb-8">
-            <Button
-              variant="outline"
-              onClick={() => setSelectedQuantity(3)}
-              className={cn(
-                "rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-8 py-3 text-lg flex-1 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
-                selectedQuantity === 3 && "bg-white text-black border-2 border-black"
-              )}
-            >
-              3-PACK
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setSelectedQuantity(6)}
-              className={cn(
-                "rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-8 py-3 text-lg flex-1 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
-                selectedQuantity === 6 && "bg-white text-black border-2 border-black"
-              )}
-            >
-              6-PACK
-            </Button>
+          <div className="mb-8">
+            <div className="flex gap-2">
+              <div className="flex-1 flex flex-col items-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedQuantity(3)}
+                  className={cn(
+                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-8 py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
+                    selectedQuantity === 3 && "bg-white text-black border-2 border-black"
+                  )}
+                >
+                  <span className="font-poppins font-black text-lg">3-PACK</span>
+                </Button>
+                {product.combo_3_discount > 0 && (
+                  <span className="text-xs text-green-600 font-bold mt-1">{product.combo_3_discount}% OFF</span>
+                )}
+              </div>
+              <div className="flex-1 flex flex-col items-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedQuantity(6)}
+                  className={cn(
+                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-8 py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
+                    selectedQuantity === 6 && "bg-white text-black border-2 border-black"
+                  )}
+                >
+                  <span className="font-poppins font-black text-lg">6-PACK</span>
+                </Button>
+                {product.combo_6_discount > 0 && (
+                  <span className="text-xs text-green-600 font-bold mt-1">{product.combo_6_discount}% OFF</span>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-2 mb-4">
             <Button
               onClick={handleAddToCart}
-              disabled={product.stock === 0 || product.stock < selectedQuantity}
+              disabled={
+                product.stock === 0 || 
+                product.stock < selectedQuantity || 
+                (selectedProtein === "15g" && product.stock_status_15g === false) ||
+                (selectedProtein === "20g" && product.stock_status_20g === false)
+              }
               className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-4 text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
-              {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+              {product.stock === 0 || 
+               (selectedProtein === "15g" && product.stock_status_15g === false) ||
+               (selectedProtein === "20g" && product.stock_status_20g === false) 
+                ? "Out of Stock" 
+                : "Add to Cart"}
             </Button>
             {cartQuantity >= minOrderQuantity && (
               <Button
