@@ -412,14 +412,19 @@ const ProductDetail = () => {
             const subtotal = basePrice * selectedQuantity;
             let finalPrice = subtotal;
             let discount = 0;
+            let appliedDiscountPercent = 0;
             
             // Apply combo pack discount
-            if (selectedQuantity === 3 && product.combo_3_discount) {
-              discount = (subtotal * product.combo_3_discount) / 100;
-              finalPrice = subtotal - discount;
-            } else if (selectedQuantity === 6 && product.combo_6_discount) {
+            // 3-pack discount applies to 3, 4, 5 bars
+            // 6-pack discount applies to 6+ bars
+            if (selectedQuantity >= 6 && product.combo_6_discount) {
               discount = (subtotal * product.combo_6_discount) / 100;
               finalPrice = subtotal - discount;
+              appliedDiscountPercent = product.combo_6_discount;
+            } else if (selectedQuantity >= 3 && product.combo_3_discount) {
+              discount = (subtotal * product.combo_3_discount) / 100;
+              finalPrice = subtotal - discount;
+              appliedDiscountPercent = product.combo_3_discount;
             }
             
             return (
@@ -429,7 +434,7 @@ const ProductDetail = () => {
                 </p>
                 {discount > 0 && (
                   <p className="text-sm text-green-600 font-bold">
-                    Save ₹{discount.toFixed(2)} ({selectedQuantity === 3 ? product.combo_3_discount : product.combo_6_discount}%)
+                    Save ₹{discount.toFixed(2)} ({appliedDiscountPercent}%)
                   </p>
                 )}
               </div>
