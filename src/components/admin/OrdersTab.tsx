@@ -22,9 +22,6 @@ const OrdersTab = () => {
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
-    // Create audio element for notification sound
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGi78OScTgwMUKbj8LJnHwU2kdfy0HgsBS15yPLaizsKElyz6OqnWhELRp/h8sFuIAUsgs/y24k4CDtwvPDmnFALCU+m4+6xaB4FN5HY8tN5KwUsec3y24o6ChJbuOjqp1sQC0ee4PKyaCIEL4LR8tyJNwg8cb3w5p1QCwlPpuPwsWkdBTaR2PLUeSwGLnrO8t2LOwkRXLjn6KZcEglInOPzs2gjBS+D0vPbiTYJPXK+8OadUQsIUqjl77NlHwU3kdny1XopCC17yvPcijkKElq36OamXRAKSZrk87FrIwUvhNDz24o5CTtz0PDlnE4OCVGo5O+yZSAENY7X8tR7LAgseczy3Yo5ChFctufpo10RCkqZ5PKyayMFL4TQ89yJOwg7c9Tw5ZxODglSqeTwsWYfBDaP2PTSeyYHKnjL8t2LOwoSW7jn6qVdEApKmePys2wkBzCG0vLciToJOXTT8OWcUQ8HU6vk77NnHwQ3j9j00XsnCCt5y/LdizsLElqw5+mlXhAKSZnl8bNrJAYwhNL03Io3CjpzvfHmnFAPB1Sr4/CxaSAFN4/Y89V6KQkreMvy3Is7ChFcr+nqpVsRCkma5fO0aykFLofR8t2KOAo6c73v6JtQDQhUq+PwsmlBBjiP2PPUfCYIK3jL89yJPQoRXK/p6qRbEgpKmeTztGomBSyF0fPdijoJO3K77+maTxAHVKjj8LFpIAU6j9n01HkkCCp3zPPaizwJEluw6OqmXBIJS5jk9LNsKAcuhNL02Ik4Czxx0fDlnU8OBVSo5PCxaBsGPJHX9NJ6JQcrd8r03Yo7CRJbsOjqplsSCEuY5PSzbCkFL4PS9NyKNws8ctHw5Z1PDwVVqOTwsWgcBjyP1/LQeicHKnXJ89yLOwsQXLDo66VbEwtLmOT0s20oBi+E0vTbijoKPHHR8OadUA8FVKbk8LFoHAY8j9bz0HonBip1yfPcizUQXLDp6qVdEwpKl+T0tW4nBy6D0fTdijoKPHHR8OacUQ8FVKfi8LFnHgY8jtfz0HonByl1yfPcizUQXLDp66VdEwpKl+T0tW4nBy6D0fTdijoKPHDQ8OadUQ8FU6fi8LFnHgY8jtfz0HonBil1yfPcizUQXLDp66VdEwpKl+T0tW4nBy6D0fTdijoKPHDQ8OadUQ8FU6fi8LFnHgY8jtfz0HonBil1yfPcizUQXLDp66VdEwpKl+T0tW4nBy6D0fTdijoKPHDQ8OadUQ8FU6fi8LFnHgY8jtfz0HonBil1yfPcizUQXLDp66VdEwpKl+T0tW4nBy6D0fTdijoKPHDQ8OadUQ8FU6fi8LFnHgY8jtfz0HonBil1yfPcizUQXLDp66VdEwpKl+T0tW4n');
-    
     fetchOrders();
 
     const channel = supabase
@@ -51,8 +48,28 @@ const OrdersTab = () => {
   }, [notificationsEnabled]);
 
   const playNotificationSound = () => {
-    if (audioRef.current && notificationsEnabled) {
-      audioRef.current.play().catch(err => console.log('Audio play failed:', err));
+    // Use browser's built-in notification sound
+    if (notificationsEnabled) {
+      // Create a simple beep using Web Audio API (CSP-friendly)
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (err) {
+        console.log('Audio notification failed:', err);
+      }
     }
   };
 
@@ -196,7 +213,13 @@ const OrdersTab = () => {
     }
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: "pending" | "confirmed" | "paid" | "shipped" | "delivered" | "cancelled") => {
+  const handleStatusChange = async (orderId: string, newStatus: "pending" | "confirmed" | "paid" | "shipped" | "delivered" | "cancelled" | "send_confirmation") => {
+    // Handle the special "send confirmation email" action
+    if (newStatus === "send_confirmation") {
+      await handleSendConfirmationEmail(orderId);
+      return;
+    }
+
     const { error } = await supabase
       .from("orders")
       .update({ status: newStatus })
@@ -207,6 +230,113 @@ const OrdersTab = () => {
     } else {
       toast({ title: "Order status updated" });
       fetchOrders();
+    }
+  };
+
+  const handleSendConfirmationEmail = async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) {
+      toast({ title: "Order not found", variant: "destructive" });
+      return;
+    }
+
+    const customerEmail = order.customer_email || order.profiles?.email;
+    if (!customerEmail) {
+      toast({ 
+        title: "Cannot send email", 
+        description: "No email address found for this customer",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    // Confirm before sending
+    const confirmed = confirm(
+      `Send order confirmation email to ${customerEmail}?\n\n` +
+      `Order ID: ${order.id.slice(0, 8)}\n` +
+      `Total: ₹${order.total_price}\n` +
+      `Items: ${order.order_items.length} product(s)`
+    );
+
+    if (!confirmed) return;
+
+    toast({ 
+      title: "Sending email...", 
+      description: "Please wait" 
+    });
+
+    try {
+      // Call our email API endpoint
+      const apiUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3001/api/send-email'  // Local development
+        : 'https://freelit.in/api/send-email'; // Production - your actual domain
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+          customerEmail: customerEmail,
+          customerName: order.customer_name || order.profiles?.name || "Customer",
+          totalPrice: order.total_price,
+          orderItems: order.order_items,
+          address: order.address,
+          paymentMethod: order.payment_id && order.payment_id.startsWith('COD-') ? 'COD' : 'Online Payment',
+          createdAt: order.created_at
+        })
+      });
+
+      const data = await response.json();
+      console.log('Email API response:', { status: response.status, data });
+
+      if (!response.ok) {
+        console.error('Email sending error:', data);
+        toast({ 
+          title: "Failed to send email", 
+          description: data.error || "Check Supabase Edge Function logs for details",
+          variant: "destructive",
+          duration: 8000,
+        });
+      } else if (data?.success === false) {
+        toast({ 
+          title: "Failed to send email", 
+          description: data.error || "SMTP error occurred",
+          variant: "destructive",
+          duration: 8000,
+        });
+      } else {
+        // Update order status to confirmed after successful email send
+        await supabase
+          .from("orders")
+          .update({ status: "confirmed" })
+          .eq("id", orderId);
+
+        toast({ 
+          title: "✅ Email sent successfully!", 
+          description: `Confirmation email sent to ${customerEmail}`,
+        });
+        fetchOrders();
+      }
+    } catch (error: any) {
+      console.error('Email sending error:', error);
+      
+      // Provide helpful error messages
+      let errorMessage = error.message || "An error occurred";
+      let errorTitle = "Failed to send email";
+      
+      if (error.message?.includes('Failed to send a request') || error.message?.includes('CORS')) {
+        errorTitle = "⚠️ Email Function Not Deployed";
+        errorMessage = "The email sending function hasn't been deployed yet. See ORDER_CONFIRMATION_EMAIL_GUIDE.md for setup instructions.";
+      }
+      
+      toast({ 
+        title: errorTitle, 
+        description: errorMessage,
+        variant: "destructive",
+        duration: 8000,
+      });
     }
   };
 
@@ -795,13 +925,16 @@ const OrdersTab = () => {
                   <Select
                     value={order.status}
                     onValueChange={(value) =>
-                      handleStatusChange(order.id, value as "pending" | "confirmed" | "paid" | "shipped" | "delivered" | "cancelled")
+                      handleStatusChange(order.id, value as "pending" | "confirmed" | "paid" | "shipped" | "delivered" | "cancelled" | "send_confirmation")
                     }
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="send_confirmation" className="bg-blue-50 font-semibold text-blue-700">
+                        📧 Send Confirmation Email
+                      </SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="confirmed">Confirmed (COD)</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
