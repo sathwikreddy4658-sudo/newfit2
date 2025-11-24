@@ -266,10 +266,10 @@ const OrdersTab = () => {
     });
 
     try {
-      // Call our email API endpoint
+      // Call our email API endpoint - use same domain as current site
       const apiUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:3001/api/send-email'  // Local development
-        : 'https://freelit.in/api/send-email'; // Production - your actual domain
+        : `${window.location.origin}/api/send-email`; // Production - same domain
       
       const response = await fetch(apiUrl, {
         method: 'POST',
