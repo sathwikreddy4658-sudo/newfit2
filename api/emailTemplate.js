@@ -3,7 +3,7 @@
 
 export const emailConfig = {
   // Store/Brand Information
-  storeName: 'FREEL IT',
+  storeName: 'Freel It',
   storeEmail: 'care@freelit.in',
   websiteUrl: 'https://freelit.in',
   supportEmail: 'care@freelit.in',
@@ -234,7 +234,7 @@ Total Amount: ₹${parseFloat(totalPrice).toFixed(2)}
 ${address ? `DELIVERY ADDRESS:\n${address}\n\n` : ''}
 ${
   paymentMethod === 'COD'
-    ? '💰 CASH ON DELIVERY\nPlease keep the exact amount ready when our delivery partner arrives.\n\n'
+    ? 'CASH ON DELIVERY\nPlease keep the exact amount ready when our delivery partner arrives.\n\n'
     : ''
 }
 ═══════════════════════════════════
