@@ -4,14 +4,14 @@
 import nodemailer from 'nodemailer';
 import { emailConfig, getOrderEmailTemplate, getOrderEmailText } from './emailTemplate.js';
 
-// SMTP Configuration - Replace with your Hostinger credentials
+// SMTP Configuration - Uses environment variables only
 const transporter = nodemailer.createTransport({
   host: 'smtp.hostinger.com',
   port: 465,
   secure: true, // SSL
   auth: {
-    user: process.env.SMTP_USER || 'care@freelit.in',
-    pass: process.env.SMTP_PASS || 'Sathwikreddy77wk$',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 

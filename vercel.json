@@ -1,6 +1,16 @@
 {
   "outputDirectory": "dist",
+  "functions": {
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
