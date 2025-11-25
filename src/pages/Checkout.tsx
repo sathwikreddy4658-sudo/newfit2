@@ -319,15 +319,15 @@ const Checkout = () => {
       discountAmount,
       promoCode: promoCode?.code,
       promoType: promoCode?.promo_type,
-      usingPrice: discountedTotal || totalPrice
+      usingPrice: discountedTotal !== undefined ? discountedTotal : totalPrice
     });
 
     // Calculate shipping discount from promo code (CRITICAL FIX)
     const shippingDiscount = getShippingDiscount();
 
-    // Calculate final price based on payment method
+    // Calculate final price based on payment method - use discountedTotal if it exists (even if 0)
     const finalPricing = calculateOrderPrice(
-      discountedTotal || totalPrice,
+      discountedTotal !== undefined ? discountedTotal : totalPrice,
       Math.max(0, shippingCharge - shippingDiscount), // Apply shipping discount
       paymentMethod === 'online' ? 'prepaid' : 'cod',
       selectedState
