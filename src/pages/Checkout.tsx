@@ -297,15 +297,6 @@ const Checkout = () => {
         return;
       }
 
-      // Update profile with contact data
-      await supabase
-        .from("profiles" as any)
-        .update({ 
-          full_name: userContactData.name,
-          phone: userContactData.phone
-        })
-        .eq("id", user.id);
-
       setUserContactErrors({});
     }
 
@@ -339,25 +330,34 @@ const Checkout = () => {
       quantity: item.quantity,
     }));
 
-    // Create order params - CRITICAL: Send items total WITHOUT promo discount
-    // Database validates items total, promo discount is applied AFTER order creation
+    // Calculate items total from the orderItems array (must match database calculation)
+    const itemsTotal = orderItems.reduce((sum, item) => sum + (item.product_price * item.quantity), 0);
+    
+    console.log('[Checkout] Price calculation:', {
+      itemsTotal,
+      cartTotalPrice: totalPrice,
+      discountAmount,
+      discountedTotal,
+      orderItems,
+      itemBreakdown: orderItems.map(item => ({
+        name: item.product_name,
+        price: item.product_price,
+        quantity: item.quantity,
+        subtotal: item.product_price * item.quantity
+      }))
+    });
+
+    // Create order params - Use simpler function signature without discount parameters
     const orderParams = {
-      p_user_id: authUser?.id || null, // Allow null for guest checkout
-      p_total_price: totalPrice, // Send ORIGINAL items total (without promo discount)
+      p_user_id: authUser?.id || null,
+      p_total_price: itemsTotal,
       p_address: isGuestCheckout ? guestData.address : profile.address,
-      p_payment_id: null, // Will be updated after payment
-      p_items: orderItems,
+      p_payment_id: null,
+      p_items: orderItems
     };
 
-    // Store guest info in order for guest checkouts
-    let guestOrderData = null;
-    if (isGuestCheckout) {
-      guestOrderData = {
-        customer_name: guestData.name,
-        customer_email: guestData.email,
-        customer_phone: guestData.phone
-      };
-    }
+    console.log('[Checkout] Sending orderParams to database:', orderParams);
+    console.log('[Checkout] p_total_price being sent:', orderParams.p_total_price);
 
     // Create order and items atomically using database function
     const { data, error } = await (supabase.rpc as any)('create_order_with_items', orderParams);
@@ -388,35 +388,30 @@ const Checkout = () => {
 
     const orderId = result.order_id;
 
-    // Add guest information to the order if it's a guest checkout
-    if (isGuestCheckout && guestOrderData) {
-      const { error: guestInfoError } = await supabase
-        .from("orders")
-        .update({
-          customer_name: guestOrderData.customer_name,
-          customer_email: guestOrderData.customer_email,
-          customer_phone: guestOrderData.customer_phone
-        })
-        .eq("id", orderId);
+    // Update order with customer info after creation
+    const updateData: any = {
+      customer_name: isGuestCheckout ? guestData.name : userContactData.name,
+      customer_email: isGuestCheckout ? guestData.email : userContactData.email,
+      customer_phone: isGuestCheckout ? guestData.phone : userContactData.phone
+    };
 
-      if (guestInfoError) {
-        console.warn("Error adding guest info to order:", guestInfoError);
-        // Don't fail the order, just log the warning
-      }
-    } else if (!isGuestCheckout) {
-      // For authenticated users, save contact info from form to order
-      const { error: userInfoError } = await supabase
-        .from("orders")
-        .update({
-          customer_name: userContactData.name,
-          customer_email: userContactData.email,
-          customer_phone: userContactData.phone
-        })
-        .eq("id", orderId);
+    console.log('[Checkout] Updating order with customer info:', {
+      orderId,
+      updateData,
+      isGuestCheckout,
+      guestData,
+      userContactData
+    });
 
-      if (userInfoError) {
-        console.error('[Checkout] Error saving user info:', userInfoError);
-      }
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update(updateData)
+      .eq("id", orderId);
+
+    if (updateError) {
+      console.error('[Checkout] Error updating order:', updateError);
+    } else {
+      console.log('[Checkout] Order updated successfully with customer info');
     }
 
     // Track promo code usage if a promo code was applied (only for authenticated users)
@@ -755,11 +750,7 @@ const Checkout = () => {
                   onAddressSubmit={(address, phone) => {
                     // Use phone from contact info if available, otherwise use the one from address form
                     const finalPhone = userContactData.phone || phone;
-                    // Update profile address and phone in database
-                    supabase
-                      .from("profiles" as any)
-                      .update({ address, phone: finalPhone })
-                      .eq("id", user.id);
+                    // Just update local state - all info goes to orders table
                     setProfile({ ...profile, address, phone: finalPhone });
                     setAddressSaved(true);
                   }}
