@@ -69,16 +69,20 @@ export const profileSchema = z.object({
 export const guestCheckoutSchema = z.object({
   name: z.string()
     .trim()
+    .min(1, 'Full name is required')
     .min(2, 'Name must be at least 2 characters')
     .max(100, 'Name must be less than 100 characters'),
   email: z.string()
+    .min(1, 'Email is required')
     .email('Invalid email address')
     .max(255, 'Email must be less than 255 characters'),
   phone: z.string()
     .trim()
+    .min(1, 'Phone number is required')
     .regex(/^[6-9]\d{9}$/, 'Phone number must be 10 digits starting with 6-9'),
   address: z.string()
     .trim()
+    .min(1, 'Delivery address is required')
     .min(10, 'Address must be at least 10 characters')
     .max(500, 'Address must be less than 500 characters'),
 });

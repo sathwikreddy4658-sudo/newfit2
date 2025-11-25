@@ -79,9 +79,16 @@ const AddressSelection = () => {
       if (!validationResult.success) {
         const errors: any = {};
         validationResult.error.errors.forEach(err => {
-          errors[err.path[0]] = err.message;
+          const fieldName = String(err.path[0]);
+          errors[fieldName] = err.message;
         });
         setGuestErrors(errors);
+        
+        // Show toast with first error
+        const firstError = Object.values(errors)[0];
+        if (firstError) {
+          toast.error(String(firstError));
+        }
         return;
       }
       setGuestErrors({});
