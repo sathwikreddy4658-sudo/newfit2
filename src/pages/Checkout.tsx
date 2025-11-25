@@ -179,14 +179,6 @@ const Checkout = () => {
       if (!contactData.email) {
         console.error('[Checkout] CRITICAL: userContactData.email is empty after setting!');
       }
-        phone: data.phone || ''
-      });
-      
-      console.log("UserContactData set to:", {
-        name: data.full_name || user?.email?.split('@')[0] || '',
-        email: user?.email || '',
-        phone: data.phone || ''
-      });
     }
   };
 
