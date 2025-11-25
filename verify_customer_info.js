@@ -1,11 +1,19 @@
 // Script to verify customer info in orders and alert on missing data
 import { createClient } from '@supabase/supabase-js';
-import 'dotenv/config';
+import dotenv from 'dotenv';
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // Use service role for admin access
-);
+dotenv.config();
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Error: Missing Supabase credentials in .env file');
+  console.error('Required: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function verifyCustomerInfo() {
   console.log('Checking orders for missing customer information...\n');
@@ -67,25 +75,21 @@ async function verifyCustomerInfo() {
 
     // Attempt to recover missing info from profiles
     console.log('\nAttempting to recover missing information...\n');
+    console.log('Note: Auto-recovery requires manual Supabase admin access.');
+    console.log('Please check the orders manually in your Supabase dashboard.\n');
 
     for (const issue of missingInfo) {
       if (issue.userId) {
         // Try to get info from profiles table
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('full_name, phone')
           .eq('id', issue.userId)
           .single();
 
-        // Try to get email from auth.users
-        const { data: { user } } = await supabase.auth.admin.getUserById(issue.userId);
-
-        if (profile || user) {
+        if (!profileError && profile) {
           const updates = {};
           
-          if (issue.missing.includes('email') && user?.email) {
-            updates.customer_email = user.email;
-          }
           if (issue.missing.includes('name') && profile?.full_name) {
             updates.customer_name = profile.full_name;
           }
@@ -105,6 +109,11 @@ async function verifyCustomerInfo() {
               console.error(`❌ Failed to update order ${issue.orderId.slice(0, 8)}:`, updateError);
             }
           }
+        }
+        
+        // Note about email - requires admin access to auth.users
+        if (issue.missing.includes('email')) {
+          console.log(`📧 Order ${issue.orderId.slice(0, 8)} missing email - check Supabase Auth users table manually`);
         }
       }
     }
