@@ -125,10 +125,10 @@ const Cart = () => {
           {/* Promo Code Banner */}
           <div className="mt-6 p-4 bg-gradient-to-r from-[#5e4338] to-[#3b2a20] border-2 border-[#b5edce] rounded-lg">
             <p className="font-poppins font-bold text-lg text-center mb-1 text-[#b5edce]">
-              USE PROMO CODE <span className="text-white font-black text-xl">APFREE</span> TO GET 100% OFF ON SHIPPING
+              Use code: <span className="text-white font-black text-xl">APFREE</span>. Get 100% OFF on Shipping
             </p>
             <p className="text-[#ffffff] text-sm text-center italic">
-              *Applicable to only some pincodes
+              Available only for eligible pincodes at checkout.
             </p>
           </div>
           
