@@ -53,6 +53,10 @@ const AddressSelection = () => {
   const handleAddressSubmit = async (address: string, phone?: string) => {
     if (!user) return;
 
+    console.log("=== handleAddressSubmit Called ===");
+    console.log("Address:", address);
+    console.log("Phone:", phone);
+
     setSavingAddress(true);
     try {
       const updateData: any = { address };
@@ -60,17 +64,24 @@ const AddressSelection = () => {
         updateData.phone = phone;
       }
 
+      console.log("Updating profile with:", updateData);
+
       const { error } = await (supabase
         .from as any)("profiles")
         .update(updateData)
         .eq("id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Update error:", error);
+        throw error;
+      }
 
+      console.log("Address saved successfully!");
       toast.success("Address saved successfully!");
       setShowAddressForm(false);
       fetchProfile(user.id);
     } catch (error: any) {
+      console.error("Error in handleAddressSubmit:", error);
       toast.error("Failed to save address: " + error.message);
     } finally {
       setSavingAddress(false);

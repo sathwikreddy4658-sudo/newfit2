@@ -98,8 +98,11 @@ const Checkout = () => {
           navigate("/auth");
           return;
         }
+        console.log("=== Checkout: Auth Session ===");
+        console.log("Session user:", session.user);
+        console.log("User email from session:", session.user.email);
         setUser(session.user);
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user);
       });
     }
   }, [isGuestCheckout]);
@@ -130,7 +133,7 @@ const Checkout = () => {
     }
   }, [successOrderData, navigate, guestData.name]);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, sessionUser?: any) => {
     const { data } = await supabase
       .from("profiles" as any)
       .select("*")
@@ -138,9 +141,29 @@ const Checkout = () => {
       .single();
     setProfile(data);
     
+    // Use the passed sessionUser if available, otherwise fall back to user state
+    const userEmail = sessionUser?.email || user?.email || '';
+    
     // Pre-fill user contact data from profile
     if (data) {
+      console.log("=== Checkout: Profile data ===");
+      console.log("Profile:", data);
+      console.log("Phone from profile:", data.phone);
+      console.log("User email:", userEmail);
+      
       setUserContactData({
+        name: data.full_name || userEmail?.split('@')[0] || '',
+        email: userEmail,
+        phone: data.phone || ''
+      });
+      
+      console.log("UserContactData set to:", {
+        name: data.full_name || userEmail?.split('@')[0] || '',
+        email: userEmail,
+        phone: data.phone || ''
+      });
+      
+      console.log("UserContactData set to:", {
         name: data.full_name || user?.email?.split('@')[0] || '',
         email: user?.email || '',
         phone: data.phone || ''
@@ -274,17 +297,31 @@ const Checkout = () => {
       // Validate user contact information
       const contactErrors: any = {};
       
+      console.log("=== Checkout: Validating contact info ===");
+      console.log("UserContactData:", userContactData);
+      
       if (!userContactData.name || userContactData.name.trim().length < 2) {
         contactErrors.name = "Name must be at least 2 characters";
+        console.log("Name validation failed");
       }
       
       if (!userContactData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userContactData.email)) {
         contactErrors.email = "Valid email is required";
+        console.log("Email validation failed");
       }
       
-      if (!userContactData.phone || !/^[6-9]\d{9}$/.test(userContactData.phone)) {
+      // Clean phone number (remove all non-digits) before validation
+      const cleanPhone = userContactData.phone?.replace(/\D/g, '') || '';
+      console.log("Phone:", userContactData.phone);
+      console.log("Clean phone:", cleanPhone);
+      console.log("Phone regex test:", /^[6-9]\d{9}$/.test(cleanPhone));
+      
+      if (!cleanPhone || !/^[6-9]\d{9}$/.test(cleanPhone)) {
         contactErrors.phone = "Valid 10-digit phone number is required (starting with 6-9)";
+        console.log("Phone validation failed");
       }
+
+      console.log("Contact errors:", contactErrors);
 
       if (Object.keys(contactErrors).length > 0) {
         setUserContactErrors(contactErrors);

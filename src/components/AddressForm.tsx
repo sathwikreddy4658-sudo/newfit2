@@ -125,6 +125,10 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("=== AddressForm Submit Started ===");
+    console.log("Phone value:", phone);
+    console.log("Phone length:", phone.length);
+    console.log("Phone cleaned:", phone.replace(/\D/g, ''));
 
     // Reset errors
     const newErrors: Record<string, string> = {};
@@ -133,7 +137,11 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
     if (!phone) {
       newErrors.phone = "Phone number is required";
     } else if (!validateIndianPhoneNumber(phone)) {
-      newErrors.phone = getPhoneNumberErrorMessage(phone);
+      const errorMsg = getPhoneNumberErrorMessage(phone);
+      newErrors.phone = errorMsg;
+      console.log("Phone validation failed:", errorMsg);
+    } else {
+      console.log("Phone validation passed!");
     }
 
     // Validate required fields
@@ -150,8 +158,11 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
       newErrors.pincode = "Valid 6-digit pincode is required";
     }
 
+    console.log("Validation errors:", newErrors);
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      console.log("Form validation failed, showing errors");
       toast.error("Please fix the errors before continuing");
       return;
     }
@@ -184,6 +195,10 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
 
     const formattedAddress = addressParts.join(", ");
     const formattedPhone = formatIndianPhoneNumber(phone);
+
+    console.log("Formatted address:", formattedAddress);
+    console.log("Formatted phone:", formattedPhone);
+    console.log("Calling onAddressSubmit with:", { formattedAddress, formattedPhone });
 
     onAddressSubmit(formattedAddress, formattedPhone);
     toast.success("Address saved successfully!");
