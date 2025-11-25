@@ -122,8 +122,18 @@ const Cart = () => {
             </Link>
           ))}
           
+          {/* Promo Code Banner */}
+          <div className="mt-6 p-4 bg-gradient-to-r from-[#5e4338] to-[#3b2a20] border-2 border-[#b5edce] rounded-lg">
+            <p className="font-poppins font-bold text-lg text-center mb-1">
+              USE PROMO CODE <span className="text-white font-black text-xl">APFREE</span> TO GET 100% OFF ON SHIPPING
+            </p>
+            <p className="text-[#b5edce] text-sm text-center italic">
+              *Applicable to only some pincodes
+            </p>
+          </div>
+          
           {/* Free Delivery Banner */}
-          <div className="mt-6 p-4 bg-green-50 border-2 border-green-500 rounded-lg text-center">
+          <div className="mt-4 p-4 bg-green-50 border-2 border-green-500 rounded-lg text-center">
             <p className="font-poppins font-bold text-black text-lg">
                FREE DELIVERY ON ORDERS ABOVE ₹600! 
             </p>
