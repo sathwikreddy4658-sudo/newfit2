@@ -444,22 +444,23 @@ const Checkout = () => {
         console.warn("Error adding guest info to order:", guestInfoError);
         // Don't fail the order, just log the warning
       }
-    } else if (!isGuestCheckout && authUser && profile) {
+    } else if (!isGuestCheckout) {
       // For authenticated users, save contact info to order for admin visibility
+      // Use userContactData which should have email, name, and phone populated
+      const customerInfo = {
+        customer_name: userContactData.name || profile?.full_name || user?.email?.split('@')[0] || '',
+        customer_email: userContactData.email || user?.email || '',
+        customer_phone: userContactData.phone || profile?.phone || ''
+      };
+      
       console.log('[Checkout] Saving authenticated user info to order:', {
         orderId,
-        customer_name: userContactData.name,
-        customer_email: userContactData.email,
-        customer_phone: userContactData.phone
+        ...customerInfo
       });
       
       const { error: userInfoError } = await supabase
         .from("orders")
-        .update({
-          customer_name: userContactData.name,
-          customer_email: userContactData.email,
-          customer_phone: userContactData.phone
-        })
+        .update(customerInfo)
         .eq("id", orderId);
 
       if (userInfoError) {
