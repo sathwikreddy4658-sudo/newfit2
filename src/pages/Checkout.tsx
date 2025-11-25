@@ -134,15 +134,29 @@ const Checkout = () => {
   }, [successOrderData, navigate, guestData.name]);
 
   const fetchProfile = async (userId: string, sessionUser?: any) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles" as any)
       .select("*")
       .eq("id", userId)
       .single();
+    
+    if (error) {
+      console.error('[Checkout] Error fetching profile:', error);
+    }
+    
     setProfile(data);
     
     // Use the passed sessionUser if available, otherwise fall back to user state
     const userEmail = sessionUser?.email || user?.email || '';
+    
+    // CRITICAL: Log if email is missing
+    if (!userEmail) {
+      console.error('[Checkout] CRITICAL: No email available!', {
+        sessionUser,
+        user,
+        userId
+      });
+    }
     
     // Pre-fill user contact data from profile
     if (data) {
@@ -151,15 +165,20 @@ const Checkout = () => {
       console.log("Phone from profile:", data.phone);
       console.log("User email:", userEmail);
       
-      setUserContactData({
+      const contactData = {
         name: data.full_name || userEmail?.split('@')[0] || '',
         email: userEmail,
         phone: data.phone || ''
-      });
+      };
       
-      console.log("UserContactData set to:", {
-        name: data.full_name || userEmail?.split('@')[0] || '',
-        email: userEmail,
+      setUserContactData(contactData);
+      
+      console.log("UserContactData set to:", contactData);
+      
+      // CRITICAL: Verify email was set
+      if (!contactData.email) {
+        console.error('[Checkout] CRITICAL: userContactData.email is empty after setting!');
+      }
         phone: data.phone || ''
       });
       
@@ -292,6 +311,17 @@ const Checkout = () => {
           variant: "destructive"
         });
         return;
+      }
+
+      // CRITICAL: Ensure userContactData is populated before proceeding
+      if (!userContactData.email && user?.email) {
+        console.warn('[Checkout] userContactData.email empty, repopulating from user');
+        setUserContactData(prev => ({
+          ...prev,
+          email: user.email || '',
+          name: prev.name || profile?.full_name || user.email?.split('@')[0] || '',
+          phone: prev.phone || profile?.phone || ''
+        }));
       }
 
       // Validate user contact information
@@ -448,25 +478,79 @@ const Checkout = () => {
       // For authenticated users, save contact info to order for admin visibility
       // Use userContactData which should have email, name, and phone populated
       const customerInfo = {
-        customer_name: userContactData.name || profile?.full_name || user?.email?.split('@')[0] || '',
+        customer_name: userContactData.name || profile?.full_name || user?.email?.split('@')[0] || 'Unknown',
         customer_email: userContactData.email || user?.email || '',
         customer_phone: userContactData.phone || profile?.phone || ''
       };
+      
+      // CRITICAL: Validate that we have at least email before saving
+      if (!customerInfo.customer_email) {
+        console.error('[Checkout] CRITICAL: No email found for customer info!', {
+          userContactData,
+          user,
+          profile
+        });
+        // Try to fetch email from auth session as last resort
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email) {
+          customerInfo.customer_email = session.user.email;
+          console.log('[Checkout] Recovered email from session:', session.user.email);
+        }
+      }
       
       console.log('[Checkout] Saving authenticated user info to order:', {
         orderId,
         ...customerInfo
       });
       
-      const { error: userInfoError } = await supabase
-        .from("orders")
-        .update(customerInfo)
-        .eq("id", orderId);
+      // Retry logic: Attempt to save customer info up to 3 times
+      let retryCount = 0;
+      let userInfoError = null;
+      
+      while (retryCount < 3) {
+        const { error } = await supabase
+          .from("orders")
+          .update(customerInfo)
+          .eq("id", orderId);
+        
+        if (!error) {
+          console.log('[Checkout] User info saved successfully to order');
+          break;
+        }
+        
+        userInfoError = error;
+        retryCount++;
+        console.warn(`[Checkout] Retry ${retryCount}/3 - Error saving user info:`, error);
+        
+        if (retryCount < 3) {
+          // Wait 500ms before retry
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
 
       if (userInfoError) {
-        console.error('[Checkout] Error adding user info to order:', userInfoError);
-      } else {
-        console.log('[Checkout] User info saved successfully to order');
+        console.error('[Checkout] FAILED to save user info after 3 attempts:', userInfoError);
+        // Don't fail the order, but send alert
+        toast({
+          title: "Order Created",
+          description: "Order placed successfully but contact info may not be complete. Please contact support with your order ID.",
+          variant: "default"
+        });
+      }
+      
+      // CRITICAL: Verify the data was actually saved
+      const { data: verifyOrder } = await supabase
+        .from("orders")
+        .select('customer_name, customer_email, customer_phone')
+        .eq("id", orderId)
+        .single();
+      
+      if (verifyOrder && !verifyOrder.customer_email) {
+        console.error('[Checkout] VERIFICATION FAILED: Customer email not in database!', {
+          orderId,
+          verifyOrder,
+          attemptedInfo: customerInfo
+        });
       }
     }
 
