@@ -35,6 +35,14 @@ const UserThankYou = () => {
 
         if (!error && data) {
           setOrder(data);
+          console.log('[ThankYou] Order data:', {
+            id: data.id,
+            total_price: data.total_price,
+            shipping_charge: data.shipping_charge,
+            cod_charge: data.cod_charge,
+            discount_applied: data.discount_applied,
+            payment_method: data.payment_method
+          });
         }
       } catch (err) {
         console.error('Error fetching order:', err);
@@ -104,11 +112,41 @@ const UserThankYou = () => {
               </div>
             </div>
 
-            {/* Total Price */}
+            {/* Price Breakdown */}
             <div className="border-t pt-4 mb-6">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-bold">Total Amount</span>
-                <span className="text-xl md:text-2xl font-bold text-primary">₹{order.total_price}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Items Total</span>
+                  <span className="font-medium">
+                    ₹{order.order_items?.reduce((sum: number, item: any) => sum + (item.product_price * item.quantity), 0).toFixed(2)}
+                  </span>
+                </div>
+                
+                {order.discount_applied > 0 && (
+                  <div className="flex justify-between text-sm text-green-700">
+                    <span>Discount Applied</span>
+                    <span className="font-medium">-₹{parseFloat(order.discount_applied).toFixed(2)}</span>
+                  </div>
+                )}
+                
+                {order.shipping_charge !== undefined && order.shipping_charge !== null && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Shipping Charge</span>
+                    <span className="font-medium">₹{parseFloat(order.shipping_charge).toFixed(2)}</span>
+                  </div>
+                )}
+                
+                {order.cod_charge > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">COD Charge</span>
+                    <span className="font-medium">₹{parseFloat(order.cod_charge).toFixed(2)}</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center pt-3 border-t">
+                  <span className="text-lg font-bold">Total Amount</span>
+                  <span className="text-xl md:text-2xl font-bold text-primary">₹{parseFloat(order.total_price).toFixed(2)}</span>
+                </div>
               </div>
             </div>
 

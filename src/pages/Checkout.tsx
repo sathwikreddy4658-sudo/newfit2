@@ -104,6 +104,17 @@ const Checkout = () => {
     }
   }, [isGuestCheckout]);
 
+  // Update contact form when profile loads or user changes
+  useEffect(() => {
+    if (!isGuestCheckout && (profile || user)) {
+      setUserContactData({
+        name: profile?.full_name || user?.email?.split('@')[0] || '',
+        email: user?.email || '',
+        phone: profile?.phone || ''
+      });
+    }
+  }, [profile, user, isGuestCheckout]);
+
   // Handle navigation after successful order
   useEffect(() => {
     if (successOrderData) {
@@ -302,6 +313,15 @@ const Checkout = () => {
 
     setProcessing(true);
 
+    console.log('[Checkout] Starting order with pricing:', {
+      totalPrice,
+      discountedTotal,
+      discountAmount,
+      promoCode: promoCode?.code,
+      promoType: promoCode?.promo_type,
+      usingPrice: discountedTotal || totalPrice
+    });
+
     // Calculate shipping discount from promo code (CRITICAL FIX)
     const shippingDiscount = getShippingDiscount();
 
@@ -312,6 +332,14 @@ const Checkout = () => {
       paymentMethod === 'online' ? 'prepaid' : 'cod',
       selectedState
     );
+
+    console.log('[Checkout] Final pricing calculation:', {
+      paymentMethod,
+      paymentMethodForCalculation: paymentMethod === 'online' ? 'prepaid' : 'cod',
+      finalPricing,
+      codCharge: finalPricing.codCharge,
+      canUseCOD: finalPricing.canUseCOD
+    });
 
     // Get authenticated user for payment (optional for guest checkout)
     let authUser = user;
@@ -388,19 +416,22 @@ const Checkout = () => {
 
     const orderId = result.order_id;
 
-    // Update order with customer info after creation
+    // Update order with customer info and all pricing details after creation
     const updateData: any = {
       customer_name: isGuestCheckout ? guestData.name : userContactData.name,
       customer_email: isGuestCheckout ? guestData.email : userContactData.email,
-      customer_phone: isGuestCheckout ? guestData.phone : userContactData.phone
+      customer_phone: isGuestCheckout ? guestData.phone : userContactData.phone,
+      total_price: finalPricing.total, // Final total with all charges
+      shipping_charge: shippingCharge - shippingDiscount, // Shipping after discount
+      cod_charge: finalPricing.codCharge || 0, // COD charge if applicable
+      discount_applied: discountAmount || 0, // Product discount
+      payment_method: paymentMethod // 'online' or 'cod'
     };
 
-    console.log('[Checkout] Updating order with customer info:', {
+    console.log('[Checkout] Updating order with customer info and pricing:', {
       orderId,
       updateData,
-      isGuestCheckout,
-      guestData,
-      userContactData
+      finalPricing
     });
 
     const { error: updateError } = await supabase
@@ -411,7 +442,7 @@ const Checkout = () => {
     if (updateError) {
       console.error('[Checkout] Error updating order:', updateError);
     } else {
-      console.log('[Checkout] Order updated successfully with customer info');
+      console.log('[Checkout] Order updated successfully');
     }
 
     // Track promo code usage if a promo code was applied (only for authenticated users)
@@ -889,7 +920,7 @@ const Checkout = () => {
                 <>
                   <div className="flex justify-between text-sm pt-2 border-t">
                     <span>Subtotal</span>
-                    <span>₹{(discountedTotal || totalPrice).toFixed(2)}</span>
+                    <span>₹{(discountedTotal !== undefined ? discountedTotal : totalPrice).toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between text-sm">
@@ -899,7 +930,7 @@ const Checkout = () => {
                     </span>
                     <span>
                       {(() => {
-                        const pricing = calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState);
+                        const pricing = calculateOrderPrice(discountedTotal !== undefined ? discountedTotal : totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState);
                         const shippingDiscount = getShippingDiscount();
                         const finalShipping = Math.max(0, pricing.shippingCharge - shippingDiscount);
                         
@@ -936,7 +967,7 @@ const Checkout = () => {
                   {paymentMethod === 'online' && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Prepaid Discount (5%)</span>
-                      <span>-₹{((discountedTotal || totalPrice) * 0.05).toFixed(2)}</span>
+                      <span>-₹{((discountedTotal !== undefined ? discountedTotal : totalPrice) * 0.05).toFixed(2)}</span>
                     </div>
                   )}
                 </>
@@ -947,7 +978,7 @@ const Checkout = () => {
                 <span>
                   {deliveryChecked 
                     ? (() => {
-                        const pricing = calculateOrderPrice(discountedTotal || totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState);
+                        const pricing = calculateOrderPrice(discountedTotal !== undefined ? discountedTotal : totalPrice, shippingCharge, paymentMethod === 'online' ? 'prepaid' : 'cod', selectedState);
                         const shippingDiscount = getShippingDiscount();
                         let finalTotal = pricing.total;
                         
@@ -958,7 +989,7 @@ const Checkout = () => {
                         
                         return `₹${finalTotal.toFixed(2)}`;
                       })()
-                    : `₹${(discountedTotal || totalPrice).toFixed(2)}`
+                    : `₹${(discountedTotal !== undefined ? discountedTotal : totalPrice).toFixed(2)}`
                   }
                 </span>
               </div>

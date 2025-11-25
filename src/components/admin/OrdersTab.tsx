@@ -196,6 +196,21 @@ const OrdersTab = () => {
       payment_transactions: paymentsMap[order.id] || []
     }));
 
+    // Log first order to check pricing columns
+    if (enrichedOrders.length > 0) {
+      console.log('[Admin] Sample order data:', {
+        id: enrichedOrders[0].id,
+        total_price: enrichedOrders[0].total_price,
+        shipping_charge: enrichedOrders[0].shipping_charge,
+        cod_charge: enrichedOrders[0].cod_charge,
+        discount_applied: enrichedOrders[0].discount_applied,
+        payment_method: enrichedOrders[0].payment_method,
+        customer_name: enrichedOrders[0].customer_name,
+        customer_email: enrichedOrders[0].customer_email,
+        customer_phone: enrichedOrders[0].customer_phone
+      });
+    }
+
     setOrders(enrichedOrders);
     setFilteredOrders(enrichedOrders);
     
@@ -1049,9 +1064,49 @@ const OrdersTab = () => {
                       </div>
                     ))}
 
-                    <div className="flex justify-between font-bold pt-3 border-t mt-3">
-                      <span>Order Total:</span>
-                      <span className="text-lg">₹{parseFloat(order.total_price).toFixed(2)}</span>
+                    {/* Price Breakdown */}
+                    <div className="space-y-2 pt-3 border-t mt-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Items Total:</span>
+                        <span className="font-medium">
+                          ₹{order.order_items.reduce((sum: number, item: any) => sum + (item.product_price * item.quantity), 0).toFixed(2)}
+                        </span>
+                      </div>
+                      
+                      {order.discount_applied > 0 && (
+                        <div className="flex justify-between text-sm text-green-700">
+                          <span>Discount Applied:</span>
+                          <span className="font-medium">-₹{parseFloat(order.discount_applied).toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {order.shipping_charge !== undefined && order.shipping_charge !== null && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Shipping Charge:</span>
+                          <span className="font-medium">₹{parseFloat(order.shipping_charge).toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {order.cod_charge > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">COD Charge:</span>
+                          <span className="font-medium">₹{parseFloat(order.cod_charge).toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                        <span>Order Total:</span>
+                        <span className="text-primary">₹{parseFloat(order.total_price).toFixed(2)}</span>
+                      </div>
+                      
+                      {order.payment_method && (
+                        <div className="flex justify-between text-xs pt-1">
+                          <span className="text-muted-foreground">Payment Method:</span>
+                          <Badge variant="outline" className="text-xs">
+                            {order.payment_id?.startsWith('COD-') ? 'Cash on Delivery' : order.payment_method}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

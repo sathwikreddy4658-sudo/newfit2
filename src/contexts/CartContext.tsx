@@ -188,9 +188,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error || !data) {
+        console.error('[Cart] Promo code fetch error:', error);
         toast.error("Invalid promo code");
         return false;
       }
+
+      console.log('[Cart] Promo code fetched:', {
+        code: data.code,
+        promo_type: data.promo_type,
+        discount_percentage: data.discount_percentage,
+        shipping_discount_percentage: data.shipping_discount_percentage
+      });
 
       setPromoCode(data);
       
@@ -216,8 +224,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0);
-  const discountAmount = promoCode ? (totalPrice * promoCode.discount_percentage) / 100 : 0;
+  
+  // Calculate discount only for percentage promo codes (not shipping_discount codes)
+  const discountAmount = promoCode && promoCode.promo_type === 'percentage' 
+    ? (totalPrice * (promoCode.discount_percentage || 0)) / 100 
+    : 0;
   const discountedTotal = totalPrice - discountAmount;
+
+  console.log('[Cart] Discount calculation:', {
+    promoCode: promoCode?.code,
+    promoType: promoCode?.promo_type,
+    discountPercentage: promoCode?.discount_percentage,
+    totalPrice,
+    discountAmount,
+    discountedTotal
+  });
 
   return (
     <CartContext.Provider
