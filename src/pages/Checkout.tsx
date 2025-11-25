@@ -98,9 +98,6 @@ const Checkout = () => {
           navigate("/auth");
           return;
         }
-        console.log("=== Checkout: Auth Session ===");
-        console.log("Session user:", session.user);
-        console.log("User email from session:", session.user.email);
         setUser(session.user);
         fetchProfile(session.user.id, session.user);
       });
@@ -141,44 +138,18 @@ const Checkout = () => {
       .single();
     
     if (error) {
-      console.error('[Checkout] Error fetching profile:', error);
+      console.error('Error fetching profile:', error);
     }
     
     setProfile(data);
     
-    // Use the passed sessionUser if available, otherwise fall back to user state
-    const userEmail = sessionUser?.email || user?.email || '';
-    
-    // CRITICAL: Log if email is missing
-    if (!userEmail) {
-      console.error('[Checkout] CRITICAL: No email available!', {
-        sessionUser,
-        user,
-        userId
+    // Pre-fill contact form with existing data if available
+    if (data || sessionUser) {
+      setUserContactData({
+        name: data?.full_name || sessionUser?.email?.split('@')[0] || '',
+        email: sessionUser?.email || '',
+        phone: data?.phone || ''
       });
-    }
-    
-    // Pre-fill user contact data from profile
-    if (data) {
-      console.log("=== Checkout: Profile data ===");
-      console.log("Profile:", data);
-      console.log("Phone from profile:", data.phone);
-      console.log("User email:", userEmail);
-      
-      const contactData = {
-        name: data.full_name || userEmail?.split('@')[0] || '',
-        email: userEmail,
-        phone: data.phone || ''
-      };
-      
-      setUserContactData(contactData);
-      
-      console.log("UserContactData set to:", contactData);
-      
-      // CRITICAL: Verify email was set
-      if (!contactData.email) {
-        console.error('[Checkout] CRITICAL: userContactData.email is empty after setting!');
-      }
     }
   };
 
@@ -295,55 +266,21 @@ const Checkout = () => {
       }
       setGuestErrors({});
     } else {
-      // For authenticated users, ensure user is loaded
-      if (!user || !profile) {
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to continue with payment.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // CRITICAL: Ensure userContactData is populated before proceeding
-      if (!userContactData.email && user?.email) {
-        console.warn('[Checkout] userContactData.email empty, repopulating from user');
-        setUserContactData(prev => ({
-          ...prev,
-          email: user.email || '',
-          name: prev.name || profile?.full_name || user.email?.split('@')[0] || '',
-          phone: prev.phone || profile?.phone || ''
-        }));
-      }
-
-      // Validate user contact information
+      // For authenticated users, validate contact information from form
       const contactErrors: any = {};
-      
-      console.log("=== Checkout: Validating contact info ===");
-      console.log("UserContactData:", userContactData);
       
       if (!userContactData.name || userContactData.name.trim().length < 2) {
         contactErrors.name = "Name must be at least 2 characters";
-        console.log("Name validation failed");
       }
       
       if (!userContactData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userContactData.email)) {
         contactErrors.email = "Valid email is required";
-        console.log("Email validation failed");
       }
       
-      // Clean phone number (remove all non-digits) before validation
       const cleanPhone = userContactData.phone?.replace(/\D/g, '') || '';
-      console.log("Phone:", userContactData.phone);
-      console.log("Clean phone:", cleanPhone);
-      console.log("Phone regex test:", /^[6-9]\d{9}$/.test(cleanPhone));
-      
       if (!cleanPhone || !/^[6-9]\d{9}$/.test(cleanPhone)) {
         contactErrors.phone = "Valid 10-digit phone number is required (starting with 6-9)";
-        console.log("Phone validation failed");
       }
-
-      console.log("Contact errors:", contactErrors);
 
       if (Object.keys(contactErrors).length > 0) {
         setUserContactErrors(contactErrors);
@@ -467,82 +404,18 @@ const Checkout = () => {
         // Don't fail the order, just log the warning
       }
     } else if (!isGuestCheckout) {
-      // For authenticated users, save contact info to order for admin visibility
-      // Use userContactData which should have email, name, and phone populated
-      const customerInfo = {
-        customer_name: userContactData.name || profile?.full_name || user?.email?.split('@')[0] || 'Unknown',
-        customer_email: userContactData.email || user?.email || '',
-        customer_phone: userContactData.phone || profile?.phone || ''
-      };
-      
-      // CRITICAL: Validate that we have at least email before saving
-      if (!customerInfo.customer_email) {
-        console.error('[Checkout] CRITICAL: No email found for customer info!', {
-          userContactData,
-          user,
-          profile
-        });
-        // Try to fetch email from auth session as last resort
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.email) {
-          customerInfo.customer_email = session.user.email;
-          console.log('[Checkout] Recovered email from session:', session.user.email);
-        }
-      }
-      
-      console.log('[Checkout] Saving authenticated user info to order:', {
-        orderId,
-        ...customerInfo
-      });
-      
-      // Retry logic: Attempt to save customer info up to 3 times
-      let retryCount = 0;
-      let userInfoError = null;
-      
-      while (retryCount < 3) {
-        const { error } = await supabase
-          .from("orders")
-          .update(customerInfo)
-          .eq("id", orderId);
-        
-        if (!error) {
-          console.log('[Checkout] User info saved successfully to order');
-          break;
-        }
-        
-        userInfoError = error;
-        retryCount++;
-        console.warn(`[Checkout] Retry ${retryCount}/3 - Error saving user info:`, error);
-        
-        if (retryCount < 3) {
-          // Wait 500ms before retry
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
+      // For authenticated users, save contact info from form to order
+      const { error: userInfoError } = await supabase
+        .from("orders")
+        .update({
+          customer_name: userContactData.name,
+          customer_email: userContactData.email,
+          customer_phone: userContactData.phone
+        })
+        .eq("id", orderId);
 
       if (userInfoError) {
-        console.error('[Checkout] FAILED to save user info after 3 attempts:', userInfoError);
-        // Don't fail the order, but send alert
-        toast({
-          title: "Order Created",
-          description: "Order placed successfully but contact info may not be complete. Please contact support with your order ID.",
-          variant: "default"
-        });
-      }
-      
-      // CRITICAL: Verify the data was actually saved
-      const { data: verifyOrder } = await supabase
-        .from("orders")
-        .select('customer_name, customer_email, customer_phone')
-        .eq("id", orderId)
-        .single();
-      
-      if (verifyOrder && !verifyOrder.customer_email) {
-        console.error('[Checkout] VERIFICATION FAILED: Customer email not in database!', {
-          orderId,
-          verifyOrder,
-          attemptedInfo: customerInfo
-        });
+        console.error('[Checkout] Error saving user info:', userInfoError);
       }
     }
 
@@ -836,6 +709,18 @@ const Checkout = () => {
                       placeholder="Enter your full name"
                     />
                     {userContactErrors.name && <p className="text-red-500 text-sm mt-1">{userContactErrors.name}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="user-email">Email *</Label>
+                    <Input
+                      id="user-email"
+                      type="email"
+                      value={userContactData.email}
+                      onChange={(e) => setUserContactData({ ...userContactData, email: e.target.value })}
+                      className={userContactErrors.email ? "border-red-500" : ""}
+                      placeholder="Enter your email"
+                    />
+                    {userContactErrors.email && <p className="text-red-500 text-sm mt-1">{userContactErrors.email}</p>}
                   </div>
                   <div>
                     <Label htmlFor="user-phone">Phone Number *</Label>
