@@ -50,14 +50,19 @@ const AddressSelection = () => {
     setProfile(data);
   };
 
-  const handleAddressSubmit = async (address: string) => {
+  const handleAddressSubmit = async (address: string, phone?: string) => {
     if (!user) return;
 
     setSavingAddress(true);
     try {
+      const updateData: any = { address };
+      if (phone) {
+        updateData.phone = phone;
+      }
+
       const { error } = await (supabase
         .from as any)("profiles")
-        .update({ address })
+        .update(updateData)
         .eq("id", user.id);
 
       if (error) throw error;
@@ -74,6 +79,12 @@ const AddressSelection = () => {
 
   const proceedToCheckout = () => {
     if (isGuestCheckout) {
+      // Debug: log the data being validated
+      console.log('Guest checkout data:', guestData);
+      console.log('Phone raw:', guestData.phone);
+      console.log('Phone trimmed:', guestData.phone.trim());
+      console.log('Phone length:', guestData.phone.trim().length);
+      
       // Validate guest data
       const validationResult = guestCheckoutSchema.safeParse(guestData);
       if (!validationResult.success) {
@@ -81,6 +92,7 @@ const AddressSelection = () => {
         validationResult.error.errors.forEach(err => {
           const fieldName = String(err.path[0]);
           errors[fieldName] = err.message;
+          console.log(`Validation error - ${fieldName}:`, err.message);
         });
         setGuestErrors(errors);
         
