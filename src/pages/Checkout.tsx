@@ -51,6 +51,15 @@ const Checkout = () => {
     if (!promoCode || promoCode.promo_type !== 'shipping_discount') return 0;
     if (!deliveryChecked || !selectedState || !shippingCharge) return 0;
 
+    // Check minimum quantity requirement
+    if (promoCode.min_quantity && promoCode.min_quantity > 0) {
+      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+      if (totalQuantity < promoCode.min_quantity) {
+        console.log(`[Checkout] Promo requires min ${promoCode.min_quantity} items, cart has ${totalQuantity}`);
+        return 0;
+      }
+    }
+
     // Check if state is allowed
     if (promoCode.allowed_states && promoCode.allowed_states.length > 0) {
       const stateMatch = promoCode.allowed_states.some(
