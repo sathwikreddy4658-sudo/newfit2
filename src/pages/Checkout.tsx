@@ -487,7 +487,10 @@ const Checkout = () => {
     // Create order and items atomically using database function
     const { data, error } = await (supabase.rpc as any)('create_order_with_items', orderParams);
 
+    console.log('[Checkout] Database response:', { data, error, hasData: !!data, dataLength: data?.length });
+
     if (error || !data || data.length === 0) {
+      console.error('[Checkout] Order creation failed:', { error, data });
       toast({
         title: "Order creation failed",
         description: sanitizeError(error || new Error("Unknown error")),
@@ -498,8 +501,10 @@ const Checkout = () => {
     }
 
     const result = data[0];
+    console.log('[Checkout] Order creation result:', { success: result.success, orderId: result.order_id, error: result.error_message });
 
     if (!result.success) {
+      console.error('[Checkout] Order creation returned failure:', result.error_message);
       toast({
         title: "Order failed",
         description: result.error_message?.includes("Insufficient stock")
@@ -512,6 +517,7 @@ const Checkout = () => {
     }
 
     const orderId = result.order_id;
+    console.log('[Checkout] Order created successfully with ID:', orderId);
 
     // Update order with customer info and all pricing details after creation
     const updateData: any = {

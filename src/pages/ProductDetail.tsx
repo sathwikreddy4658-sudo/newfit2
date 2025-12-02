@@ -171,7 +171,7 @@ const ProductDetail = () => {
     // Toast notification is handled in CartContext
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (product.stock < selectedQuantity) {
       toast({ title: "Insufficient stock", variant: "destructive" });
       return;
@@ -190,8 +190,15 @@ const ProductDetail = () => {
       image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
     });
     
-    // Navigate directly to checkout
-    navigate("/checkout");
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Navigate directly to checkout with guest flag if not authenticated
+    navigate("/checkout", {
+      state: {
+        isGuest: !user
+      }
+    });
   };
 
   const increaseQuantity = () => {
