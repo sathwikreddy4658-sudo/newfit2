@@ -12,7 +12,8 @@ import { sanitizeError } from "@/lib/errorUtils";
 import { guestCheckoutSchema } from "@/lib/validation";
 import { initiatePhonePePayment, createPaymentTransaction } from "@/lib/phonepe";
 import AddressForm from "@/components/AddressForm";
-import { Loader2, CheckCircle2, AlertCircle, Truck } from "lucide-react";
+import SavedAddresses from "@/components/SavedAddresses";
+import { Loader2, CheckCircle2, AlertCircle, Truck, Tag, X } from "lucide-react";
 import { calculateOrderPrice, validatePaymentMethod } from "@/lib/pricingEngine";
 import { getShippingRate } from "@/lib/pincodeService";
 import {
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 
 const Checkout = () => {
-  const { items, totalPrice, clearCart, discountedTotal, discountAmount, promoCode, totalWeight } = useCart();
+  const { items, totalPrice, clearCart, discountedTotal, discountAmount, promoCode, totalWeight, applyPromoCode, removePromoCode } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<any>(null);
@@ -34,6 +35,14 @@ const Checkout = () => {
   const [preventCartRedirect, setPreventCartRedirect] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('cod');
+  
+  // Saved address state
+  const [selectedSavedAddress, setSelectedSavedAddress] = useState<string | null>(null);
+  const [useSavedAddress, setUseSavedAddress] = useState(true);
+  
+  // Promo code state
+  const [promoInput, setPromoInput] = useState('');
+  const [applyingPromo, setApplyingPromo] = useState(false);
 
   // Pricing and delivery state
   const [selectedPincode, setSelectedPincode] = useState('');
@@ -50,15 +59,6 @@ const Checkout = () => {
   const getShippingDiscount = () => {
     if (!promoCode || promoCode.promo_type !== 'shipping_discount') return 0;
     if (!deliveryChecked || !selectedState || !shippingCharge) return 0;
-
-    // Check minimum quantity requirement
-    if (promoCode.min_quantity && promoCode.min_quantity > 0) {
-      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-      if (totalQuantity < promoCode.min_quantity) {
-        console.log(`[Checkout] Promo requires min ${promoCode.min_quantity} items, cart has ${totalQuantity}`);
-        return 0;
-      }
-    }
 
     // Check if state is allowed
     if (promoCode.allowed_states && promoCode.allowed_states.length > 0) {
@@ -161,14 +161,15 @@ const Checkout = () => {
       console.error('Error fetching profile:', error);
     }
     
-    setProfile(data);
+    setProfile(data as any);
     
     // Pre-fill contact form with existing data if available
     if (data || sessionUser) {
+      const profileData = data as any;
       setUserContactData({
-        name: data?.full_name || sessionUser?.email?.split('@')[0] || '',
+        name: profileData?.full_name || sessionUser?.email?.split('@')[0] || '',
         email: sessionUser?.email || '',
-        phone: data?.phone || ''
+        phone: profileData?.phone || ''
       });
     }
   };
@@ -225,7 +226,94 @@ const Checkout = () => {
     }
   };
 
+  // Handle promo code application
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) {
+      toast({
+        title: "Promo Code Required",
+        description: "Please enter a promo code",
+        variant: "destructive"
+      });
+      return;
+    }
 
+    setApplyingPromo(true);
+    try {
+      await applyPromoCode(promoInput);
+      setPromoInput('');
+    } catch (error) {
+      console.error('Error applying promo code:', error);
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
+  // Handle saved address selection
+  const handleSavedAddressSelect = async (address: any) => {
+    setSelectedSavedAddress(address.id);
+    setSelectedPincode(address.pincode);
+    setSelectedState(address.state);
+    
+    // Format address with all available details
+    const addressParts = [
+      address.flat_no,
+      address.building_name,
+      address.street_address,
+      address.landmark && `Near ${address.landmark}`,
+      address.city,
+      address.state,
+      address.pincode
+    ].filter(Boolean);
+    
+    const formattedAddress = addressParts.join(', ');
+    
+    setProfile({ 
+      ...profile, 
+      address: formattedAddress,
+      phone: address.phone 
+    });
+    setAddressSaved(true);
+    
+    // Auto-trigger delivery check
+    setCheckingDelivery(true);
+    setDeliveryError('');
+    
+    try {
+      const pincodeNum = parseInt(address.pincode);
+      const rate = await getShippingRate(pincodeNum);
+
+      if (!rate.serviceable) {
+        setDeliveryError('Delivery not available for this pincode');
+        setDeliveryChecked(false);
+        toast({
+          title: "Not Serviceable",
+          description: "We don't deliver to this pincode yet.",
+          variant: "destructive"
+        });
+      } else {
+        setSelectedState(rate.state || address.state);
+        setShippingCharge(rate.charge || 0);
+        setEstimatedDays(rate.estimatedDays || 0);
+        setIsCODAvailable(rate.codAvailable || false);
+        setDeliveryChecked(true);
+        setDeliveryError('');
+        toast({
+          title: "Delivery Available!",
+          description: `Shipping charge: ₹${rate.charge} | Estimated delivery: ${rate.estimatedDays} days`,
+        });
+      }
+    } catch (error) {
+      console.error('Error checking delivery:', error);
+      setDeliveryError('Error checking delivery availability');
+      toast({
+        title: "Error",
+        description: "Failed to check delivery availability",
+        variant: "destructive"
+      });
+    } finally {
+      setCheckingDelivery(false);
+    }
+  };
 
   const handlePayment = async () => {
     // Check if delivery has been verified
@@ -784,27 +872,64 @@ const Checkout = () => {
                     <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">2</span>
                     <h2 className="text-xl font-bold text-green-900">Delivery Address & Availability</h2>
                   </div>
-                  <p className="text-sm text-green-700 mt-2 ml-10">Enter your pincode and click "Check Delivery" button below</p>
+                  <p className="text-sm text-green-700 mt-2 ml-10">
+                    {useSavedAddress ? "Select a saved address or enter a new one below" : "Enter your pincode and click 'Check Delivery' button below"}
+                  </p>
                 </div>
-                <AddressForm
-                  onAddressSubmit={(address, phone) => {
-                    // Use phone from contact info if available, otherwise use the one from address form
-                    const finalPhone = userContactData.phone || phone;
-                    // Just update local state - all info goes to orders table
-                    setProfile({ ...profile, address, phone: finalPhone });
-                    setAddressSaved(true);
-                  }}
-                  initialAddress={profile?.address}
-                  initialPhone={userContactData.phone || profile?.phone}
-                  onDeliveryCheck={(data) => {
-                    setSelectedPincode(data.pincode);
-                    setSelectedState(data.state);
-                    setShippingCharge(data.shippingCharge);
-                    setIsCODAvailable(data.isCODAvailable);
-                    setEstimatedDays(data.estimatedDays);
-                    setDeliveryChecked(true);
-                  }}
-                />
+                
+                {/* Saved Addresses for Authenticated Users */}
+                {user && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <Label className="text-base font-semibold">Delivery Address</Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setUseSavedAddress(!useSavedAddress)}
+                        className="text-sm text-blue-600 hover:text-blue-700"
+                      >
+                        {useSavedAddress ? "Enter new address" : "Use saved address"}
+                      </Button>
+                    </div>
+                    
+                    {useSavedAddress ? (
+                      <SavedAddresses
+                        userId={user.id}
+                        onAddressSelect={handleSavedAddressSelect}
+                        selectedAddressId={selectedSavedAddress}
+                      />
+                    ) : null}
+                  </div>
+                )}
+                
+                {/* Address Form - Show for guests or if user chooses manual entry */}
+                {(!user || !useSavedAddress) && (
+                  <AddressForm
+                    onAddressSubmit={(address, phone) => {
+                      if (user) {
+                        // Use phone from contact info if available, otherwise use the one from address form
+                        const finalPhone = userContactData.phone || phone;
+                        // Just update local state - all info goes to orders table
+                        setProfile({ ...profile, address, phone: finalPhone });
+                        setAddressSaved(true);
+                      } else {
+                        // Guest checkout - update guestData
+                        setGuestData({ ...guestData, address, phone: phone || guestData.phone });
+                        setAddressSaved(true);
+                      }
+                    }}
+                    initialAddress={user ? profile?.address : guestData.address}
+                    initialPhone={user ? (userContactData.phone || profile?.phone) : guestData.phone}
+                    onDeliveryCheck={(data) => {
+                      setSelectedPincode(data.pincode);
+                      setSelectedState(data.state);
+                      setShippingCharge(data.shippingCharge);
+                      setIsCODAvailable(data.isCODAvailable);
+                      setEstimatedDays(data.estimatedDays);
+                      setDeliveryChecked(true);
+                    }}
+                  />
+                )}
               </Card>
 
               {/* Delivery Checker - REMOVED, now integrated in AddressForm */}
@@ -901,6 +1026,55 @@ const Checkout = () => {
               <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">{isGuestCheckout ? '3' : '2'}</span>
               <h2 className="text-xl font-bold">Order Summary</h2>
             </div>
+            
+            {/* Promo Code Section */}
+            <div className="mb-4 p-4 bg-muted/50 rounded-lg">
+              <Label htmlFor="promo-code" className="text-sm font-medium mb-2 block">
+                <Tag className="inline mr-2 h-4 w-4" />
+                Have a promo code?
+              </Label>
+              {promoCode ? (
+                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Tag className="w-5 h-5 text-green-600" />
+                    <span className="font-mono font-bold text-green-700">{promoCode.code}</span>
+                    <span className="text-sm text-green-600">
+                      {promoCode.promo_type === 'shipping_discount' 
+                        ? `(${promoCode.shipping_discount_percentage}% off shipping)` 
+                        : `(${promoCode.discount_percentage}% off)`}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={removePromoCode}
+                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    id="promo-code"
+                    placeholder="Enter promo code"
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                    className="flex-1"
+                    onKeyPress={(e) => e.key === 'Enter' && handleApplyPromo()}
+                  />
+                  <Button
+                    onClick={handleApplyPromo}
+                    disabled={applyingPromo || !promoInput.trim()}
+                    variant="outline"
+                    className="font-poppins font-bold"
+                  >
+                    {applyingPromo ? "Applying..." : "Apply"}
+                  </Button>
+                </div>
+              )}
+            </div>
+            
             <h3 className="font-semibold mb-4 text-gray-700">Price Details</h3>
 
             <div className="space-y-2 mb-4">

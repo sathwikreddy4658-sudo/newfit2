@@ -11,6 +11,7 @@ import BlogsTab from "@/components/admin/BlogsTab";
 import NewsletterTab from "@/components/admin/NewsletterTab";
 import CustomerRatingsTab from "@/components/admin/CustomerRatingsTab";
 import ProtectedAdminRoute from "@/components/admin/ProtectedAdminRoute";
+import OrderNotifications from "@/components/OrderNotifications";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -25,9 +26,12 @@ const AdminDashboard = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <Button variant="outline" onClick={handleLogout} className="font-poppins font-bold">
-            <LogOut className="mr-2 h-4 w-4" /> Logout
-          </Button>
+          <div className="flex items-center gap-3">
+            <OrderNotifications />
+            <Button variant="outline" onClick={handleLogout} className="font-poppins font-bold">
+              <LogOut className="mr-2 h-4 w-4" /> Logout
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="products" className="space-y-4">

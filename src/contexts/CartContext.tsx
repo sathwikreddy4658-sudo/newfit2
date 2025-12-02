@@ -20,7 +20,6 @@ interface PromoCode {
   shipping_discount_percentage?: number;
   allowed_states?: string[];
   allowed_pincodes?: string[];
-  min_quantity?: number; // Minimum quantity of items required
 }
 
 interface CartContextType {
@@ -183,7 +182,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Get the promo code details (for both authenticated and guest users)
       const { data, error } = await supabase
         .from("promo_codes")
-        .select("code, discount_percentage, promo_type, shipping_discount_percentage, allowed_states, allowed_pincodes, min_quantity")
+        .select("code, discount_percentage, promo_type, shipping_discount_percentage, allowed_states, allowed_pincodes")
         .eq("code", code.toUpperCase())
         .eq("active", true)
         .single();

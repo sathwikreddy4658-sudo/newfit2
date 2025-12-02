@@ -205,7 +205,7 @@ const UserThankYou = () => {
 
         {/* Additional Info */}
         <Card className="p-4 md:p-6 border-[#b5edce]" style={{ backgroundColor: 'rgba(181, 237, 206, 0.3)' }}>
-          <h3 className="text-sm md:text-base font-saira font-black mb-2 uppercase" style={{ color: '#3b2a20' }}>Create Your Account Now</h3>
+          <h3 className="text-sm md:text-base font-saira font-black mb-2 uppercase" style={{ color: '#3b2a20' }}></h3>
           <ul className="space-y-1 md:space-y-2 text-xs md:text-sm" style={{ color: '#3b2a20' }}>
             <li>✅ Your order has been confirmed and is being processed</li>
             <li>📧 Check your email for order confirmation and tracking details</li>

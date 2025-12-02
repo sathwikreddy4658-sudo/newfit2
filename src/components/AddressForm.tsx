@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Phone, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { MapPin, Phone, CheckCircle2, AlertCircle, Loader2, Check } from "lucide-react";
 import { addressSchema } from "@/lib/validation";
 import { toast } from "sonner";
 import {
@@ -352,18 +352,30 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
             </div>
             <div className="space-y-2">
               <Label htmlFor="pincode">Pincode *</Label>
-              <Input
-                id="pincode"
-                type="text"
-                value={formData.pincode}
-                onChange={(e) => handleInputChange("pincode", e.target.value.replace(/\D/g, ""))}
-                placeholder="6-digit pincode"
-                maxLength={6}
-                className={errors.pincode ? "border-red-500 bg-red-50" : ""}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="pincode"
+                  type="text"
+                  value={formData.pincode}
+                  onChange={(e) => handleInputChange("pincode", e.target.value.replace(/\D/g, ""))}
+                  placeholder="6-digit pincode"
+                  maxLength={6}
+                  className={errors.pincode ? "border-red-500 bg-red-50" : deliveryChecked ? "bg-green-50 border-green-500" : ""}
+                  disabled={deliveryChecked}
+                  required
+                />
+                {deliveryChecked && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <span className="text-xs text-green-600 font-medium">Verified</span>
+                    <Check className="w-4 h-4 text-green-600" />
+                  </div>
+                )}
+              </div>
               {errors.pincode && (
                 <p className="text-red-600 text-sm">{errors.pincode}</p>
+              )}
+              {deliveryChecked && (
+                <p className="text-xs text-green-600 mt-1">✓ Delivery verified for this pincode. To change, clear the form.</p>
               )}
               
               {/* Check Delivery Button - Always visible */}

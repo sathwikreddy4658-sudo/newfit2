@@ -171,6 +171,29 @@ const ProductDetail = () => {
     // Toast notification is handled in CartContext
   };
 
+  const handleBuyNow = () => {
+    if (product.stock < selectedQuantity) {
+      toast({ title: "Insufficient stock", variant: "destructive" });
+      return;
+    }
+    
+    const price = selectedProtein === "15g" ? product.price_15g : product.price_20g;
+    
+    // Add item to cart
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: price,
+      stock: product.stock,
+      quantity: selectedQuantity,
+      protein: selectedProtein,
+      image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
+    });
+    
+    // Navigate directly to checkout
+    navigate("/checkout");
+  };
+
   const increaseQuantity = () => {
     setSelectedQuantity(prev => prev + 1);
   };
@@ -520,6 +543,20 @@ const ProductDetail = () => {
                 ? "Out of Stock" 
                 : "Add to Cart"}
             </Button>
+            
+            <Button
+              onClick={handleBuyNow}
+              disabled={
+                product.stock === 0 || 
+                product.stock < selectedQuantity || 
+                (selectedProtein === "15g" && product.stock_status_15g === false) ||
+                (selectedProtein === "20g" && product.stock_status_20g === false)
+              }
+              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-4 text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Buy Now
+            </Button>
+
             {cartQuantity >= minOrderQuantity && (
               <Button
                 onClick={() => navigate("/cart")}
