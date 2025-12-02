@@ -528,18 +528,31 @@ const Checkout = () => {
     console.log('[Checkout] Updating order with customer info and pricing:', {
       orderId,
       updateData,
-      finalPricing
+      finalPricing,
+      breakdown: {
+        itemsTotal: finalPricing.subtotal,
+        shippingCharge: finalPricing.shippingCharge,
+        codCharge: finalPricing.codCharge,
+        discount: discountAmount,
+        finalTotal: finalPricing.total
+      }
     });
 
-    const { error: updateError } = await supabase
+    const { data: updateResult, error: updateError } = await supabase
       .from("orders")
       .update(updateData)
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select();
 
     if (updateError) {
-      console.error('[Checkout] Error updating order:', updateError);
+      console.error('[Checkout] CRITICAL ERROR updating order:', updateError);
+      toast({
+        title: "Warning",
+        description: "Order created but pricing may be incorrect. Please contact support.",
+        variant: "destructive"
+      });
     } else {
-      console.log('[Checkout] Order updated successfully');
+      console.log('[Checkout] Order updated successfully:', updateResult);
     }
 
     // Track promo code usage if a promo code was applied (only for authenticated users)
