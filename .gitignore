@@ -31,3 +31,6 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.email
+
+test_telegram_setup.js
+TELEGRAM_BOT_SETUP.md
