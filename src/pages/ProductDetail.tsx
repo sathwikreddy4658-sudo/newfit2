@@ -415,18 +415,18 @@ const ProductDetail = () => {
         </div>
 
         <div>
-          <div className="flex items-start gap-4 mb-6">
+          <div className="flex items-start gap-4 mb-3">
             <div className="flex-1">
-              <h1 className="font-saira font-black uppercase text-[#5e4338] text-5xl mb-2">{product.name}</h1>
-              <p className="font-poppins font-black uppercase text-[#3b2a20] text-lg">PROTEIN BAR</p>
+              <h1 className="font-saira font-black uppercase text-[#5e4338] text-4xl md:text-5xl mb-1">{product.name}</h1>
+              <p className="font-poppins font-black uppercase text-[#3b2a20] text-lg md:text-lg">PROTEIN BAR</p>
             </div>
             {product.stock === 0 && (
-              <div className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">
+              <div className="bg-red-500 text-white px-3 md:px-4 py-2 rounded-lg font-bold text-xs md:text-sm whitespace-nowrap">
                 OUT OF STOCK
               </div>
             )}
           </div>
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-4">
             <Button
               variant="outline"
               onClick={() => setSelectedProtein("15g")}
@@ -462,7 +462,7 @@ const ProductDetail = () => {
               </div>
             </Button>
           </div>
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-4 mb-5">
           {(() => {
             const basePrice = selectedProtein === "15g" ? product.price_15g : product.price_20g;
             const subtotal = basePrice * selectedQuantity;
@@ -485,11 +485,11 @@ const ProductDetail = () => {
             
             return (
               <div>
-                <p className="font-montserrat text-4xl font-black text-black">
+                <p className="font-montserrat text-2xl md:text-4xl font-black text-black">
                   ₹{finalPrice.toFixed(2)}
                 </p>
                 {discount > 0 && (
-                  <p className="text-sm text-green-600 font-bold">
+                  <p className="text-xs md:text-sm text-green-600 font-bold">
                     Save ₹{discount.toFixed(2)} ({appliedDiscountPercent}%)
                   </p>
                 )}
