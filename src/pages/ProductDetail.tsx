@@ -432,7 +432,7 @@ const ProductDetail = () => {
               onClick={() => setSelectedProtein("15g")}
               disabled={product.stock_status_15g === false}
               className={cn(
-                "flex-1 px-6 py-3 font-poppins font-bold text-sm uppercase border-0 relative",
+                "flex-1 px-3 md:px-6 py-2 md:py-3 font-poppins font-bold text-xs md:text-sm uppercase border-0 relative",
                 selectedProtein === "15g" ? "bg-[#b5edce] text-black" : "bg-white text-black",
                 product.stock_status_15g === false && "opacity-50 cursor-not-allowed"
               )}
@@ -449,7 +449,7 @@ const ProductDetail = () => {
               onClick={() => setSelectedProtein("20g")}
               disabled={product.stock_status_20g === false}
               className={cn(
-                "flex-1 px-6 py-3 font-poppins font-bold text-sm uppercase border-0 relative",
+                "flex-1 px-3 md:px-6 py-2 md:py-3 font-poppins font-bold text-xs md:text-sm uppercase border-0 relative",
                 selectedProtein === "20g" ? "bg-[#b5edce] text-black" : "bg-white text-black",
                 product.stock_status_20g === false && "opacity-50 cursor-not-allowed"
               )}
@@ -530,7 +530,7 @@ const ProductDetail = () => {
                   variant="outline"
                   onClick={() => setSelectedQuantity(3)}
                   className={cn(
-                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-8 py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
+                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-2 md:px-8 py-2 md:py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
                     selectedQuantity === 3 && "bg-white text-black border-2 border-black"
                   )}
                 >
@@ -545,7 +545,7 @@ const ProductDetail = () => {
                   variant="outline"
                   onClick={() => setSelectedQuantity(6)}
                   className={cn(
-                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-8 py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
+                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-2 md:px-8 py-2 md:py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
                     selectedQuantity === 6 && "bg-white text-black border-2 border-black"
                   )}
                 >
@@ -567,7 +567,7 @@ const ProductDetail = () => {
                 (selectedProtein === "15g" && product.stock_status_15g === false) ||
                 (selectedProtein === "20g" && product.stock_status_20g === false)
               }
-              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-4 text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-3 md:py-4 text-sm md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
               {product.stock === 0 || 
@@ -585,7 +585,7 @@ const ProductDetail = () => {
                 (selectedProtein === "15g" && product.stock_status_15g === false) ||
                 (selectedProtein === "20g" && product.stock_status_20g === false)
               }
-              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-4 text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-3 md:py-4 text-sm md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Buy Now
             </Button>
