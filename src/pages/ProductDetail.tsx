@@ -392,13 +392,13 @@ const ProductDetail = () => {
 
           {/* Mobile: Thumbnails below image */}
           {product.images && product.images.length > 1 && (
-            <div className="flex md:hidden gap-3 mt-4 overflow-x-auto pb-2 justify-start">
+            <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-2 justify-start px-2">
               {product.images.map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
                   className={cn(
-                    "flex-shrink-0 w-12 h-12 rounded border-2 overflow-hidden transition-all",
+                    "flex-shrink-0 w-10 h-10 rounded border-2 overflow-hidden transition-all",
                     index === currentImageIndex ? "border-[#5e4338] ring-2 ring-[#5e4338]/30" : "border-gray-300 hover:border-gray-400"
                   )}
                 >
@@ -438,7 +438,7 @@ const ProductDetail = () => {
               )}
             >
               <div className="flex flex-col items-center">
-                <span>15g Protein</span>
+                <span className="text-xs md:text-sm">15g Protein</span>
                 {product.stock_status_15g === false && (
                   <span className="text-xs text-red-600 font-semibold mt-1">Out of Stock</span>
                 )}
@@ -455,7 +455,7 @@ const ProductDetail = () => {
               )}
             >
               <div className="flex flex-col items-center">
-                <span>20g Protein</span>
+                <span className="text-xs md:text-sm">20g Protein</span>
                 {product.stock_status_20g === false && (
                   <span className="text-xs text-red-600 font-semibold mt-1">Out of Stock</span>
                 )}
@@ -534,7 +534,7 @@ const ProductDetail = () => {
                     selectedQuantity === 3 && "bg-white text-black border-2 border-black"
                   )}
                 >
-                  <span className="font-poppins font-black text-lg">3-PACK</span>
+                  <span className="font-poppins font-black text-sm md:text-lg">3-PACK</span>
                 </Button>
                 {product.combo_3_discount > 0 && (
                   <span className="text-xs text-green-600 font-bold mt-1">{product.combo_3_discount}% OFF</span>
@@ -549,7 +549,7 @@ const ProductDetail = () => {
                     selectedQuantity === 6 && "bg-white text-black border-2 border-black"
                   )}
                 >
-                  <span className="font-poppins font-black text-lg">6-PACK</span>
+                  <span className="font-poppins font-black text-sm md:text-lg">6-PACK</span>
                 </Button>
                 {product.combo_6_discount > 0 && (
                   <span className="text-xs text-green-600 font-bold mt-1">{product.combo_6_discount}% OFF</span>
@@ -605,7 +605,7 @@ const ProductDetail = () => {
               variant={isFavorite ? "default" : "outline"}
               onClick={toggleFavorite}
               className={cn(
-                "px-3 py-4 font-poppins font-bold active:scale-105 active:shadow-xl transition-all duration-150",
+                "px-2 md:px-3 py-3 md:py-4 font-poppins font-bold active:scale-105 active:shadow-xl transition-all duration-150",
                 isFavorite && "bg-red-500 text-white hover:bg-red-600 border-red-500"
               )}
             >
