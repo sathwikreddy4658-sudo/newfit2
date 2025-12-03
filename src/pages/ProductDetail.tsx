@@ -298,7 +298,7 @@ const ProductDetail = () => {
         <div className="relative">
           <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
             <DialogTrigger asChild>
-              <div className="w-full max-w-lg bg-white rounded-lg mb-2 mx-auto flex items-center justify-center overflow-hidden relative aspect-square cursor-pointer">
+              <div className="w-full max-w-xs md:max-w-lg bg-white rounded-lg mb-2 mx-auto flex items-center justify-center overflow-hidden relative aspect-square cursor-pointer">
                 {product.images && product.images.length > 0 ? (
                   <>
                     <img
