@@ -12,11 +12,14 @@ import { cn } from "@/lib/utils";
 import ProductRatingsDisplay from "@/components/ProductRatingsDisplay";
 import RatingComponent from "@/components/RatingComponent";
 import ProductRatingSummary from "@/components/ProductRatingSummary";
+import { getHeroImageUrl, getLazyLoadingStrategy } from "@/utils/imageOptimization";
 
 import image2 from "@/assets/2.png";
 import image4 from "@/assets/4.png";
 import image8 from "@/assets/8.png";
 import image10 from "@/assets/10.png";
+import undressedpb from "@/assets/undressedpb.png";
+import dressedpb from "@/assets/dressedpb.png";
 
 const ProductDetail = () => {
   const { name } = useParams();
@@ -268,9 +271,30 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen w-full bg-[#b5edce]/30">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-2">
 
-      <div className="grid md:grid-cols-2 gap-8">
+    {/* Animated Hero Section - Suit-Up Reveal Effect */}
+    <div className="mb-0 flex justify-center">
+      <div className="relative h-96 w-full max-w-4xl md:h-screen md:max-w-full overflow-hidden flex items-center justify-center">
+          {/* Base Image (Undressed) */}
+          <img 
+            src={undressedpb} 
+            alt="Undressed Bar" 
+            className="w-full h-full object-contain absolute inset-0 -rotate-90"
+            loading="eager"
+          />
+
+          {/* Overlay Image (Dressed) with Reveal Animation */}
+          <img 
+            src={dressedpb} 
+            alt="Dressed Package" 
+            className="w-full h-full object-contain absolute inset-0 image-reveal-left -rotate-90"
+            loading="eager"
+          />
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-8 mt-0">
         <div className="relative">
           <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
             <DialogTrigger asChild>
@@ -278,10 +302,11 @@ const ProductDetail = () => {
                 {product.images && product.images.length > 0 ? (
                   <>
                     <img
-                      src={product.images[currentImageIndex]}
+                      src={getHeroImageUrl(product.images[currentImageIndex])}
                       alt={product.name}
                       className="w-full h-full object-contain"
                       onClick={() => openImageModal(currentImageIndex)}
+                      loading={getLazyLoadingStrategy('hero')}
                     />
                     {product.images.length > 1 && (
                       <>
@@ -322,9 +347,10 @@ const ProductDetail = () => {
                 {product.images && product.images.length > 0 && (
                   <>
                     <img
-                      src={product.images[modalImageIndex]}
+                      src={getHeroImageUrl(product.images[modalImageIndex])}
                       alt={product.name}
                       className="w-full h-full object-contain"
+                      loading={getLazyLoadingStrategy('modal')}
                     />
                     {product.images.length > 1 && (
                       <>
@@ -623,7 +649,7 @@ const ProductDetail = () => {
             <div className="px-4 mb-12 pt-8 ">
               <h2 className="font-saira font-black text-2xl text-left text-[#b5edce] uppercase">Product description:</h2>
               <p className="font-saira font-semibold text-xl text-white mt-4">
-                Each Choconut Bar packs 20g of protein in just 228 calories, made with a blend of whey and pea protein.<br />
+                Each Choconut Bar packs 20g of protein in just 224 calories, made with a blend of whey and pea protein.<br />
                 No refined sugar. No preservatives. No chalky chew.
               </p>
             </div>
@@ -657,7 +683,7 @@ const ProductDetail = () => {
                   <tbody>
                     <tr className="border-b border-white/30">
                       <td className="py-2">energy (kcal)</td>
-                      <td className="text-center py-2">228</td>
+                      <td className="text-center py-2">224</td>
                       <td className="text-center py-2">360</td>
                     </tr>
                     <tr className="border-b border-white/30">
@@ -698,12 +724,12 @@ const ProductDetail = () => {
                     <tr className="border-b border-white/30">
                       <td className="py-2">sodium (mg)</td>
                       <td className="text-center py-2">41.4</td>
-                      <td className="text-center py-2">69</td>
+                      <td className="text-center py-2">69(mg)</td>
                     </tr>
                     <tr>
                       <td className="py-2">cholesterol (mg)</td>
                       <td className="text-center py-2">27.3</td>
-                      <td className="text-center py-2">45.5</td>
+                      <td className="text-center py-2">45.5(mg)</td>
                     </tr>
                   </tbody>
                 </table>
@@ -728,10 +754,10 @@ const ProductDetail = () => {
 
             <div className="bg-white h-48 md:h-48 w-full flex items-center justify-center gap-8 mb-8">
               <div className="grid grid-cols-2 md:flex md:flex-row gap-8">
-                <img src={image2} alt="Image 2" className="h-28 md:h-40 w-auto" />
-                <img src={image4} alt="Image 4" className="h-28 md:h-40 w-auto" />
-                <img src={image8} alt="Image 8" className="h-28 md:h-40 w-auto" />
-                <img src={image10} alt="Image 10" className="h-28 md:h-40 w-auto" />
+                <img src={image2} alt="Image 2" className="h-28 md:h-40 w-auto" loading="lazy" />
+                <img src={image4} alt="Image 4" className="h-28 md:h-40 w-auto" loading="lazy" />
+                <img src={image8} alt="Image 8" className="h-28 md:h-40 w-auto" loading="lazy" />
+                <img src={image10} alt="Image 10" className="h-28 md:h-40 w-auto" loading="lazy" />
               </div>
             </div>
 

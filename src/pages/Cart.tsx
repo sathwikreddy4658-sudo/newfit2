@@ -7,6 +7,7 @@ import { Minus, Plus, Trash2, Tag, X } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getThumbnailUrl } from "@/utils/imageOptimization";
 
 const Cart = () => {
   const {
@@ -75,9 +76,10 @@ const Cart = () => {
                   <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
                     {item.image ? (
                       <img
-                        src={item.image}
+                        src={getThumbnailUrl(item.image)}
                         alt={item.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">
@@ -219,13 +221,13 @@ const Cart = () => {
 
             <div className="space-y-2">
               {user ? (
-                <Button className="w-full font-poppins font-bold" onClick={() => navigate("/checkout")}>
+                <Button className="w-full font-poppins font-bold btn-animate" onClick={() => navigate("/checkout")}>
                   Order Now
                 </Button>
               ) : (
                 <>
                   <Button
-                    className="w-full font-poppins font-bold"
+                    className="w-full font-poppins font-bold btn-animate"
                     onClick={() => navigate("/checkout", { state: { isGuest: true } })}
                   >
                     Order Now

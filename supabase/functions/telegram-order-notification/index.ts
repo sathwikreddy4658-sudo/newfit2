@@ -39,6 +39,30 @@ serve(async (req) => {
       });
     }
 
+    // Only send notification for confirmed/paid orders
+    // Skip notifications for pending orders or cancelled orders
+    console.log('[Telegram] Order status:', record.status);
+    
+    if (record.status === 'pending') {
+      console.log('[Telegram] Skipping notification - order is pending (likely COD or awaiting payment confirmation)');
+      return new Response(JSON.stringify({ 
+        message: "Notification skipped - order status is pending" 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (record.status === 'cancelled') {
+      console.log('[Telegram] Skipping notification - order is cancelled');
+      return new Response(JSON.stringify({ 
+        message: "Notification skipped - order is cancelled" 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     // Fetch customer details - First try from order record (guest checkout or updated order)
     let customerName = record.customer_name || 'Customer';
     let customerEmail = record.customer_email || 'N/A';

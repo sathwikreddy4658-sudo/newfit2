@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { getThumbnailUrl, getLazyLoadingStrategy } from "@/utils/imageOptimization";
 
 const Products = () => {
   const navigate = useNavigate();
@@ -160,29 +161,41 @@ const Products = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
+          {filteredProducts.map((product, index) => {
+            // Cycle through three different reveal animation styles
+            const revealStyles = ['image-reveal-left', 'image-reveal-top', 'image-reveal-diagonal'];
+            const revealClass = revealStyles[index % revealStyles.length];
+            
+            // Add delay based on index so animations are staggered
+            const delay = index * 0.1;
+
+            return (
             <Card
               key={product.id}
-              className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
+              className="p-4 cursor-pointer product-card"
               onClick={() => navigate(`/product/${encodeURIComponent(product.name)}`)}
             >
-              <div className="w-48 h-48 bg-muted rounded-lg mb-4 overflow-hidden mx-auto">
+              <div 
+                className={`w-48 h-48 rounded-lg mb-4 overflow-hidden mx-auto flex items-center justify-center relative bg-white ${revealClass}`}
+                style={{ animationDelay: `${delay}s` }}
+              >
+                {/* Single Image */}
                 {product.products_page_image ? (
                   <img
-                    src={product.products_page_image}
+                    src={getThumbnailUrl(product.products_page_image)}
                     alt={product.name}
                     className="w-full h-full object-cover"
+                    loading="eager"
                   />
                 ) : product.images && product.images.length > 0 ? (
                   <img
-                    src={product.images[0]}
+                    src={getThumbnailUrl(product.images[0])}
                     alt={product.name}
                     className="w-full h-full object-cover"
+                    loading="eager"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
-                    No Image
-                  </div>
+                  <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600">No Image</div>
                 )}
               </div>
               <h3 className="font-saira font-black text-lg mb-2 text-[#3b2a20] uppercase">{product.name}</h3>
@@ -190,7 +203,8 @@ const Products = () => {
                 {product.price ? `₹${product.price}` : `₹${product.price_15g} - ₹${product.price_20g}`}
               </p>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
       </div>

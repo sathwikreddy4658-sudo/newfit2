@@ -199,7 +199,7 @@ const Index = () => {
           </div>
 
           <div className="flex justify-center mb-8">
-            <img src={image24} alt="Image 24" className="w-100 h-100 object-contain" />
+            <img src={image24} alt="Image 24" className="w-100 h-100 object-contain spaceship-float" loading="lazy" />
           </div>
 
           <h3 className="text-2xl font-poppins font-bold text-black mb-4 text-center">
@@ -230,20 +230,20 @@ const Index = () => {
             </p>
             <div className="flex flex-col items-center gap-4 md:flex-row md:gap-8 md:justify-center">
               <div className="flex gap-4 justify-center md:hidden">
-                <img src={image2} alt="Image 2" className="w-24 h-24" />
-                <img src={image4} alt="Image 4" className="w-24 h-24" />
-                <img src={image6} alt="Image 6" className="w-24 h-24" />
+                <img src={image2} alt="Image 2" className="w-24 h-24" loading="lazy" />
+                <img src={image4} alt="Image 4" className="w-24 h-24" loading="lazy" />
+                <img src={image6} alt="Image 6" className="w-24 h-24" loading="lazy" />
               </div>
               <div className="flex gap-4 justify-center md:hidden">
-                <img src={image8} alt="Image 8" className="w-24 h-24" />
-                <img src={image10} alt="Image 10" className="w-24 h-24" />
+                <img src={image8} alt="Image 8" className="w-24 h-24" loading="lazy" />
+                <img src={image10} alt="Image 10" className="w-24 h-24" loading="lazy" />
               </div>
               <div className="hidden md:flex gap-8 justify-center">
-                <img src={image2} alt="Image 2" className="w-48 h-48" />
-                <img src={image4} alt="Image 4" className="w-48 h-48" />
-                <img src={image6} alt="Image 6" className="w-48 h-48" />
-                <img src={image8} alt="Image 8" className="w-48 h-48" />
-                <img src={image10} alt="Image 10" className="w-48 h-48" />
+                <img src={image2} alt="Image 2" className="w-48 h-48" loading="lazy" />
+                <img src={image4} alt="Image 4" className="w-48 h-48" loading="lazy" />
+                <img src={image6} alt="Image 6" className="w-48 h-48" loading="lazy" />
+                <img src={image8} alt="Image 8" className="w-48 h-48" loading="lazy" />
+                <img src={image10} alt="Image 10" className="w-48 h-48" loading="lazy" />
               </div>
             </div>
             {/* OUR STORY Button */}

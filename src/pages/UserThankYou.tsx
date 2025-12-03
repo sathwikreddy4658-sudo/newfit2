@@ -171,7 +171,7 @@ const UserThankYou = () => {
                   <h4 className="font-semibold text-gray-800 mb-1">Payment Method</h4>
                   <p className="text-sm text-gray-700">{paymentMethod}</p>
                   {isCOD && (
-                    <p className="text-xs text-orange-600 mt-2">
+                    <p className="text-xs text-3b2a20-600 mt-2">
                       - Please have the exact amount ready for payment upon delivery
                     </p>
                   )}

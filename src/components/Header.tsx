@@ -42,7 +42,7 @@ const Header = () => {
                   <Menu className="h-8 w-8 text-black" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] sm:w-[400px] bg-black/25 border-0">
+              <SheetContent side="left" className="w-[300px] sm:w-[400px] bg-black/25 border-0 overflow-y-auto">
                 <div className="flex justify-end mb-4">
                   <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-white hover:bg-white/10">
                     <X className="h-5 w-5" />

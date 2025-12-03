@@ -13,6 +13,7 @@ import { guestCheckoutSchema } from "@/lib/validation";
 import { initiatePhonePePayment, createPaymentTransaction } from "@/lib/phonepe";
 import AddressForm from "@/components/AddressForm";
 import SavedAddresses from "@/components/SavedAddresses";
+import { getThumbnailUrl } from "@/utils/imageOptimization";
 import { Loader2, CheckCircle2, AlertCircle, Truck, Tag, X } from "lucide-react";
 import { calculateOrderPrice, validatePaymentMethod } from "@/lib/pricingEngine";
 import { getShippingRate } from "@/lib/pincodeService";
@@ -34,7 +35,7 @@ const Checkout = () => {
   const [successOrderData, setSuccessOrderData] = useState<{orderId: string, email: string, isGuest: boolean} | null>(null);
   const [preventCartRedirect, setPreventCartRedirect] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('cod');
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online'); // Changed default to online, COD disabled
   
   // Saved address state
   const [selectedSavedAddress, setSelectedSavedAddress] = useState<string | null>(null);
@@ -341,15 +342,15 @@ const Checkout = () => {
       return;
     }
 
-    // Check if COD is selected but not available
-    if (paymentMethod === 'cod' && !isCODAvailable) {
-      toast({
-        title: "COD Not Available",
-        description: "Cash on Delivery is not available for this area. Please choose online payment.",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Check if COD is selected but not available (COD DISABLED - skip this check)
+    // if (paymentMethod === 'cod' && !isCODAvailable) {
+    //   toast({
+    //     title: "COD Not Available",
+    //     description: "Cash on Delivery is not available for this area. Please choose online payment.",
+    //     variant: "destructive"
+    //   });
+    //   return;
+    // }
 
     // Check if terms are accepted
     if (!termsAccepted) {
@@ -593,81 +594,80 @@ const Checkout = () => {
     }
 
     // Generate unique transaction ID
-    const merchantTransactionId = paymentMethod === 'cod' 
-      ? `COD-${Date.now()}${Math.random().toString(36).substr(2, 9)}`
-      : `MT${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+    // COD DISABLED - Always use online payment ID format
+    const merchantTransactionId = `MT${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
 
-    // Handle COD payment
-    if (paymentMethod === 'cod') {
-      console.log('[Checkout] Confirming COD order:', { orderId, merchantTransactionId });
-      
-      // For COD, mark order as confirmed using database function
-      // This bypasses RLS restrictions
-      const { data: confirmData, error: confirmError } = await (supabase.rpc as any)('confirm_cod_order', {
-        p_order_id: orderId,
-        p_payment_id: merchantTransactionId
-      });
-
-      if (confirmError) {
-        console.error('[Checkout] COD confirmation error:', {
-          code: confirmError.code,
-          message: confirmError.message,
-          details: confirmError.details,
-          hint: confirmError.hint
-        });
-        
-        // If order is already processed or not found, check current status
-        if (confirmError.message?.includes('already processed')) {
-          const { data: orderCheck } = await supabase
-            .from('orders')
-            .select('status')
-            .eq('id', orderId)
-            .single();
-          
-          if (orderCheck && orderCheck.status === 'confirmed') {
-            console.log('[Checkout] Order already confirmed, proceeding...');
-            clearCart();
-            setShowSuccess(true);
-            setProcessing(false);
-            return;
-          }
-        }
-        
-        toast({
-          title: "Error",
-          description: confirmError.message || "Failed to confirm COD order. Please try again.",
-          variant: "destructive"
-        });
-        setProcessing(false);
-        return;
-      }
-
-      console.log('[Checkout] COD order confirmed successfully:', confirmData);
-      
-      // Prevent cart redirect during success flow
-      setPreventCartRedirect(true);
-      
-      // Clear cart and show success
-      clearCart();
-      setShowSuccess(true);
-      setProcessing(false);
-      
-      // Store order data for navigation
-      if (isGuestCheckout) {
-        sessionStorage.setItem('guestOrderId', orderId);
-        sessionStorage.setItem('guestOrderEmail', guestData.email);
-        sessionStorage.setItem('guestOrderName', guestData.name);
-        sessionStorage.setItem('guestOrderPhone', guestData.phone);
-      }
-      
-      setSuccessOrderData({
-        orderId,
-        email: isGuestCheckout ? guestData.email : user?.email || '',
-        isGuest: isGuestCheckout
-      });
-      
-      return;
-    }
+    // Handle COD payment (DISABLED)
+    // if (paymentMethod === 'cod') {
+    //   console.log('[Checkout] Confirming COD order:', { orderId, merchantTransactionId });
+    //   
+    //   // For COD, mark order as confirmed using database function
+    //   // This bypasses RLS restrictions
+    //   const { data: confirmData, error: confirmError } = await (supabase.rpc as any)('confirm_cod_order', {
+    //     p_order_id: orderId,
+    //     p_payment_id: merchantTransactionId
+    //   });
+    //
+    //   if (confirmError) {
+    //     console.error('[Checkout] COD confirmation error:', {
+    //       code: confirmError.code,
+    //       message: confirmError.message,
+    //       details: confirmError.details,
+    //       hint: confirmError.hint
+    //     });
+    //     
+    //     // If order is already processed or not found, check current status
+    //     if (confirmError.message?.includes('already processed')) {
+    //       const { data: orderCheck } = await supabase
+    //         .from('orders')
+    //         .select('status')
+    //         .eq('id', orderId)
+    //         .single();
+    //       
+    //       if (orderCheck && orderCheck.status === 'confirmed') {
+    //         console.log('[Checkout] Order already confirmed, proceeding...');
+    //         clearCart();
+    //         setShowSuccess(true);
+    //         setProcessing(false);
+    //         return;
+    //       }
+    //     }
+    //     
+    //     toast({
+    //       title: "Error",
+    //       description: confirmError.message || "Failed to confirm COD order. Please try again.",
+    //       variant: "destructive"
+    //     });
+    //     setProcessing(false);
+    //     return;
+    //   }
+    //
+    //   console.log('[Checkout] COD order confirmed successfully:', confirmData);
+    //   
+    //   // Prevent cart redirect during success flow
+    //   setPreventCartRedirect(true);
+    //   
+    //   // Clear cart and show success
+    //   clearCart();
+    //   setShowSuccess(true);
+    //   setProcessing(false);
+    //   
+    //   // Store order data for navigation
+    //   if (isGuestCheckout) {
+    //     sessionStorage.setItem('guestOrderId', orderId);
+    //     sessionStorage.setItem('guestOrderEmail', guestData.email);
+    //     sessionStorage.setItem('guestOrderName', guestData.name);
+    //     sessionStorage.setItem('guestOrderPhone', guestData.phone);
+    //   }
+    //   
+    //   setSuccessOrderData({
+    //     orderId,
+    //     email: isGuestCheckout ? guestData.email : user?.email || '',
+    //     isGuest: isGuestCheckout
+    //   });
+    //   
+    //   return;
+    // }
 
     // Handle online payment (PhonePe)
     // Get phone number from authenticated user profile or guest data
@@ -1021,9 +1021,10 @@ const Checkout = () => {
                 <div key={`${item.id}-${item.protein}`} className="flex items-center gap-3 p-3 border rounded-lg">
                   {item.image && (
                     <img
-                      src={item.image}
+                      src={getThumbnailUrl(item.image)}
                       alt={item.name}
                       className="w-12 h-12 object-cover rounded-md flex-shrink-0"
+                      loading="lazy"
                     />
                   )}
                   <div className="flex-1 min-w-0">
@@ -1207,6 +1208,8 @@ const Checkout = () => {
             <div className="mb-4" data-payment-section>
               <h3 className="font-semibold mb-2">Payment Method</h3>
               <div className="space-y-3">
+                {/* COD DISABLED - Hidden button */}
+                {false && (
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cod')}
@@ -1226,6 +1229,7 @@ const Checkout = () => {
                     </div>
                   ) : null}
                 </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('online')}
