@@ -452,6 +452,237 @@
   animation-fill-mode: forwards;
 }
 
+/* ===== #8: IMAGE CAROUSEL SMOOTH TRANSITIONS ===== */
+@keyframes carouselFade {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.carousel-slide {
+  animation: carouselFade 6s ease-in-out infinite;
+}
+
+.carousel-slide:nth-child(2) {
+  animation-delay: 6s;
+}
+
+.carousel-slide:nth-child(3) {
+  animation-delay: 12s;
+}
+
+/* ===== #10: FLOATING/BREATHING ELEMENTS ===== */
+@keyframes floatingBreeze {
+  0%, 100% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-15px);
+    opacity: 0.95;
+  }
+}
+
+@keyframes breathingGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px rgba(181, 237, 206, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(181, 237, 206, 0.6));
+  }
+}
+
+.floating-element {
+  animation: floatingBreeze 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.floating-element-glow {
+  animation: floatingBreeze 4s ease-in-out infinite, breathingGlow 3s ease-in-out infinite;
+}
+
+/* ===== #7: BUTTON RIPPLE/WAVE EFFECTS ===== */
+@keyframes buttonRipple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(94, 67, 56, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(94, 67, 56, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(94, 67, 56, 0);
+  }
+}
+
+@keyframes buttonWave {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.button-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.button-ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.button-ripple:active::before {
+  animation: buttonRipple 0.6s ease-out;
+}
+
+.button-wave {
+  animation: buttonWave 0.3s ease-in-out;
+}
+
+/* ===== #6: SMOOTH SCROLL NAVIGATION ===== */
+html {
+  scroll-behavior: smooth;
+}
+
+.nav-link-smooth {
+  position: relative;
+  transition: color 0.3s ease;
+}
+
+.nav-link-smooth::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #5e4338;
+  transition: width 0.3s ease;
+}
+
+.nav-link-smooth:hover::after {
+  width: 100%;
+}
+
+/* ===== #5: HOVER SCALE & GLOW EFFECTS ===== */
+@keyframes hoverGlow {
+  0% {
+    filter: drop-shadow(0 0 5px rgba(181, 237, 206, 0.3));
+  }
+  100% {
+    filter: drop-shadow(0 0 20px rgba(181, 237, 206, 0.7));
+  }
+}
+
+.hover-scale-glow {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease;
+  will-change: transform, filter;
+}
+
+.hover-scale-glow:hover {
+  transform: scale(1.05);
+  animation: hoverGlow 0.3s ease forwards;
+}
+
+/* ===== #1: SCROLL-TRIGGERED IMAGE REVEALS ===== */
+@keyframes scrollReveal {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scrollRevealLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px) translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes scrollRevealRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px) translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+.scroll-reveal {
+  animation: scrollReveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.scroll-reveal-left {
+  animation: scrollRevealLeft 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.scroll-reveal-right {
+  animation: scrollRevealRight 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+/* ===== #3: STAGGERED CARD ANIMATIONS ===== */
+@keyframes cardSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.staggered-card {
+  animation: cardSlideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.staggered-card:nth-child(1) { animation-delay: 0.1s; }
+.staggered-card:nth-child(2) { animation-delay: 0.2s; }
+.staggered-card:nth-child(3) { animation-delay: 0.3s; }
+.staggered-card:nth-child(4) { animation-delay: 0.4s; }
+.staggered-card:nth-child(5) { animation-delay: 0.5s; }
+.staggered-card:nth-child(6) { animation-delay: 0.6s; }
+.staggered-card:nth-child(7) { animation-delay: 0.7s; }
+.staggered-card:nth-child(8) { animation-delay: 0.8s; }
+.staggered-card:nth-child(9) { animation-delay: 0.9s; }
+.staggered-card:nth-child(10) { animation-delay: 1s; }
+
 /* ===== RESPONSIVE ADJUSTMENTS ===== */
 @media (prefers-reduced-motion: reduce) {
   * {

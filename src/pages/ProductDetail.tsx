@@ -271,7 +271,7 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen w-full bg-[#b5edce]/30">
-      <div className="container mx-auto px-4 py-2">
+      <div className="container mx-auto px-4 py-0">
 
     {/* Animated Hero Section - Suit-Up Reveal Effect */}
     <div className="mb-0 flex justify-center">
@@ -280,7 +280,7 @@ const ProductDetail = () => {
           <img 
             src={undressedpb} 
             alt="Undressed Bar" 
-            className="w-full h-full object-contain absolute inset-0 -rotate-90"
+            className="w-full h-full object-contain absolute inset-0 -rotate-90 drop-shadow-2xl"
             loading="eager"
           />
 
@@ -294,7 +294,7 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8 mt-0">
+      <div className="grid md:grid-cols-2 gap-8 -mt-20 md:-mt-40">
         <div className="relative">
           <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
             <DialogTrigger asChild>
@@ -390,9 +390,9 @@ const ProductDetail = () => {
             </DialogContent>
           </Dialog>
 
-          {/* Mobile: Thumbnails below image */}
+          {/* Mobile: Thumbnails below image - centered & scrollable */}
           {product.images && product.images.length > 1 && (
-            <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-2 justify-start px-2">
+            <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-2 justify-center px-2">
               {product.images.map((image, index) => (
                 <button
                   key={index}
