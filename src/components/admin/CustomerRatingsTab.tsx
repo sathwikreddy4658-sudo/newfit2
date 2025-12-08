@@ -68,29 +68,74 @@ const CustomerRatingsTab = () => {
 
   const handleApprove = async (ratingId: string) => {
     try {
-      const { error } = await supabase
+      // Attempt to update the rating
+      const { data, error } = await supabase
         .from("product_ratings")
         .update({ approved: true })
-        .eq("id", ratingId);
+        .eq("id", ratingId)
+        .select();
 
-      if (error) throw error;
+      // Check for the specific trigger error
+      if (error) {
+        if (error.message?.includes('record "old" has no field "status"') || error.code === '42703') {
+          // This is a database trigger issue - the broken trigger references non-existent 'status' column
+          // Workaround: Disable the trigger temporarily by using raw SQL update
+          console.log("Attempting workaround for broken trigger...");
+          
+          // Try a direct update without the trigger
+          const { error: workaroundError } = await supabase.rpc('update_rating_approved', {
+            p_rating_id: ratingId
+          }).catch(async () => {
+            // If RPC doesn't exist, the database needs the fix applied
+            toast({ 
+              title: "Database needs manual fix", 
+              description: "Run the SQL fix in Supabase → SQL Editor. Check IMMEDIATE_FIX_RATINGS.sql",
+              variant: "destructive",
+              duration: 10000
+            });
+            console.error("Database trigger error - needs manual fix. The broken trigger prevents updates:", error);
+            throw error;
+          });
+
+          if (!workaroundError) {
+            toast({ title: "Rating approved successfully" });
+            fetchRatings();
+            return;
+          }
+        }
+        throw error;
+      }
 
       toast({ title: "Rating approved successfully" });
       fetchRatings();
     } catch (error: any) {
-      toast({ title: "Error approving rating", variant: "destructive" });
+      if (!error.message?.includes('needs manual fix')) {
+        toast({ title: "Error approving rating", variant: "destructive" });
+      }
       console.error("Error approving rating:", error);
     }
   };
 
   const handleReject = async (ratingId: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("product_ratings")
         .update({ approved: false })
-        .eq("id", ratingId);
+        .eq("id", ratingId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('record "old" has no field "status"')) {
+          toast({ 
+            title: "Database configuration issue", 
+            description: "The database needs to be fixed. Contact support.",
+            variant: "destructive" 
+          });
+          console.error("Database trigger error - needs manual fix:", error);
+          return;
+        }
+        throw error;
+      }
 
       toast({ title: "Rating rejected" });
       fetchRatings();
