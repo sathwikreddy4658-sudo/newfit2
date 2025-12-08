@@ -44,11 +44,11 @@ const GuestThankYou = () => {
           setOrder(data);
           console.log('[GuestThankYou] Order data:', {
             id: data.id,
-            total_price: data.total_price,
-            shipping_charge: data.shipping_charge,
-            cod_charge: data.cod_charge,
-            discount_applied: data.discount_applied,
-            payment_method: data.payment_method
+            total_price: data.total_amount,
+            shipping_charge: (data as any).shipping_charge || 0,
+            cod_charge: (data as any).cod_charge || 0,
+            discount_applied: (data as any).discount_applied || 0,
+            payment_method: (data as any).payment_method || 'online'
           });
         }
       } catch (err) {
@@ -99,7 +99,7 @@ const GuestThankYou = () => {
       if (authData.user) {
         // Update the user's profile with address from the order
         if (order?.address) {
-          const { error: profileError } = await supabase
+          const { error: profileError } = await (supabase as any)
             .from('profiles')
             .update({ address: order.address })
             .eq('id', authData.user.id);

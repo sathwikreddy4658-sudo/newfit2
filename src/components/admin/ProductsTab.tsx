@@ -309,7 +309,7 @@ const ProductsTab = () => {
           console.error('Product creation error:', insertError);
           console.error('Error details:', {
             message: insertError.message,
-            status: insertError.status,
+            code: insertError.code || 'UNKNOWN',
             details: insertError.details
           });
           toast({
