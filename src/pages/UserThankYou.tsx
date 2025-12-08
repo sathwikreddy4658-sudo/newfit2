@@ -170,11 +170,6 @@ const UserThankYou = () => {
                 <div>
                   <h4 className="font-semibold text-gray-800 mb-1">Payment Method</h4>
                   <p className="text-sm text-gray-700">{paymentMethod}</p>
-                  {isCOD && (
-                    <p className="text-xs text-3b2a20-600 mt-2">
-                      - Please have the exact amount ready for payment upon delivery
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
@@ -209,7 +204,7 @@ const UserThankYou = () => {
           <ul className="space-y-1 md:space-y-2 text-xs md:text-sm" style={{ color: '#3b2a20' }}>
             <li>✅ Your order has been confirmed and is being processed</li>
             <li>📧 Check your email for order confirmation and tracking details</li>
-            <li>📦 You can track your order status anytime from the "My Orders" page</li>
+            <li>📦 You can check your order status anytime from the "My Orders" page</li>
             <li>💬 Need help? Contact our support team anytime</li>
           </ul>
         </Card>

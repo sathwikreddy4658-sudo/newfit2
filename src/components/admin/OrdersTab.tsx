@@ -355,6 +355,93 @@ const OrdersTab = () => {
     }
   };
 
+  const handleSendTelegramNotification = async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) {
+      toast({ title: "Order not found", variant: "destructive" });
+      return;
+    }
+
+    // Don't allow sending notifications for pending orders
+    if (order.status === 'pending') {
+      toast({ 
+        title: "Cannot send notification", 
+        description: "Pending orders should not be notified yet. Please confirm the order first.",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    // Confirm before sending
+    const confirmed = confirm(
+      `Send Telegram notification for this order?\n\n` +
+      `Order ID: ${order.id.slice(0, 8)}\n` +
+      `Total: ₹${order.total_price}\n` +
+      `Status: ${order.status}`
+    );
+
+    if (!confirmed) return;
+
+    toast({ 
+      title: "Sending Telegram notification...", 
+      description: "Please wait" 
+    });
+
+    try {
+      // Call Supabase Edge Function
+      const response = await fetch(
+        `https://${new URL(supabase.supabaseUrl).hostname}/functions/v1/telegram-order-notification`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`,
+          },
+          body: JSON.stringify({
+            record: {
+              id: order.id,
+              user_id: order.user_id,
+              customer_name: order.customer_name,
+              customer_email: order.customer_email,
+              customer_phone: order.customer_phone,
+              total_price: order.total_price,
+              payment_method: order.payment_method,
+              address: order.address,
+              status: order.status,
+              created_at: order.created_at
+            }
+          })
+        }
+      );
+
+      const data = await response.json();
+      console.log('Telegram notification response:', { status: response.status, data });
+
+      if (!response.ok) {
+        console.error('Telegram error:', data);
+        toast({ 
+          title: "Failed to send Telegram notification", 
+          description: data.error || "Check function logs for details",
+          variant: "destructive",
+          duration: 8000,
+        });
+      } else {
+        toast({ 
+          title: "✅ Telegram notification sent!", 
+          description: `Admin notification sent successfully`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Telegram notification error:', error);
+      toast({ 
+        title: "Failed to send notification", 
+        description: error.message,
+        variant: "destructive",
+        duration: 8000,
+      });
+    }
+  };
+
   const handleDeleteOrder = async (orderId: string) => {
     if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
       return;
@@ -967,6 +1054,17 @@ const OrdersTab = () => {
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete Order
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSendTelegramNotification(order.id)}
+                    className="w-full"
+                    disabled={order.status === 'pending'}
+                  >
+                    <Bell className="h-4 w-4 mr-2" />
+                    Send Telegram Notification
                   </Button>
 
                   {paymentTransaction && (

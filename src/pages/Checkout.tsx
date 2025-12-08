@@ -35,7 +35,7 @@ const Checkout = () => {
   const [successOrderData, setSuccessOrderData] = useState<{orderId: string, email: string, isGuest: boolean} | null>(null);
   const [preventCartRedirect, setPreventCartRedirect] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online'); // Changed default to online, COD disabled
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online');
   
   // Saved address state
   const [selectedSavedAddress, setSelectedSavedAddress] = useState<string | null>(null);
@@ -594,80 +594,82 @@ const Checkout = () => {
     }
 
     // Generate unique transaction ID
-    // COD DISABLED - Always use online payment ID format
     const merchantTransactionId = `MT${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Generate COD transaction ID (for COD orders)
+    const codTransactionId = `COD-${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
 
-    // Handle COD payment (DISABLED)
-    // if (paymentMethod === 'cod') {
-    //   console.log('[Checkout] Confirming COD order:', { orderId, merchantTransactionId });
-    //   
-    //   // For COD, mark order as confirmed using database function
-    //   // This bypasses RLS restrictions
-    //   const { data: confirmData, error: confirmError } = await (supabase.rpc as any)('confirm_cod_order', {
-    //     p_order_id: orderId,
-    //     p_payment_id: merchantTransactionId
-    //   });
-    //
-    //   if (confirmError) {
-    //     console.error('[Checkout] COD confirmation error:', {
-    //       code: confirmError.code,
-    //       message: confirmError.message,
-    //       details: confirmError.details,
-    //       hint: confirmError.hint
-    //     });
-    //     
-    //     // If order is already processed or not found, check current status
-    //     if (confirmError.message?.includes('already processed')) {
-    //       const { data: orderCheck } = await supabase
-    //         .from('orders')
-    //         .select('status')
-    //         .eq('id', orderId)
-    //         .single();
-    //       
-    //       if (orderCheck && orderCheck.status === 'confirmed') {
-    //         console.log('[Checkout] Order already confirmed, proceeding...');
-    //         clearCart();
-    //         setShowSuccess(true);
-    //         setProcessing(false);
-    //         return;
-    //       }
-    //     }
-    //     
-    //     toast({
-    //       title: "Error",
-    //       description: confirmError.message || "Failed to confirm COD order. Please try again.",
-    //       variant: "destructive"
-    //     });
-    //     setProcessing(false);
-    //     return;
-    //   }
-    //
-    //   console.log('[Checkout] COD order confirmed successfully:', confirmData);
-    //   
-    //   // Prevent cart redirect during success flow
-    //   setPreventCartRedirect(true);
-    //   
-    //   // Clear cart and show success
-    //   clearCart();
-    //   setShowSuccess(true);
-    //   setProcessing(false);
-    //   
-    //   // Store order data for navigation
-    //   if (isGuestCheckout) {
-    //     sessionStorage.setItem('guestOrderId', orderId);
-    //     sessionStorage.setItem('guestOrderEmail', guestData.email);
-    //     sessionStorage.setItem('guestOrderName', guestData.name);
-    //     sessionStorage.setItem('guestOrderPhone', guestData.phone);
-    //   }
-    //   
-    //   setSuccessOrderData({
-    //     orderId,
-    //     email: isGuestCheckout ? guestData.email : user?.email || '',
-    //     isGuest: isGuestCheckout
-    //   });
-    //   
-    //   return;
-    // }
+    // Handle COD payment
+    if (paymentMethod === 'cod') {
+      console.log('[Checkout] Confirming COD order:', { orderId, codTransactionId });
+      
+      // For COD, mark order as confirmed using database function
+      // This bypasses RLS restrictions
+      const { data: confirmData, error: confirmError } = await (supabase.rpc as any)('confirm_cod_order', {
+        p_order_id: orderId,
+        p_payment_id: codTransactionId
+      });
+
+      if (confirmError) {
+        console.error('[Checkout] COD confirmation error:', {
+          code: confirmError.code,
+          message: confirmError.message,
+          details: confirmError.details,
+          hint: confirmError.hint
+        });
+        
+        // If order is already processed or not found, check current status
+        if (confirmError.message?.includes('already processed')) {
+          const { data: orderCheck } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('id', orderId)
+            .single();
+          
+          if (orderCheck && orderCheck.status === 'confirmed') {
+            console.log('[Checkout] Order already confirmed, proceeding...');
+            clearCart();
+            setShowSuccess(true);
+            setProcessing(false);
+            return;
+          }
+        }
+        
+        toast({
+          title: "Error",
+          description: confirmError.message || "Failed to confirm COD order. Please try again.",
+          variant: "destructive"
+        });
+        setProcessing(false);
+        return;
+      }
+
+      console.log('[Checkout] COD order confirmed successfully:', confirmData);
+      
+      // Prevent cart redirect during success flow
+      setPreventCartRedirect(true);
+      
+      // Clear cart and show success
+      clearCart();
+      setShowSuccess(true);
+      setProcessing(false);
+      
+      // Store order data for navigation
+      if (isGuestCheckout) {
+        sessionStorage.setItem('guestOrderId', orderId);
+        sessionStorage.setItem('guestOrderEmail', guestData.email);
+        sessionStorage.setItem('guestOrderName', guestData.name);
+        sessionStorage.setItem('guestOrderPhone', guestData.phone);
+      }
+      
+      setSuccessOrderData({
+        orderId,
+        email: isGuestCheckout ? guestData.email : user?.email || '',
+        isGuest: isGuestCheckout
+      });
+      
+      return;
+    }
 
     // Handle online payment (PhonePe)
     // Get phone number from authenticated user profile or guest data
@@ -1208,8 +1210,7 @@ const Checkout = () => {
             <div className="mb-4" data-payment-section>
               <h3 className="font-semibold mb-2">Payment Method</h3>
               <div className="space-y-3">
-                {/* COD DISABLED - Hidden button */}
-                {false && (
+                {/* COD Payment Option */}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cod')}
@@ -1229,7 +1230,6 @@ const Checkout = () => {
                     </div>
                   ) : null}
                 </button>
-                )}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('online')}

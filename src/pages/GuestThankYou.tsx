@@ -278,11 +278,6 @@ const GuestThankYou = () => {
                 <div>
                   <h4 className="font-semibold text-gray-800 mb-1">Payment Method</h4>
                   <p className="text-sm text-gray-700">{paymentMethod}</p>
-                  {isCOD && (
-                    <p className="text-xs text-orange-600 mt-2">
-                       -Please have the exact amount ready for payment upon delivery
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
@@ -396,7 +391,7 @@ const GuestThankYou = () => {
         {/* Additional Info */}
         <Card className="p-3 md:p-4 mt-4 md:mt-6 bg-blue-50 border-blue-200">
           <p className="text-xs md:text-sm text-blue-900">
-            💡 <strong>Did you know?</strong> Registered users get early access to sales, 
+            💡 <strong></strong> Registered users get early access to sales, 
             personalized product recommendations, and can easily track all their orders in one place!
           </p>
         </Card>
