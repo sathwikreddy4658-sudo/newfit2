@@ -37,6 +37,11 @@ const OrdersTab = () => {
           if (payload.eventType === 'INSERT' && notificationsEnabled && !isInitialLoad.current) {
             playNotificationSound();
             showNewOrderNotification(payload.new);
+            
+            // Auto-send Telegram notification for non-pending orders (COD and paid)
+            if (payload.new.status !== 'pending') {
+              sendTelegramNotificationAuto(payload.new);
+            }
           }
         }
       )
@@ -439,6 +444,49 @@ const OrdersTab = () => {
         variant: "destructive",
         duration: 8000,
       });
+    }
+  };
+
+  const sendTelegramNotificationAuto = async (order: any) => {
+    // Automatically send Telegram notification for new non-pending orders
+    // No user confirmation needed for automatic notifications
+    try {
+      console.log('[Auto Telegram] Sending notification for order:', order.id);
+      
+      const response = await fetch(
+        `https://${new URL(supabase.supabaseUrl).hostname}/functions/v1/telegram-order-notification`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            record: {
+              id: order.id,
+              user_id: order.user_id,
+              customer_name: order.customer_name,
+              customer_email: order.customer_email,
+              customer_phone: order.customer_phone,
+              total_price: order.total_price,
+              payment_method: order.payment_method,
+              address: order.address,
+              status: order.status,
+              created_at: order.created_at
+            }
+          })
+        }
+      );
+
+      const data = await response.json();
+      console.log('[Auto Telegram] Response:', { status: response.status, data });
+
+      if (response.ok) {
+        console.log('[Auto Telegram] ✅ Notification sent automatically for order:', order.id);
+      } else {
+        console.error('[Auto Telegram] Failed to send:', data);
+      }
+    } catch (error: any) {
+      console.error('[Auto Telegram] Error:', error.message);
     }
   };
 
