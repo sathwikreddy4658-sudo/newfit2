@@ -9,7 +9,19 @@ const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Content-Type': 'application/json'
+};
+
 serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     console.log('[Telegram] Function invoked');
     console.log('[Telegram] Environment check:', {
@@ -35,7 +47,7 @@ serve(async (req) => {
       console.error('[Telegram] No record provided');
       return new Response(JSON.stringify({ error: "No record provided" }), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
+        headers: corsHeaders,
       });
     }
 
@@ -49,7 +61,7 @@ serve(async (req) => {
         message: "Notification skipped - order status is pending" 
       }), {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: corsHeaders,
       });
     }
 
@@ -59,7 +71,7 @@ serve(async (req) => {
         message: "Notification skipped - order is cancelled" 
       }), {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: corsHeaders,
       });
     }
 
@@ -161,7 +173,7 @@ ${address}
       console.error("[Telegram] Telegram API error:", result);
       return new Response(
         JSON.stringify({ error: "Failed to send Telegram message", details: result }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -169,14 +181,14 @@ ${address}
     
     return new Response(
       JSON.stringify({ success: true, message: "Notification sent to Telegram" }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      { status: 200, headers: corsHeaders }
     );
 
   } catch (error) {
     console.error("[Telegram] Fatal error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: corsHeaders }
     );
   }
 });
