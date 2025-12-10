@@ -60,7 +60,7 @@ const ProductDetail = () => {
 
   useEffect(() => {
     if (product?.name) {
-      document.title = `${product.name} protein bar | Low-Calorie, High Protein | Freel It`;
+      document.title = `${product.name.toLowerCase()} protein bar | Low-Calorie, High Protein | Freel It`;
     } else {
       document.title = "Healthy snacks & Protein Bars | Freel It";
     }
@@ -249,7 +249,7 @@ const ProductDetail = () => {
   return (
     <>
       <Helmet>
-        <title>{product?.name ? `${product.name} protein bar | Low-Calorie, High Protein | Freel It` : "Healthy snacks & Protein Bars | Freel It"}</title>
+        <title>{product?.name ? `${product.name.toLowerCase()} protein bar | Low-Calorie, High Protein | Freel It` : "Healthy snacks & Protein Bars | Freel It"}</title>
         <meta
           name="description"
           content={product?.description || "Low calorie protein bars made with clean, natural ingredients. No sugar, high protein."}
