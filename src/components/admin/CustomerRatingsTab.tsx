@@ -251,25 +251,27 @@ const CustomerRatingsTab = () => {
             ratings.map((rating) => (
               <Card key={rating.id} className="relative">
                 <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{rating.products?.name}</CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-muted-foreground">
-                          By: {rating.user_id}
-                        </span>
-                        <Badge variant={rating.approved ? "default" : "secondary"}>
-                          {rating.approved ? "Approved" : "Pending"}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {renderStars(rating.rating)}
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(rating.created_at).toLocaleDateString()}
-                        </span>
+                  <div>
+                    <div className="flex justify-between items-start gap-4 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg">{rating.products?.name}</CardTitle>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm text-muted-foreground">
+                            By: {rating.user_id}
+                          </span>
+                          <Badge variant={rating.approved ? "default" : "secondary"}>
+                            {rating.approved ? "Approved" : "Pending"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {renderStars(rating.rating)}
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(rating.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mt-3 flex-wrap">
                       {!rating.approved && (
                         <>
                           <Button

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,18 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
   const [rotation, setRotation] = useState(0);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [imageUrl, setImageUrl] = useState<string>('');
+
+  // Security: Create and track blob URL
+  useEffect(() => {
+    const url = URL.createObjectURL(imageFile);
+    setImageUrl(url);
+    
+    // Cleanup on unmount or file change
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [imageFile]);
 
   const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
@@ -151,7 +163,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
               >
                 <img
                   ref={imgRef}
-                  src={URL.createObjectURL(imageFile)}
+                  src={imageUrl}
                   onLoad={onImageLoad}
                   style={{
                     transform: `rotate(${rotation}deg)`,
