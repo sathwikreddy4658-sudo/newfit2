@@ -1,14 +1,39 @@
 import { z } from 'zod';
 
+// Phone validation schema (reusable)
+export const phoneSchema = z
+  .string()
+  .trim()
+  .regex(/^[6-9]\d{9}$/, 'Phone must be 10 digits starting with 6-9')
+  .length(10, 'Phone must be exactly 10 digits');
+
+// Email validation schema (reusable)
+export const emailSchema = z
+  .string()
+  .email('Invalid email address')
+  .max(255, 'Email must be less than 255 characters')
+  .toLowerCase();
+
+// Name validation schema (reusable)
+export const nameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Name must be at least 2 characters')
+  .max(100, 'Name must be less than 100 characters')
+  .regex(/^[a-zA-Z\s'-]+$/, 'Name can only contain letters, spaces, hyphens, and apostrophes');
+
+// Address validation schema (reusable)
+export const addressValidationSchema = z
+  .string()
+  .trim()
+  .min(10, 'Address must be at least 10 characters')
+  .max(500, 'Address must be less than 500 characters')
+  .regex(/^[a-zA-Z0-9\s,.\-#/()]+$/, 'Address contains invalid characters');
+
 // Auth validation schemas
 export const signupSchema = z.object({
-  name: z.string()
-    .trim()
-    .min(2, 'Name must be at least 2 characters')
-    .max(100, 'Name must be less than 100 characters'),
-  email: z.string()
-    .email('Invalid email address')
-    .max(255, 'Email must be less than 255 characters'),
+  name: nameSchema,
+  email: emailSchema,
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .max(72, 'Password must be less than 72 characters'),
@@ -45,6 +70,13 @@ export const addressSchema = z.object({
     .optional(),
 });
 
+// Contact info validation (for checkout)
+export const contactInfoSchema = z.object({
+  name: nameSchema,
+  email: emailSchema,
+  phone: phoneSchema,
+});
+
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -52,39 +84,17 @@ export const loginSchema = z.object({
 
 // Profile validation schema
 export const profileSchema = z.object({
-  name: z.string()
-    .trim()
-    .min(2, 'Name must be at least 2 characters')
-    .max(100, 'Name must be less than 100 characters'),
-  email: z.string()
-    .email('Invalid email address')
-    .max(255, 'Email must be less than 255 characters'),
-  address: z.string()
-    .trim()
-    .min(10, 'Address must be at least 10 characters')
-    .max(500, 'Address must be less than 500 characters'),
+  name: nameSchema,
+  email: emailSchema,
+  address: addressValidationSchema,
 });
 
 // Guest checkout validation schemas
 export const guestCheckoutSchema = z.object({
-  name: z.string()
-    .trim()
-    .min(1, 'Full name is required')
-    .min(2, 'Name must be at least 2 characters')
-    .max(100, 'Name must be less than 100 characters'),
-  email: z.string()
-    .min(1, 'Email is required')
-    .email('Invalid email address')
-    .max(255, 'Email must be less than 255 characters'),
-  phone: z.string()
-    .trim()
-    .min(1, 'Phone number is required')
-    .regex(/^[6-9]\d{9}$/, 'Phone number must be 10 digits starting with 6-9'),
-  address: z.string()
-    .trim()
-    .min(1, 'Delivery address is required')
-    .min(10, 'Address must be at least 10 characters')
-    .max(500, 'Address must be less than 500 characters'),
+  name: nameSchema,
+  email: emailSchema,
+  phone: phoneSchema,
+  address: addressValidationSchema,
 });
 
 export const guestOrderLookupSchema = z.object({
