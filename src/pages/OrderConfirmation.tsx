@@ -14,9 +14,9 @@ const OrderConfirmation = () => {
 
   useEffect(() => {
     const fetchOrder = async () => {
-      // Get order details from location state or session storage
-      const orderId = location.state?.orderId || sessionStorage.getItem('guestOrderId');
-      const email = location.state?.email || sessionStorage.getItem('guestOrderEmail');
+      // Get order details from location state (passed from checkout)
+      const orderId = location.state?.orderId;
+      const email = location.state?.email;
 
       if (!orderId) {
         navigate('/');

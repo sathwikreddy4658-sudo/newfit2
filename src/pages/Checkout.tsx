@@ -654,18 +654,13 @@ const Checkout = () => {
       setShowSuccess(true);
       setProcessing(false);
       
-      // Store order data for navigation
-      if (isGuestCheckout) {
-        sessionStorage.setItem('guestOrderId', orderId);
-        sessionStorage.setItem('guestOrderEmail', guestData.email);
-        sessionStorage.setItem('guestOrderName', guestData.name);
-        sessionStorage.setItem('guestOrderPhone', guestData.phone);
-      }
-      
+      // Store order data for navigation via state (NOT sessionStorage)
       setSuccessOrderData({
         orderId,
         email: isGuestCheckout ? guestData.email : user?.email || '',
-        isGuest: isGuestCheckout
+        isGuest: isGuestCheckout,
+        guestName: isGuestCheckout ? guestData.name : undefined,
+        guestPhone: isGuestCheckout ? guestData.phone : undefined
       });
       
       return;

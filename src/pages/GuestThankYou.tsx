@@ -17,10 +17,10 @@ const GuestThankYou = () => {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const orderId = location.state?.orderId || sessionStorage.getItem('guestOrderId');
-  const email = location.state?.email || sessionStorage.getItem('guestOrderEmail');
-  const customerName = location.state?.name || sessionStorage.getItem('guestOrderName');
-  const customerPhone = sessionStorage.getItem('guestOrderPhone') || '';
+  const orderId = location.state?.orderId;
+  const email = location.state?.email;
+  const customerName = location.state?.guestName || '';
+  const customerPhone = location.state?.guestPhone || '';
 
   useEffect(() => {
     // Fetch order details
@@ -132,12 +132,6 @@ const GuestThankYou = () => {
           description: "Your account has been created and your order has been linked to it.",
         });
 
-        // Clear guest order data from session storage
-        sessionStorage.removeItem('guestOrderId');
-        sessionStorage.removeItem('guestOrderEmail');
-        sessionStorage.removeItem('guestOrderName');
-        sessionStorage.removeItem('guestOrderPhone');
-
         // Redirect to orders page after a short delay
         setTimeout(() => {
           navigate('/orders');
@@ -155,12 +149,7 @@ const GuestThankYou = () => {
   };
 
   const handleExit = () => {
-    // Clear session storage
-    sessionStorage.removeItem('guestOrderId');
-    sessionStorage.removeItem('guestOrderEmail');
-    sessionStorage.removeItem('guestOrderName');
-    
-    // Navigate to home with cleared cart
+    // Navigate to home
     navigate('/');
   };
 
