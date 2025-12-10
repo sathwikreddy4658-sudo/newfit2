@@ -153,16 +153,19 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full mb-0"
-        >
-          <source src={animationVideo} type="video/mp4" />
-        </video>
-        <div className="bg-[#b5edce]/50 py-24">
+        <div className="video-heading-container">
+          <div className="video-heading">REBUILDING YOUR FAVORITE SNACKS INTO HEALTHIER VERSIONS.</div>
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full mb-0 h-48 md:h-96 object-cover"
+          >
+            <source src={animationVideo} type="video/mp4" />
+          </video>
+        </div>
+        <div className="bg-[#b5edce]/50 py-20">
           <h1 className="text-6xl font-saira font-black text-[#4e342e] mb-12 text-center">
             BETTER FOOD IS'NT ABOUT LESS. IT'S ABOUT BALANCE.
           </h1>
@@ -175,7 +178,7 @@ const Index = () => {
                 <CardTitle className={`${windowWidth >= 768 ? 'text-3xl' : 'text-lg'} font-saira font-black text-white uppercase`}>REAL INGREDIENTS</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>We start with real, recognizable ingredients. No artificial stuff.</p>
+                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>Made with real ingredients and free from artificial preservatives or chemicals.</p>
               </CardContent>
             </Card>
 
@@ -184,7 +187,7 @@ const Index = () => {
                 <CardTitle className={`${windowWidth >= 768 ? 'text-3xl' : 'text-lg'} font-saira font-black text-white uppercase`}>BALANCED NUTRITION</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>We keep protein strong, calories sensible,for nutrition that supports you without extremes.</p>
+                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>Designed to offer meaningful nutrition and steady energy without overloading sugar or calories.</p>
               </CardContent>
             </Card>
 
@@ -193,7 +196,7 @@ const Index = () => {
                 <CardTitle className={`${windowWidth >= 768 ? 'text-3xl' : 'text-lg'} font-saira font-black text-white uppercase`}>BETTER SWEETNESS</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>A sweetness, balanced with real and better sources, that goes easy on you.</p>
+                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>Sweetness, balanced with real and better sources, that goes easy on you.</p>
               </CardContent>
             </Card>
           </div>
@@ -225,8 +228,8 @@ const Index = () => {
               HOW WE MAKE SNACKING BETTER
             </h2>
             <p className="text-xl font-saira font-medium text-[#3b2a20] mb-8">
-              We don't just make healthy versions, we build better ones.<br />
-              We start with the foods you love - then rebuild them with real ingredients and a balance that keeps both nutrition and flavor in check.
+              We start with the foods you love - then rebuild them with real ingredients and a balance that keeps both nutrition and flavor in check.<br />
+              We don't just make healthy versions, we build better ones.
             </p>
             <div className="flex flex-col items-center gap-4 md:flex-row md:gap-8 md:justify-center">
               <div className="flex gap-4 justify-center md:hidden">

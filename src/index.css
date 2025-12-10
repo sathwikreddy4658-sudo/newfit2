@@ -109,3 +109,22 @@ All colors MUST be HSL.
     font-family: 'Poppins', 'Inter', 'Roboto', 'Lato', 'Saira', 'Saira Condensed', 'Montserrat', 'Tomorrow', 'Bungee', 'Futura', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   }
 }
+
+/* Video Heading Section */
+.video-heading-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.video-heading {
+  background-color: #3b2a20;
+  color: #b5edce;
+  font-family: 'Saira', sans-serif;
+  font-weight: 900;
+  font-size: clamp(1rem, 3vw, 1.75rem);
+  text-align: center;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  padding: 1.5rem 1rem;
+  text-transform: uppercase;
+}

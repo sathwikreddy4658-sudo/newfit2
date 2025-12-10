@@ -149,6 +149,12 @@ const RatingComponent = ({ productId }: RatingComponentProps) => {
               onMouseEnter={() => setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
               onClick={() => setRating(star)}
+              style={{
+                '--star-opacity-filled': '1',
+                '--star-opacity-empty': '0.5',
+                '--star-color-filled': (hoverRating || rating) >= star ? 'black' : '#b5edce',
+                '--star-color-empty': '#b5edce',
+              } as React.CSSProperties}
             >
               <Star
                 className={cn(

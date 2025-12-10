@@ -4,31 +4,31 @@ const COD = () => {
       <div className="max-w-4xl mx-auto px-4">
         {/* Headline */}
         <div className="mb-8 text-center">
-          <h1 className="font-poppins font-black text-4xl uppercase" style={{ color: '#3b2a20', borderBottom: '4px solid #b5edce', borderRadius: '2px', display: 'inline-block' }}>
+          <h1 className="font-poppins font-black text-4xl uppercase heading-primary-radius">
             CASH ON DELIVERY (COD) POLICY
           </h1>
         </div>
 
         {/* Effective Date */}
         <div className="mb-8 text-center">
-          <p className="font-poppins font-light text-lg" style={{ color: '#5e4338' }}>
+          <p className="font-poppins font-light text-lg text-primary-brown">
             Effective Date: October 2025
           </p>
         </div>
 
         {/* Intro */}
         <div className="mb-8">
-          <p className="font-poppins font-light text-base" style={{ color: '#5e4338' }}>
+          <p className="font-poppins font-light text-base text-primary-brown">
             We offer Cash on Delivery for convenience, with a few simple guidelines.
           </p>
         </div>
 
         {/* Section 1 */}
         <div className="mb-8">
-          <h3 className="font-poppins font-black text-2xl mb-4" style={{ color: '#3b2a20' }}>
+          <h3 className="font-poppins font-black text-2xl mb-4 text-primary-dark">
             Availability
           </h3>
-          <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
+          <div className="font-poppins font-light text-base space-y-2 text-primary-brown">
             <p className="font-poppins font-light text-base space-y-2">COD is available only for orders below ₹1300.</p>
             <p>The option may not be available in some remote locations.</p>
           </div>
@@ -36,20 +36,20 @@ const COD = () => {
 
         {/* Section 2 */}
         <div className="mb-8">
-          <h3 className="font-poppins font-black text-2xl mb-4" style={{ color: '#3b2a20' }}>
+          <h3 className="font-poppins font-black text-2xl mb-4 text-primary-dark">
             Order Confirmation
           </h3>
-          <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
+          <div className="font-poppins font-light text-base space-y-2 text-primary-brown">
             <p>Our courier partner may call before delivery to confirm availability of cash. Please ensure someone is present to accept and pay.</p>
           </div>
         </div>
 
         {/* Section 3 */}
         <div className="mb-8">
-          <h3 className="font-poppins font-black text-2xl mb-4" style={{ color: '#3b2a20' }}>
+          <h3 className="font-poppins font-black text-2xl mb-4 text-primary-dark">
             Refunds for COD Orders
           </h3>
-          <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
+          <div className="font-poppins font-light text-base space-y-2 text-primary-brown">
             <p>If a COD order qualifies for a refund (for example, wrong or damaged item):</p>
             <p>You'll be asked to share your bank account details for a secure refund transfer within 5–7 business days.</p>
           </div>
@@ -57,10 +57,10 @@ const COD = () => {
 
         {/* Section 4 */}
         <div className="mb-8">
-          <h3 className="font-poppins font-black text-2xl mb-4" style={{ color: '#3b2a20' }}>
+          <h3 className="font-poppins font-black text-2xl mb-4 text-primary-dark">
             Misuse or Repeated Refusals
           </h3>
-          <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
+          <div className="font-poppins font-light text-base space-y-2 text-primary-brown">
             <p>Repeated refusal of COD parcels may result in COD being disabled for future orders.</p>
           </div>
         </div>

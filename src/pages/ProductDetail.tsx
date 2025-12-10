@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,14 @@ const ProductDetail = () => {
     if (product?.min_order_quantity) {
       setMinOrderQuantity(product.min_order_quantity);
       setSelectedQuantity(product.min_order_quantity);
+    }
+  }, [product]);
+
+  useEffect(() => {
+    if (product?.name) {
+      document.title = `${product.name} Protein Bar | Low-Calorie, High Protein | Freel It`;
+    } else {
+      document.title = "Healthy snacks & Protein Bars | Freel It";
     }
   }, [product]);
 
@@ -238,8 +247,16 @@ const ProductDetail = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#b5edce]/30">
-      <div className="container mx-auto px-4 py-0">
+    <>
+      <Helmet>
+        <title>{product?.name ? `${product.name} Protein Bar | Low-Calorie, High Protein | Freel It` : "Healthy snacks & Protein Bars | Freel It"}</title>
+        <meta
+          name="description"
+          content={product?.description || "Low calorie protein bars made with clean, natural ingredients. No sugar, high protein."}
+        />
+      </Helmet>
+      <div className="min-h-screen w-full bg-[#b5edce]/30">
+        <div className="container mx-auto px-4 py-0">
 
     {/* Animated Hero Section - Suit-Up Reveal Effect */}
     <div className="mb-0 flex justify-center">
@@ -768,7 +785,8 @@ const ProductDetail = () => {
         </div>
       </div>
 
-    </div>
+      </div>
+    </>
   );
 };
 
