@@ -60,7 +60,7 @@ const ProductDetail = () => {
 
   useEffect(() => {
     if (product?.name) {
-      document.title = `${product.name} Protein Bar | Low-Calorie, High Protein | Freel It`;
+      document.title = `${product.name} protein bar | Low-Calorie, High Protein | Freel It`;
     } else {
       document.title = "Healthy snacks & Protein Bars | Freel It";
     }
@@ -249,7 +249,7 @@ const ProductDetail = () => {
   return (
     <>
       <Helmet>
-        <title>{product?.name ? `${product.name} Protein Bar | Low-Calorie, High Protein | Freel It` : "Healthy snacks & Protein Bars | Freel It"}</title>
+        <title>{product?.name ? `${product.name} protein bar | Low-Calorie, High Protein | Freel It` : "Healthy snacks & Protein Bars | Freel It"}</title>
         <meta
           name="description"
           content={product?.description || "Low calorie protein bars made with clean, natural ingredients. No sugar, high protein."}
@@ -402,7 +402,7 @@ const ProductDetail = () => {
         <div>
           <div className="flex items-start gap-4 mb-3">
             <div className="flex-1">
-              <h1 className="font-saira font-black uppercase text-[#5e4338] text-4xl md:text-5xl mb-1">{product.name}</h1>
+              <h1 className="font-saira font-black text-[#5e4338] text-4xl md:text-5xl mb-1 uppercase-text">{product.name}</h1>
               <p className="font-poppins font-black uppercase text-[#3b2a20] text-lg md:text-lg">PROTEIN BAR</p>
             </div>
             {product.stock === 0 && (
@@ -634,8 +634,11 @@ const ProductDetail = () => {
             <div className="px-4 mb-12 pt-8 ">
               <h2 className="font-saira font-black text-2xl text-left text-[#b5edce] uppercase">Product description:</h2>
               <p className="font-saira font-semibold text-xl text-white mt-4">
-                Each Choconut Bar packs 20g of protein in just 224 calories, made with a blend of whey and pea protein.<br />
-                No refined sugar. No preservatives. No chalky chew.
+                Choco nut is a low calorie protein bar with 20g of protein in just 224 calories, made with a blend of whey and pea protein.<br />
+                Low calorie. High protein.<br />
+                No refined sugar.<br />
+                No preservatives.<br />
+                No chalky chew.
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-12 max-w-none px-4">

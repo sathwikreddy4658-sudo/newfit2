@@ -128,3 +128,8 @@ All colors MUST be HSL.
   padding: 1.5rem 1rem;
   text-transform: uppercase;
 }
+
+/* Product name uppercase via CSS */
+.uppercase-text {
+  text-transform: uppercase;
+}
