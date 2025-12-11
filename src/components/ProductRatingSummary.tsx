@@ -62,25 +62,33 @@ const ProductRatingSummary = ({ productId }: ProductRatingSummaryProps) => {
   const renderStars = (rating: number) => {
     return (
       <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={cn(
-              "h-5 w-5",
-              star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-            )}
-          />
-        ))}
+        {[1, 2, 3, 4, 5].map((star) => {
+          // Calculate fill percentage for partial stars
+          const fillAmount = Math.max(0, Math.min(1, rating - star + 1));
+          
+          return (
+            <div key={star} className="relative h-5 w-5">
+              {/* Empty star background */}
+              <Star className="h-5 w-5 text-gray-300 absolute" />
+              {/* Filled star with opacity */}
+              {fillAmount > 0 && (
+                <div style={{ width: `${fillAmount * 100}%` }} className="absolute overflow-hidden">
+                  <Star className="h-5 w-5 fill-yellow-400 text-yellow-400 opacity-70" />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
 
   const renderStarBar = (star: number, count: number) => {
     const percentage = totalRatings > 0 ? (count / totalRatings) * 100 : 0;
+    
     return (
       <div key={star} className="flex items-center gap-2 text-sm">
-        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-        <div className="flex-1 border-2 border-[#3b2a20] rounded-none h-4">
+        <div className="flex-1 border-2 border-[#3b2a20] rounded-none h-4 overflow-hidden">
           <div
             className="bg-[#3b2a20] h-4 rounded-none"
             style={{ width: `${percentage}%` }}

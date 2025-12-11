@@ -133,3 +133,11 @@ All colors MUST be HSL.
 .uppercase-text {
   text-transform: uppercase;
 }
+
+/* Button layer text - displayed uppercase via CSS, read as lowercase by search engines */
+.button-layer-text {
+  text-transform: uppercase;
+  font-family: 'Saira', sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.5rem, 5vw, 2.5rem);
+}

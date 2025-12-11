@@ -252,7 +252,7 @@ const ProductDetail = () => {
         <title>{product?.name ? `${product.name.toLowerCase()} protein bar | Low-Calorie, High Protein | Freel It` : "Healthy snacks & Protein Bars | Freel It"}</title>
         <meta
           name="description"
-          content={product?.description || "Low calorie protein bars made with clean, natural ingredients. No sugar, high protein."}
+          content={product?.description || "A low calorie protein bar with high protein, real ingredients, and no added sugar. No preservatives or artificial stuff - a clean snack built for everyday energy."}
         />
         {product?.name && (
           <link
@@ -297,7 +297,7 @@ const ProductDetail = () => {
           {/* Base Image (Undressed) */}
           <img 
             src={undressedpb} 
-            alt={`${product?.name || 'Protein'} bar - unpackaged view`}
+            alt="low calorie protein bar choco nut"
             className="w-full h-full object-contain absolute inset-0 -rotate-90 drop-shadow-2xl"
             loading="eager"
           />
@@ -305,7 +305,7 @@ const ProductDetail = () => {
           {/* Overlay Image (Dressed) with Reveal Animation */}
           <img 
             src={dressedpb} 
-            alt={`${product?.name || 'Protein'} bar - packaged view`} 
+            alt="freel it low calorie protein bar" 
             className="w-full h-full object-contain absolute inset-0 image-reveal-left -rotate-90"
             loading="eager"
           />

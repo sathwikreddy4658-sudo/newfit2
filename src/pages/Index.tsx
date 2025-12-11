@@ -217,7 +217,12 @@ const Index = () => {
             A BUILT BETTER PROTEIN BAR
           </h2>
           <div className="max-w-3xl mx-auto text-center container px-4">
-            <div className="flex gap-4 justify-center">
+            <div className="flex flex-col gap-4 items-center justify-center">
+              {/* Text with transparency */}
+              <p className="button-layer-text text-white opacity-70">
+                try our low calorie protein bar
+              </p>
+              {/* Shop Now button below */}
               <Link to="/product/CHOCO NUT">
                 <Button size="lg" className="bg-white text-black hover:bg-[#5e4338] hover:text-white font-poppins font-bold">SHOP NOW</Button>
               </Link>
