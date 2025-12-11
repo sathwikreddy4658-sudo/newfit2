@@ -254,6 +254,12 @@ const ProductDetail = () => {
           name="description"
           content={product?.description || "Low calorie protein bars made with clean, natural ingredients. No sugar, high protein."}
         />
+        {product?.name && (
+          <link
+            rel="canonical"
+            href={`https://freelit.in/products/${encodeURIComponent(product.name)}`}
+          />
+        )}
       </Helmet>
       <div className="min-h-screen w-full bg-[#b5edce]/30">
         <div className="container mx-auto px-4 py-0">

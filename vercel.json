@@ -10,10 +10,16 @@
     {
       "source": "/api/:path*",
       "destination": "/api/:path*"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/sitemap\\.xml",
+      "dest": "/sitemap.xml"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
   "redirects": [
