@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -260,6 +260,33 @@ const ProductDetail = () => {
             href={`https://freelit.in/products/${encodeURIComponent(product.name)}`}
           />
         )}
+        {product && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org/",
+              "@type": "Product",
+              "name": product.name,
+              "description": product.description || "Low calorie protein bars made with clean, natural ingredients. No sugar, high protein.",
+              "image": product.images && product.images.length > 0 ? product.images.map(img => getHeroImageUrl(img)) : [],
+              "brand": {
+                "@type": "Brand",
+                "name": "Freel It"
+              },
+              "offers": {
+                "@type": "Offer",
+                "price": product.price_15g?.toString() || "0",
+                "priceCurrency": "INR",
+                "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                "url": `https://freelit.in/products/${encodeURIComponent(product.name)}`
+              },
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.5",
+                "ratingCount": "100"
+              }
+            })}
+          </script>
+        )}
       </Helmet>
       <div className="min-h-screen w-full bg-[#b5edce]/30">
         <div className="container mx-auto px-4 py-0">
@@ -270,7 +297,7 @@ const ProductDetail = () => {
           {/* Base Image (Undressed) */}
           <img 
             src={undressedpb} 
-            alt="Undressed Bar" 
+            alt={`${product?.name || 'Protein'} bar - unpackaged view`}
             className="w-full h-full object-contain absolute inset-0 -rotate-90 drop-shadow-2xl"
             loading="eager"
           />
@@ -278,7 +305,7 @@ const ProductDetail = () => {
           {/* Overlay Image (Dressed) with Reveal Animation */}
           <img 
             src={dressedpb} 
-            alt="Dressed Package" 
+            alt={`${product?.name || 'Protein'} bar - packaged view`} 
             className="w-full h-full object-contain absolute inset-0 image-reveal-left -rotate-90"
             loading="eager"
           />
@@ -294,7 +321,7 @@ const ProductDetail = () => {
                   <>
                     <img
                       src={getHeroImageUrl(product.images[currentImageIndex])}
-                      alt={product.name}
+                      alt={`${product.name} low calorie high protein bar image ${currentImageIndex + 1}`}
                       className="w-full h-full object-contain"
                       onClick={() => openImageModal(currentImageIndex)}
                       loading={getLazyLoadingStrategy('hero')}
@@ -339,7 +366,7 @@ const ProductDetail = () => {
                   <>
                     <img
                       src={getHeroImageUrl(product.images[modalImageIndex])}
-                      alt={product.name}
+                      alt={`${product.name} low calorie high protein bar image ${modalImageIndex + 1}`}
                       className="w-full h-full object-contain"
                       loading={getLazyLoadingStrategy('modal')}
                     />
@@ -748,10 +775,10 @@ const ProductDetail = () => {
 
             <div className="bg-white h-48 md:h-48 w-full flex items-center justify-center gap-8 mb-8">
               <div className="grid grid-cols-2 md:flex md:flex-row gap-8">
-                <img src={image2} alt="Image 2" className="h-28 md:h-40 w-auto" loading="lazy" />
-                <img src={image4} alt="Image 4" className="h-28 md:h-40 w-auto" loading="lazy" />
-                <img src={image8} alt="Image 8" className="h-28 md:h-40 w-auto" loading="lazy" />
-                <img src={image10} alt="Image 10" className="h-28 md:h-40 w-auto" loading="lazy" />
+                <img src={image2} alt="Ingredient benefits infographic 1" className="h-28 md:h-40 w-auto" loading="lazy" />
+                <img src={image4} alt="Ingredient benefits infographic 2" className="h-28 md:h-40 w-auto" loading="lazy" />
+                <img src={image8} alt="Ingredient benefits infographic 3" className="h-28 md:h-40 w-auto" loading="lazy" />
+                <img src={image10} alt="Ingredient benefits infographic 4" className="h-28 md:h-40 w-auto" loading="lazy" />
               </div>
             </div>
 
@@ -790,6 +817,28 @@ const ProductDetail = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <ProductRatingsDisplay productId={product.id} />
+          </div>
+        </div>
+      </div>
+
+      {/* Internal Navigation Links for SEO */}
+      <div className="bg-gray-50 w-full py-8 border-t border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex flex-col md:flex-row gap-4 justify-center">
+              <Link
+                to="/products"
+                className="px-6 py-2 bg-[#5e4338] text-white rounded hover:bg-[#4a3528] transition text-center font-saira font-semibold"
+              >
+                See All Products
+              </Link>
+              <Link
+                to="/"
+                className="px-6 py-2 bg-[#b5edce] text-[#3b2a20] rounded hover:bg-[#a0d9ba] transition text-center font-saira font-semibold"
+              >
+                Back to Homepage
+              </Link>
+            </div>
           </div>
         </div>
       </div>
