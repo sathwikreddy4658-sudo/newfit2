@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useRef, useState } from "react";
@@ -151,6 +152,10 @@ const Index = () => {
   };
 
   return (
+    <>
+      <Helmet>
+        <link rel="canonical" href="https://freelit.in/" />
+      </Helmet>
     <div className="min-h-screen flex flex-col">
       <main className="flex-1">
         <div className="video-heading-container">
@@ -275,6 +280,7 @@ const Index = () => {
         </div>
       </main>
     </div>
+    </>
   );
 };
 
