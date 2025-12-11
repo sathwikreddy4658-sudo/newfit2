@@ -667,8 +667,8 @@ const ProductDetail = () => {
             <div className="px-4 mb-12 pt-8 ">
               <h2 className="font-saira font-black text-2xl text-left text-[#b5edce] uppercase">Product description:</h2>
               <p className="font-saira font-semibold text-xl text-white mt-4">
-                Choco nut is a low calorie protein bar with 20g of protein in just 224 calories, made with a blend of whey and pea protein.<br />
-                Low calorie. High protein.<br />
+                Choco nut is a low calorie protein bar (compared to most protein bars) with 20g of protein in just 224 calories, made with a blend of whey and pea protein.<br />
+                High protein.<br />
                 No refined sugar.<br />
                 No preservatives.<br />
                 No chalky chew.
@@ -828,13 +828,13 @@ const ProductDetail = () => {
             <div className="flex flex-col md:flex-row gap-4 justify-center">
               <Link
                 to="/products"
-                className="px-6 py-2 bg-[#5e4338] text-white rounded hover:bg-[#4a3528] transition text-center font-saira font-semibold"
+                className="px-6 py-2 bg-[#5e4338] text-white rounded hover:bg-[#4a3528] transition text-center font-saira font-black"
               >
                 See All Products
               </Link>
               <Link
                 to="/"
-                className="px-6 py-2 bg-[#b5edce] text-[#3b2a20] rounded hover:bg-[#a0d9ba] transition text-center font-saira font-semibold"
+                className="px-6 py-2 bg-[#b5edce] text-[#3b2a20] rounded hover:bg-[#a0d9ba] transition text-center font-saira font-black"
               >
                 Back to Homepage
               </Link>
