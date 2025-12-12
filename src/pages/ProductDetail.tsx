@@ -828,13 +828,13 @@ const ProductDetail = () => {
             <div className="flex flex-col md:flex-row gap-4 justify-center">
               <Link
                 to="/products"
-                className="px-6 py-2 bg-[#5e4338] text-white rounded hover:bg-[#4a3528] transition text-center font-saira font-black"
+                className="px-6 py-2 bg-[#5e4338] text-white rounded hover:bg-[#4a3528] transition text-center font-poppins font-semibold"
               >
                 See All Products
               </Link>
               <Link
                 to="/"
-                className="px-6 py-2 bg-[#b5edce] text-[#3b2a20] rounded hover:bg-[#a0d9ba] transition text-center font-saira font-black"
+                className="px-6 py-2 bg-[#b5edce] text-[#3b2a20] rounded hover:bg-[#a0d9ba] transition text-center font-poppins font-semibold"
               >
                 Back to Homepage
               </Link>

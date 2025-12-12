@@ -15,7 +15,10 @@ import image24 from "@/assets/24.png";
 const Index = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [showMobileShopBar, setShowMobileShopBar] = useState(true);
   const widgetsRef = useRef<HTMLDivElement>(null);
+  const shopNowSectionRef = useRef<HTMLDivElement>(null);
+  const hasScrolledPastRef = useRef(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,6 +34,25 @@ const Index = () => {
           progress = Math.min(1, Math.max(0, (windowHeight - elementTop) / (windowHeight + elementHeight)));
         }
         setScrollProgress(progress);
+      }
+
+      // Check if the Shop Now section is visible
+      if (shopNowSectionRef.current) {
+        const rect = shopNowSectionRef.current.getBoundingClientRect();
+        const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+        
+        // If button is visible again, reset the flag (user scrolled back up)
+        if (isVisible) {
+          hasScrolledPastRef.current = false;
+        }
+        // If user scrolls past the button (bottom above viewport), mark it
+        else if (rect.bottom < 0) {
+          hasScrolledPastRef.current = true;
+        }
+        
+        // Show sticky bar only if button is not visible AND we haven't scrolled past it
+        const shouldShow = !isVisible && !hasScrolledPastRef.current;
+        setShowMobileShopBar(shouldShow);
       }
     };
 
@@ -156,7 +178,7 @@ const Index = () => {
       <Helmet>
         <link rel="canonical" href="https://freelit.in/" />
       </Helmet>
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col md:pb-0 pb-20">
       <main className="flex-1">
         <div className="video-heading-container">
           <div className="video-heading">REBUILDING YOUR FAVORITE SNACKS INTO HEALTHIER VERSIONS.</div>
@@ -223,7 +245,7 @@ const Index = () => {
                 try our low calorie protein bar
               </p>
               {/* Shop Now button below */}
-              <Link to="/product/CHOCO NUT">
+              <Link to="/product/CHOCO NUT" ref={shopNowSectionRef}>
                 <Button size="lg" className="bg-white text-black hover:bg-[#5e4338] hover:text-white font-poppins font-bold">SHOP NOW</Button>
               </Link>
             </div>
@@ -284,6 +306,17 @@ const Index = () => {
           </div>
         </div>
       </main>
+      
+      {/* Mobile Sticky Shop Now Bar - appears when Shop Now button is not visible */}
+      {showMobileShopBar && (
+        <Link to="/product/CHOCO NUT" className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex justify-center px-4 pb-4 transition-opacity duration-300">
+          <div className="max-w-md bg-white shadow-lg py-4 px-8 text-center rounded-lg border-t-4 border-black">
+            <div className="font-poppins font-bold text-lg text-black">
+              SHOP NOW
+            </div>
+          </div>
+        </Link>
+      )}
     </div>
     </>
   );
