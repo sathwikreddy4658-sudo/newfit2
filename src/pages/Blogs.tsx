@@ -88,6 +88,10 @@ const Blogs = () => {
                       src={blog.image_url || '/placeholder.svg'}
                       alt={blog.title}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      width="320"
+                      height="180"
+                      decoding="async"
                     />
                   </div>
                   <CardHeader>
@@ -119,6 +123,10 @@ const Blogs = () => {
                         src={blog.image_url || '/placeholder.svg'}
                         alt={blog.title}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        width="300"
+                        height="300"
+                        decoding="async"
                       />
                     </div>
                     <div className="p-6 md:flex-1">

@@ -172,6 +172,10 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
                     objectFit: 'contain'
                   }}
                   alt="Crop preview"
+                  loading="lazy"
+                  width="600"
+                  height="600"
+                  decoding="async"
                 />
               </ReactCrop>
             </div>

@@ -205,6 +205,9 @@ const BlogsTab = () => {
                         src={URL.createObjectURL(imageFile)}
                         alt="New blog image"
                         className="w-full h-full object-cover"
+                        width="128"
+                        height="128"
+                        decoding="async"
                       />
                     </div>
                   )}
@@ -215,6 +218,10 @@ const BlogsTab = () => {
                         src={editingBlog.image_url}
                         alt="Current blog image"
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        width="128"
+                        height="128"
+                        decoding="async"
                       />
                     </div>
                   )}
@@ -237,6 +244,10 @@ const BlogsTab = () => {
                 src={blog.image_url}
                 alt={blog.title}
                 className="h-32 w-full object-cover rounded-lg mb-3"
+                loading="lazy"
+                width="256"
+                height="128"
+                decoding="async"
               />
             )}
             <h3 className="font-semibold mb-1 line-clamp-2">{blog.title}</h3>
