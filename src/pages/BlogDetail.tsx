@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Calendar, User } from "lucide-react";
+import DOMPurify from 'dompurify';
 
 const BlogDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,34 +45,78 @@ const BlogDetail = () => {
     if (!content) return null;
     
     try {
-      // Always start with string
       let str = String(content).trim();
       
-      // If it looks like JSON array or object, try to parse
+      // If it starts with < it's HTML content
+      if (str.startsWith('<')) {
+        return { type: 'html', content: str };
+      }
+      
+      // If it looks like JSON array or object, try to parse (backward compatibility)
       if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
         try {
           const parsed = JSON.parse(str);
           
           // If it's an array, return it directly
           if (Array.isArray(parsed)) {
-            return parsed;
+            return { type: 'json', content: parsed };
           }
           
           // If it's an object with text/type, wrap in array
           if (typeof parsed === 'object' && (parsed?.text || parsed?.type)) {
-            return [parsed];
+            return { type: 'json', content: [parsed] };
           }
         } catch {
           // Not valid JSON, treat as plain text
         }
       }
       
-      // Plain text - return as single paragraph
-      return [{ type: 'paragraph', text: str }];
+      // Plain text - return as single item
+      return { type: 'text', content: str };
     } catch (error) {
       console.error('Error parsing blog content:', error);
-      return [{ type: 'paragraph', text: String(content) }];
+      return { type: 'text', content: String(content) };
     }
+  };
+
+  // Helper function to check if text contains HTML (rich text)
+  const isRichText = (text: string): boolean => {
+    const str = String(text);
+    // Check for HTML tags (both regular and escaped)
+    return /<[^>]*>/.test(str) || /&lt;/.test(str);
+  };
+
+  // Helper function to unescape HTML entities
+  const unescapeHtml = (text: string): string => {
+    const map: { [key: string]: string } = {
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#039;': "'",
+      '&amp;': '&'
+    };
+    return String(text).replace(/&lt;|&gt;|&quot;|&#039;|&amp;/g, m => map[m]);
+  };
+
+  // Helper function to render rich HTML content safely
+  const renderRichContent = (html: string) => {
+    // Unescape HTML if needed
+    let unescapedHtml = unescapeHtml(html);
+    // Sanitize with DOMPurify
+    const cleanHtml = DOMPurify.sanitize(unescapedHtml);
+    return (
+      <div 
+        className="prose prose-sm max-w-none break-words"
+        dangerouslySetInnerHTML={{ __html: cleanHtml }}
+        style={{
+          color: '#3b2a20',
+          fontSize: '18px',
+          fontWeight: '400',
+          lineHeight: '1.5',
+          wordSpacing: 'normal'
+        }}
+      />
+    );
   };
 
   if (loading) {
@@ -101,18 +146,9 @@ const BlogDetail = () => {
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="container mx-auto px-4">
-        <div className="mb-6">
-          <Link to="/blogs">
-            <Button variant="ghost">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Blogs
-            </Button>
-          </Link>
-        </div>
-
-        <article className="max-w-[680px] mx-auto">
+        <article className="max-w-[680px] mx-auto bg-white rounded-lg px-4 py-6 sm:px-6 sm:py-8 md:p-8 shadow-sm">
           {blog.image_url && (
-            <div className="aspect-video overflow-hidden rounded-lg mb-8">
+            <div className="aspect-video overflow-hidden rounded-lg mb-8 -mx-4 sm:-mx-6 md:-mx-8 -mt-6 sm:-mt-8 md:-mt-8 mb-8">
               <img
                 src={blog.image_url}
                 alt={blog.title}
@@ -135,7 +171,7 @@ const BlogDetail = () => {
             </div>
           </header>
 
-          <div className="font-poppins text-[18px] font-medium leading-[1.7] text-[#3b2a20]">
+          <div className="font-poppins text-[18px] font-normal leading-[1.5] text-[#3b2a20]">
             {(() => {
               const parsedContent = parseContent(blog.content);
               
@@ -143,25 +179,81 @@ const BlogDetail = () => {
                 return <div className="whitespace-pre-wrap">{blog.content}</div>;
               }
               
-              return (
-                <div className="space-y-6">
-                  {parsedContent.map((section: any, index: number) => (
-                    <div key={index}>
-                      {section.type === 'heading' ? (
-                        <h2 className="text-2xl font-saira font-semibold mb-4 text-[#3b2a20] mt-8 first:mt-0 pb-3 border-b-2 border-[#b5edce]">
-                          {section.text}
-                        </h2>
-                      ) : (
-                        <p className="text-[#3b2a20] whitespace-pre-wrap leading-[1.7] mb-4">
-                          {section.text}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              );
+              // Handle HTML content (new format from React-Quill)
+              if (parsedContent.type === 'html') {
+                return renderRichContent(parsedContent.content);
+              }
+              
+              // Handle JSON content (backward compatibility)
+              if (parsedContent.type === 'json') {
+                return (
+                  <div className="space-y-4">
+                    {parsedContent.content.map((section: any, index: number) => {
+                      const isRich = isRichText(section.text);
+                      console.log(`Section ${index} (${section.type}):`, 'isRich=', isRich, 'text=', section.text?.substring?.(0, 50));
+                      return (
+                        <div key={index}>
+                          {section.type === 'heading' ? (
+                            isRich ? (
+                              <div className="text-2xl font-saira font-semibold mb-3 text-[#3b2a20] mt-6 first:mt-0 pb-3 border-b-2 border-[#b5edce] leading-[1.3]">
+                                {renderRichContent(section.text)}
+                              </div>
+                            ) : (
+                              <h2 className="text-2xl font-saira font-semibold mb-3 text-[#3b2a20] mt-6 first:mt-0 pb-3 border-b-2 border-[#b5edce] leading-[1.3]">
+                                {section.text}
+                              </h2>
+                            )
+                          ) : (
+                            isRich ? (
+                              renderRichContent(section.text)
+                            ) : (
+                              <p className="text-[#3b2a20] whitespace-pre-wrap leading-[1.5] mb-4">
+                                {section.text}
+                              </p>
+                            )
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              
+              // Handle plain text
+              return <p className="text-[#3b2a20] whitespace-pre-wrap leading-[1.5]">{parsedContent.content}</p>;
             })()}
           </div>
+
+          {/* CTA Links Section */}
+          {blog.links && (() => {
+            try {
+              const links = JSON.parse(blog.links);
+              if (Array.isArray(links) && links.length > 0) {
+                const ctaHeading = blog.cta_heading || "Learn More";
+                return (
+                  <div className="mt-10 pt-8 border-t border-[#b5edce]">
+                    <h3 className="text-lg font-saira font-semibold text-[#3b2a20] mb-6 text-center">{ctaHeading}</h3>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                      {links.map((link: any, index: number) => (
+                        <a
+                          key={index}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-6 py-3 bg-[#3b2a20] text-white font-poppins font-semibold rounded-lg hover:bg-[#2a1f15] transition-colors"
+                        >
+                          {link.text}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+            } catch (error) {
+              console.error('Error parsing blog links:', error);
+            }
+            return null;
+          })()}
         </article>
       </div>
     </div>

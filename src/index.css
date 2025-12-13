@@ -141,3 +141,99 @@ All colors MUST be HSL.
   font-weight: 900;
   font-size: clamp(1.5rem, 5vw, 2.5rem);
 }
+/* React-Quill Rich Text Editor Styling */
+.ql-container {
+  font-size: 16px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.ql-editor {
+  min-height: 200px;
+  padding: 12px;
+  color: #3b2a20;
+  line-height: 1.5;
+}
+
+.ql-editor.ql-blank::before {
+  color: #aaa;
+  font-style: italic;
+}
+
+.ql-toolbar {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px 4px 0 0;
+}
+
+.ql-toolbar.ql-snow {
+  padding: 8px;
+}
+
+.ql-snow .ql-stroke {
+  stroke: #444;
+}
+
+.ql-snow .ql-fill {
+  fill: #444;
+}
+
+.ql-snow .ql-picker-label {
+  color: #444;
+}
+
+/* Blog Content Styling */
+.prose {
+  font-family: 'Poppins', sans-serif;
+  color: #3b2a20;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.prose strong {
+  font-weight: 700;
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose p {
+  margin-bottom: 1rem;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  font-family: 'Saira', sans-serif;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.prose ul, .prose ol {
+  margin-bottom: 1rem;
+  padding-left: 2rem;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+}
+
+.prose code {
+  background-color: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.prose blockquote {
+  border-left: 4px solid #b5edce;
+  padding-left: 1rem;
+  margin-left: 0;
+  color: #666;
+  font-style: italic;
+}
+
+/* Word spacing control for blog content */
+.word-spacing-tight {
+  word-spacing: normal;
+}

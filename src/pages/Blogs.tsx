@@ -9,7 +9,7 @@ import { Calendar, User, Grid, List } from "lucide-react";
 const Blogs = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'scroll'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'scroll'>('scroll');
 
   useEffect(() => {
     fetchBlogs();
@@ -41,6 +41,18 @@ const Blogs = () => {
   const getContentPreview = (content: any, maxLength: number = 150): string => {
     if (!content) return '';
     
+    const stripHtmlTags = (text: string): string => {
+      return text
+        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&amp;/g, '&')
+        .trim();
+    };
+    
     try {
       let str = String(content).trim();
       
@@ -58,23 +70,30 @@ const Blogs = () => {
           if (Array.isArray(parsed)) {
             for (const item of parsed) {
               if (item?.text) {
-                return String(item.text).trim().replace(/\n+/g, ' ').substring(0, maxLength);
+                let text = String(item.text).trim();
+                // Strip HTML tags from the text
+                text = stripHtmlTags(text);
+                return text.replace(/\n+/g, ' ').substring(0, maxLength);
               }
             }
           }
           
           // If it's an object with text
           if (parsed?.text) {
-            return String(parsed.text).trim().replace(/\n+/g, ' ').substring(0, maxLength);
+            let text = String(parsed.text).trim();
+            // Strip HTML tags from the text
+            text = stripHtmlTags(text);
+            return text.replace(/\n+/g, ' ').substring(0, maxLength);
           }
         } catch {
           // Not valid JSON
         }
       }
       
-      // Plain text or JSON that couldn't be parsed
+      // Plain text - strip HTML tags
+      str = stripHtmlTags(str);
       // Check it doesn't look like JSON before returning
-      if (str.includes('{"type"') || str.includes('["')) {
+      if (str.includes('{\"type\"') || str.includes('[\"')) {
         return 'Read more...';
       }
       

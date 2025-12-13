@@ -7,15 +7,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, Trash2, Upload, X, Plus, Save } from "lucide-react";
+import { Pencil, Trash2, Upload, X, Plus, Save, Bold, Italic, Type } from "lucide-react";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 interface ContentSection {
   type: 'heading' | 'paragraph';
   text: string;
 }
 
+interface BlogLink {
+  text: string;
+  url: string;
+}
+
 const BLOG_DRAFT_KEY = 'blog_draft_data';
 const BLOG_CONTENT_DRAFT_KEY = 'blog_content_sections';
+const BLOG_LINKS_DRAFT_KEY = 'blog_links_sections';
 
 const BlogsTab = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
@@ -24,9 +32,11 @@ const BlogsTab = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [contentSections, setContentSections] = useState<ContentSection[]>([]);
+  const [blogLinks, setBlogLinks] = useState<BlogLink[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     image_url: "",
+    cta_heading: "Learn More",
   });
   const [draftSaved, setDraftSaved] = useState(false);
   const saveDraftTimeoutRef = useRef<NodeJS.Timeout>();
@@ -45,6 +55,7 @@ const BlogsTab = () => {
       saveDraftTimeoutRef.current = setTimeout(() => {
         localStorage.setItem(BLOG_DRAFT_KEY, JSON.stringify(formData));
         localStorage.setItem(BLOG_CONTENT_DRAFT_KEY, JSON.stringify(contentSections));
+        localStorage.setItem(BLOG_LINKS_DRAFT_KEY, JSON.stringify(blogLinks));
         setDraftSaved(true);
         setTimeout(() => setDraftSaved(false), 2000);
       }, 1000);
@@ -55,19 +66,23 @@ const BlogsTab = () => {
         clearTimeout(saveDraftTimeoutRef.current);
       }
     };
-  }, [formData, contentSections, showDialog]);
+  }, [formData, contentSections, blogLinks, showDialog]);
 
   // Load draft when dialog opens
   useEffect(() => {
     if (showDialog && !editingBlog) {
       const savedDraft = localStorage.getItem(BLOG_DRAFT_KEY);
       const savedContent = localStorage.getItem(BLOG_CONTENT_DRAFT_KEY);
+      const savedLinks = localStorage.getItem(BLOG_LINKS_DRAFT_KEY);
       
       if (savedDraft) {
         setFormData(JSON.parse(savedDraft));
       }
       if (savedContent) {
         setContentSections(JSON.parse(savedContent));
+      }
+      if (savedLinks) {
+        setBlogLinks(JSON.parse(savedLinks));
       }
     }
   }, [showDialog, editingBlog]);
@@ -84,12 +99,15 @@ const BlogsTab = () => {
     setFormData({
       title: "",
       image_url: "",
+      cta_heading: "Learn More",
     });
     setContentSections([]);
+    setBlogLinks([]);
     setEditingBlog(null);
     setImageFile(null);
     localStorage.removeItem(BLOG_DRAFT_KEY);
     localStorage.removeItem(BLOG_CONTENT_DRAFT_KEY);
+    localStorage.removeItem(BLOG_LINKS_DRAFT_KEY);
   };
 
   const uploadImage = async (file: File): Promise<string | null> => {
@@ -213,13 +231,26 @@ const BlogsTab = () => {
         imageUrl = newImageUrl;
       }
 
-      // Convert sections to JSON string for storage
-      const contentJson = JSON.stringify(contentSections);
+      // Convert sections to content string
+      // React-Quill stores HTML directly, so we combine all sections into one HTML string
+      let contentHtml = '';
+      contentSections.forEach((section) => {
+        if (section.type === 'heading') {
+          contentHtml += `<h2>${section.text}</h2>`;
+        } else {
+          // Already has <p> tags from Quill
+          contentHtml += section.text;
+        }
+      });
+      
+      const linksJson = JSON.stringify(blogLinks);
 
       const blogData = {
         title: formData.title,
-        content: contentJson,
+        content: contentHtml,
         image_url: imageUrl,
+        links: linksJson,
+        cta_heading: formData.cta_heading || "Learn More",
       };
       
       console.log('Saving blog with image_url:', imageUrl);
@@ -262,20 +293,56 @@ const BlogsTab = () => {
     setFormData({
       title: blog.title,
       image_url: blog.image_url || "",
+      cta_heading: blog.cta_heading || "Learn More",
     });
     
-    // Parse content - handle both JSON and plain text for backward compatibility
+    // Parse content - handle both HTML and JSON formats
     try {
-      const parsed = JSON.parse(blog.content);
-      if (Array.isArray(parsed)) {
-        setContentSections(parsed);
+      const content = blog.content;
+      // If it starts with <, it's pure HTML content (new format)
+      if (content.startsWith('<')) {
+        // Split HTML by <h2> tags to separate headings and paragraphs
+        const parts = content.split(/(<h2>.*?<\/h2>)/);
+        const sections: any[] = [];
+        
+        for (const part of parts) {
+          if (part.trim()) {
+            if (part.startsWith('<h2>')) {
+              // Extract heading text
+              const headingText = part.replace(/<\/?h2>/g, '').trim();
+              sections.push({ type: 'heading', text: headingText });
+            } else if (part.startsWith('<p>')) {
+              sections.push({ type: 'paragraph', text: part });
+            } else if (part.trim()) {
+              sections.push({ type: 'paragraph', text: part });
+            }
+          }
+        }
+        setContentSections(sections.length > 0 ? sections : [{ type: 'paragraph', text: content }]);
       } else {
-        // Old format - convert to new format
-        setContentSections([{ type: 'paragraph', text: blog.content }]);
+        // Try parsing as JSON (old format)
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) {
+          setContentSections(parsed);
+        } else {
+          setContentSections([{ type: 'paragraph', text: content }]);
+        }
       }
     } catch {
       // Plain text fallback
       setContentSections([{ type: 'paragraph', text: blog.content }]);
+    }
+    
+    // Parse links if they exist
+    try {
+      if (blog.links) {
+        const parsedLinks = JSON.parse(blog.links);
+        setBlogLinks(Array.isArray(parsedLinks) ? parsedLinks : []);
+      } else {
+        setBlogLinks([]);
+      }
+    } catch {
+      setBlogLinks([]);
     }
     
     setImageFile(null);
@@ -307,17 +374,27 @@ const BlogsTab = () => {
   const getPreviewText = (content: any): string => {
     if (!content) return '';
     
+    const stripHtmlTags = (text: string): string => {
+      return text
+        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&amp;/g, '&')
+        .trim();
+    };
+    
     try {
       let str = String(content).trim();
-      
-      console.log('getPreviewText input type:', typeof content, 'value:', str.substring(0, 100));
       
       // Remove surrounding quotes if present
       if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
         str = str.slice(1, -1);
       }
       
-      // If it looks like JSON array or object, MUST parse it
+      // If it looks like JSON array or object, parse it
       if (str.startsWith('[') || str.startsWith('{')) {
         try {
           const parsed = JSON.parse(str);
@@ -326,9 +403,9 @@ const BlogsTab = () => {
           if (Array.isArray(parsed)) {
             for (const item of parsed) {
               if (item?.text) {
-                const text = String(item.text).trim();
+                let text = String(item.text).trim();
+                text = stripHtmlTags(text);
                 const result = text.replace(/\n+/g, ' ').substring(0, 100);
-                console.log('Extracted from JSON array:', result);
                 return result;
               }
             }
@@ -337,7 +414,8 @@ const BlogsTab = () => {
           
           // If it's an object with text, return it
           if (parsed?.text) {
-            const text = String(parsed.text).trim();
+            let text = String(parsed.text).trim();
+            text = stripHtmlTags(text);
             const result = text.replace(/\n+/g, ' ').substring(0, 100);
             console.log('Extracted from JSON object:', result);
             return result;
@@ -351,14 +429,9 @@ const BlogsTab = () => {
         }
       }
       
-      // Plain text - but check it doesn't look like JSON
-      if (str.includes('{"type"') || str.includes('{"') || str.includes('["')) {
-        console.log('Content looks like JSON but not detected, returning placeholder');
-        return 'Blog content...';
-      }
-      
+      // Return stripped text
       const result = str.replace(/\n+/g, ' ').substring(0, 100);
-      console.log('Returning plain text:', result);
+      console.log('Returning stripped text:', result);
       return result;
     } catch (error) {
       console.error('Error extracting preview:', error);
@@ -457,17 +530,108 @@ const BlogsTab = () => {
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                        <Textarea
-                          value={section.text}
+                        <div className="border rounded bg-white">
+                          <ReactQuill
+                            value={section.text}
+                            onChange={(text) => {
+                              const updated = [...contentSections];
+                              updated[index].text = text;
+                              setContentSections(updated);
+                            }}
+                            modules={{
+                              toolbar: [
+                                ['bold', 'italic', 'underline', 'strike'],
+                                ['blockquote', 'code-block'],
+                                [{ 'header': 1 }, { 'header': 2 }],
+                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                ['link'],
+                                ['clean']
+                              ]
+                            }}
+                            formats={[
+                              'bold', 'italic', 'underline', 'strike',
+                              'blockquote', 'code-block',
+                              'header',
+                              'list',
+                              'link'
+                            ]}
+                            placeholder={section.type === 'heading' ? 'Enter heading...' : 'Enter paragraph text...'}
+                            theme="snow"
+                            style={{ minHeight: section.type === 'heading' ? '120px' : '200px' }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="cta-heading">CTA Section Heading (Optional)</Label>
+                <Input
+                  id="cta-heading"
+                  value={formData.cta_heading}
+                  onChange={(e) => setFormData({ ...formData, cta_heading: e.target.value })}
+                  placeholder="e.g., Learn More, Explore, Shop Now"
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <Label>CTA Links (Optional)</Label>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setBlogLinks([...blogLinks, { text: '', url: '' }])}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add Link
+                  </Button>
+                </div>
+
+                {blogLinks.length === 0 ? (
+                  <div className="p-3 border-2 border-dashed rounded-lg text-center text-sm text-muted-foreground">
+                    <p>No CTA links yet. Click "Add Link" to add call-to-action buttons.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-48 overflow-y-auto border rounded-lg p-3 bg-slate-50">
+                    {blogLinks.map((link, index) => (
+                      <div key={index} className="bg-white p-3 rounded border space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Link {index + 1}</span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              const updated = blogLinks.filter((_, i) => i !== index);
+                              setBlogLinks(updated);
+                            }}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Input
+                          value={link.text}
                           onChange={(e) => {
-                            const updated = [...contentSections];
+                            const updated = [...blogLinks];
                             updated[index].text = e.target.value;
-                            setContentSections(updated);
+                            setBlogLinks(updated);
                           }}
-                          placeholder={section.type === 'heading' ? 'Enter heading...' : 'Enter paragraph text...'}
-                          rows={section.type === 'heading' ? 2 : 4}
+                          placeholder="Link text (e.g., 'Shop Now')"
                           className="text-sm"
-                          required
+                        />
+                        <Input
+                          value={link.url}
+                          onChange={(e) => {
+                            const updated = [...blogLinks];
+                            updated[index].url = e.target.value;
+                            setBlogLinks(updated);
+                          }}
+                          placeholder="URL (e.g., https://example.com)"
+                          className="text-sm"
                         />
                       </div>
                     ))}
