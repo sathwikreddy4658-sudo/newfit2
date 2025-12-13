@@ -228,6 +228,46 @@ const BlogsTab = () => {
     });
   };
 
+  // Helper function to extract preview text from blog content
+  const getPreviewText = (content: any): string => {
+    if (!content) return '';
+    
+    try {
+      // Always start with string
+      let str = String(content).trim();
+      
+      // If it looks like JSON, parse it
+      if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
+        try {
+          const parsed = JSON.parse(str);
+          
+          // If it's an array, find first text
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              if (item?.text) {
+                return item.text.substring(0, 100);
+              }
+            }
+            return '';
+          }
+          
+          // If it's an object with text, return it
+          if (parsed?.text) {
+            return String(parsed.text).substring(0, 100);
+          }
+        } catch {
+          // Not valid JSON, continue to plain text
+        }
+      }
+      
+      // Plain text - just return first 100 chars
+      return str.substring(0, 100);
+    } catch (error) {
+      console.error('Error extracting preview:', error);
+      return '';
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -416,27 +456,7 @@ const BlogsTab = () => {
               {formatDate(blog.created_at)}
             </p>
             <p className="text-sm text-muted-foreground mb-3 line-clamp-3 flex-grow">
-              {(() => {
-                try {
-                  let content = blog.content;
-                  
-                  // If it's a string, try to parse as JSON
-                  if (typeof content === 'string') {
-                    content = JSON.parse(content);
-                  }
-                  
-                  // If it's an array, extract first text
-                  if (Array.isArray(content)) {
-                    const firstText = content.find((s: any) => s?.text)?.text || '';
-                    return firstText.substring(0, 100);
-                  }
-                  
-                  // Fallback to string representation
-                  return String(blog.content).substring(0, 100);
-                } catch {
-                  return String(blog.content).substring(0, 100);
-                }
-              })()}...
+              {getPreviewText(blog.content)}...
             </p>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => handleEdit(blog)}>

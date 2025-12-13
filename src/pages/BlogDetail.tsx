@@ -39,6 +39,41 @@ const BlogDetail = () => {
     });
   };
 
+  // Helper function to parse blog content reliably
+  const parseContent = (content: any) => {
+    if (!content) return null;
+    
+    try {
+      // Always start with string
+      let str = String(content).trim();
+      
+      // If it looks like JSON array or object, try to parse
+      if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
+        try {
+          const parsed = JSON.parse(str);
+          
+          // If it's an array, return it directly
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+          
+          // If it's an object with text/type, wrap in array
+          if (typeof parsed === 'object' && (parsed?.text || parsed?.type)) {
+            return [parsed];
+          }
+        } catch {
+          // Not valid JSON, treat as plain text
+        }
+      }
+      
+      // Plain text - return as single paragraph
+      return [{ type: 'paragraph', text: str }];
+    } catch (error) {
+      console.error('Error parsing blog content:', error);
+      return [{ type: 'paragraph', text: String(content) }];
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -102,42 +137,29 @@ const BlogDetail = () => {
 
           <div className="font-poppins text-[18px] font-medium leading-[1.7] text-[#3b2a20]">
             {(() => {
-              // Try to parse content
-              try {
-                let content = blog.content;
-                
-                // If content is a string, try to parse it as JSON
-                if (typeof content === 'string') {
-                  content = JSON.parse(content);
-                }
-                
-                // If it's an array of sections, render it
-                if (Array.isArray(content)) {
-                  return (
-                    <div className="space-y-6">
-                      {content.map((section: any, index: number) => (
-                        <div key={index}>
-                          {section.type === 'heading' ? (
-                            <h2 className="text-2xl font-saira font-semibold mb-4 text-[#3b2a20] mt-8 first:mt-0 pb-3 border-b-2 border-[#b5edce]">
-                              {section.text}
-                            </h2>
-                          ) : (
-                            <p className="text-[#3b2a20] whitespace-pre-wrap leading-[1.7] mb-4">
-                              {section.text}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                } else {
-                  // Fallback to old plain text format
-                  return <div className="whitespace-pre-wrap">{blog.content}</div>;
-                }
-              } catch {
-                // Plain text fallback
+              const parsedContent = parseContent(blog.content);
+              
+              if (!parsedContent) {
                 return <div className="whitespace-pre-wrap">{blog.content}</div>;
               }
+              
+              return (
+                <div className="space-y-6">
+                  {parsedContent.map((section: any, index: number) => (
+                    <div key={index}>
+                      {section.type === 'heading' ? (
+                        <h2 className="text-2xl font-saira font-semibold mb-4 text-[#3b2a20] mt-8 first:mt-0 pb-3 border-b-2 border-[#b5edce]">
+                          {section.text}
+                        </h2>
+                      ) : (
+                        <p className="text-[#3b2a20] whitespace-pre-wrap leading-[1.7] mb-4">
+                          {section.text}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
             })()}
           </div>
         </article>
