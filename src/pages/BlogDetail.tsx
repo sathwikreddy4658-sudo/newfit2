@@ -64,45 +64,80 @@ const BlogDetail = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link to="/blogs">
-          <Button variant="ghost">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Blogs
-          </Button>
-        </Link>
-      </div>
-
-      <article className="max-w-4xl mx-auto">
-        {blog.image_url && (
-          <div className="aspect-video overflow-hidden rounded-lg mb-8">
-            <img
-              src={blog.image_url}
-              alt={blog.title}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              width="800"
-              height="450"
-              decoding="async"
-            />
-          </div>
-        )}
-
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold mb-4 font-poppins">{blog.title}</h1>
-          <div className="flex items-center gap-4 text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              {formatDate(blog.created_at)}
-            </div>
-          </div>
-        </header>
-
-        <div className="prose prose-lg max-w-none">
-          <div className="whitespace-pre-wrap">{blog.content}</div>
+    <div className="min-h-screen bg-slate-50 py-12">
+      <div className="container mx-auto px-4">
+        <div className="mb-6">
+          <Link to="/blogs">
+            <Button variant="ghost">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Blogs
+            </Button>
+          </Link>
         </div>
-      </article>
+
+        <article className="max-w-[680px] mx-auto">
+          {blog.image_url && (
+            <div className="aspect-video overflow-hidden rounded-lg mb-8">
+              <img
+                src={blog.image_url}
+                alt={blog.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                width="800"
+                height="450"
+                decoding="async"
+              />
+            </div>
+          )}
+
+          <header className="mb-8">
+            <h1 className="text-4xl font-saira font-black mb-4 text-[#3b2a20]">{blog.title}</h1>
+            <div className="flex items-center gap-4 text-[#3b2a20]/70 text-sm font-poppins">
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                {formatDate(blog.created_at)}
+              </div>
+            </div>
+          </header>
+
+          <div className="font-poppins text-[18px] font-medium leading-[1.7] text-[#3b2a20]">
+            {(() => {
+              // Try to parse JSON content
+              try {
+                const content = typeof blog.content === 'string' ? blog.content : '';
+                const parsed = JSON.parse(content);
+                
+                if (Array.isArray(parsed)) {
+                  // New structured format
+                  return (
+                    <div className="space-y-6">
+                      {parsed.map((section: any, index: number) => (
+                        <div key={index}>
+                          {section.type === 'heading' ? (
+                            <h2 className="text-2xl font-saira font-semibold mb-4 text-[#3b2a20] mt-8 first:mt-0 pb-3 border-b-2 border-[#b5edce]">
+                              {section.text}
+                            </h2>
+                          ) : (
+                            <p className="text-[#3b2a20] whitespace-pre-wrap leading-[1.7] mb-4">
+                              {section.text}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                } else {
+                  // Fallback to old format
+                  return <div className="whitespace-pre-wrap">{blog.content}</div>;
+                }
+              } catch {
+                // Plain text fallback
+                return <div className="whitespace-pre-wrap">{blog.content}</div>;
+              }
+            })()}
+          </div>
+        </article>
+      </div>
     </div>
   );
 };

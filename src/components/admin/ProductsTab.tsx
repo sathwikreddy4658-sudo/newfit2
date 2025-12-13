@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,9 @@ import { Pencil, Trash2, Upload, X } from "lucide-react";
 import { productSchema } from "@/lib/validation";
 
 const ProductsTab = () => {
+  const [draftSaved, setDraftSaved] = useState(false);
+  const saveDraftTimeoutRef = useRef<NodeJS.Timeout>();
+  const PRODUCT_DRAFT_KEY = 'product_draft_data';
   const [products, setProducts] = useState<any[]>([]);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [showDialog, setShowDialog] = useState(false);
@@ -55,6 +58,37 @@ const ProductsTab = () => {
     if (data) setProducts(data);
   };
 
+  // Auto-save draft on form changes
+  useEffect(() => {
+    if (showDialog && Object.values(formData).some(v => v)) {
+      if (saveDraftTimeoutRef.current) {
+        clearTimeout(saveDraftTimeoutRef.current);
+      }
+      
+      saveDraftTimeoutRef.current = setTimeout(() => {
+        localStorage.setItem(PRODUCT_DRAFT_KEY, JSON.stringify(formData));
+        setDraftSaved(true);
+        setTimeout(() => setDraftSaved(false), 2000);
+      }, 1000);
+    }
+
+    return () => {
+      if (saveDraftTimeoutRef.current) {
+        clearTimeout(saveDraftTimeoutRef.current);
+      }
+    };
+  }, [formData, showDialog]);
+
+  // Load draft when dialog opens
+  useEffect(() => {
+    if (showDialog && !editingProduct) {
+      const savedDraft = localStorage.getItem(PRODUCT_DRAFT_KEY);
+      if (savedDraft) {
+        setFormData(JSON.parse(savedDraft));
+      }
+    }
+  }, [showDialog, editingProduct]);
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -83,6 +117,7 @@ const ProductsTab = () => {
     setExistingImages([]);
     setProductsPageImageFile(null);
     setCartImageFile(null);
+    localStorage.removeItem(PRODUCT_DRAFT_KEY);
   };
 
   const uploadImages = async (productId: string): Promise<string[]> => {
