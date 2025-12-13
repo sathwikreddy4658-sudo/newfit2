@@ -140,7 +140,7 @@ const BlogsTab = () => {
         imageUrl = await uploadImage(imageFile) || "";
       }
 
-      // Convert sections to JSON string
+      // Convert sections to JSON string for storage
       const contentJson = JSON.stringify(contentSections);
 
       const blogData = {
@@ -418,15 +418,23 @@ const BlogsTab = () => {
             <p className="text-sm text-muted-foreground mb-3 line-clamp-3 flex-grow">
               {(() => {
                 try {
-                  const parsed = JSON.parse(blog.content);
-                  if (Array.isArray(parsed)) {
-                    // Extract first paragraph or heading text
-                    const firstText = parsed.find((s: any) => s.text)?.text || '';
+                  let content = blog.content;
+                  
+                  // If it's a string, try to parse as JSON
+                  if (typeof content === 'string') {
+                    content = JSON.parse(content);
+                  }
+                  
+                  // If it's an array, extract first text
+                  if (Array.isArray(content)) {
+                    const firstText = content.find((s: any) => s?.text)?.text || '';
                     return firstText.substring(0, 100);
                   }
-                  return blog.content.substring(0, 100);
+                  
+                  // Fallback to string representation
+                  return String(blog.content).substring(0, 100);
                 } catch {
-                  return blog.content.substring(0, 100);
+                  return String(blog.content).substring(0, 100);
                 }
               })()}...
             </p>

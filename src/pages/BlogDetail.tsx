@@ -102,16 +102,20 @@ const BlogDetail = () => {
 
           <div className="font-poppins text-[18px] font-medium leading-[1.7] text-[#3b2a20]">
             {(() => {
-              // Try to parse JSON content
+              // Try to parse content
               try {
-                const content = typeof blog.content === 'string' ? blog.content : '';
-                const parsed = JSON.parse(content);
+                let content = blog.content;
                 
-                if (Array.isArray(parsed)) {
-                  // New structured format
+                // If content is a string, try to parse it as JSON
+                if (typeof content === 'string') {
+                  content = JSON.parse(content);
+                }
+                
+                // If it's an array of sections, render it
+                if (Array.isArray(content)) {
                   return (
                     <div className="space-y-6">
-                      {parsed.map((section: any, index: number) => (
+                      {content.map((section: any, index: number) => (
                         <div key={index}>
                           {section.type === 'heading' ? (
                             <h2 className="text-2xl font-saira font-semibold mb-4 text-[#3b2a20] mt-8 first:mt-0 pb-3 border-b-2 border-[#b5edce]">
@@ -127,7 +131,7 @@ const BlogDetail = () => {
                     </div>
                   );
                 } else {
-                  // Fallback to old format
+                  // Fallback to old plain text format
                   return <div className="whitespace-pre-wrap">{blog.content}</div>;
                 }
               } catch {
