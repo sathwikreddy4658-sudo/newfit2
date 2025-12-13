@@ -112,7 +112,7 @@ const Orders = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">My Orders</h1>
+      <h1 className="text-3xl font-saira font-black text-[#3b2a20] mb-8 uppercase">MY ORDERS</h1>
 
       {orders.length === 0 ? (
         <p className="text-muted-foreground">No orders yet.</p>

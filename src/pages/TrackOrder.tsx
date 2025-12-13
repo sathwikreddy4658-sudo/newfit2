@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +10,23 @@ import { Search, Package, Mail, Phone, MapPin, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const TrackOrder = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [searched, setSearched] = useState(false);
+
+  useEffect(() => {
+    // Redirect to My Orders if user is logged in
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        navigate('/orders');
+      }
+    };
+    checkUser();
+  }, [navigate]);
 
   const handleSearch = async () => {
     if (!email && !phone) {
@@ -91,7 +104,7 @@ const TrackOrder = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2">Track Your Order</h1>
+          <h1 className="text-4xl font-saira font-black text-[#3b2a20] mb-2 uppercase">TRACK YOUR ORDER</h1>
           <p className="text-muted-foreground">
             Enter your email or phone number to view your order status
           </p>
@@ -137,7 +150,7 @@ const TrackOrder = () => {
             <Button 
               onClick={handleSearch} 
               disabled={loading}
-              className="w-full"
+              className="w-full font-poppins font-semibold uppercase"
             >
               {loading ? (
                 <>
@@ -147,7 +160,7 @@ const TrackOrder = () => {
               ) : (
                 <>
                   <Search className="mr-2 h-4 w-4" />
-                  Track Orders
+                  TRACK ORDERS
                 </>
               )}
             </Button>
