@@ -37,6 +37,53 @@ const Blogs = () => {
     });
   };
 
+  // Helper to extract text preview from blog content
+  const getContentPreview = (content: any, maxLength: number = 150): string => {
+    if (!content) return '';
+    
+    try {
+      let str = String(content).trim();
+      
+      // Remove surrounding quotes
+      if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+        str = str.slice(1, -1);
+      }
+      
+      // If it's JSON, parse it
+      if (str.startsWith('[') || str.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(str);
+          
+          // If it's an array, find first text
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              if (item?.text) {
+                return String(item.text).trim().replace(/\n+/g, ' ').substring(0, maxLength);
+              }
+            }
+          }
+          
+          // If it's an object with text
+          if (parsed?.text) {
+            return String(parsed.text).trim().replace(/\n+/g, ' ').substring(0, maxLength);
+          }
+        } catch {
+          // Not valid JSON
+        }
+      }
+      
+      // Plain text or JSON that couldn't be parsed
+      // Check it doesn't look like JSON before returning
+      if (str.includes('{"type"') || str.includes('["')) {
+        return 'Read more...';
+      }
+      
+      return str.replace(/\n+/g, ' ').substring(0, maxLength);
+    } catch {
+      return 'Read more...';
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-[#b5edce]/50 min-h-screen">
@@ -105,7 +152,7 @@ const Blogs = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="text-[#3b2a20]/70 line-clamp-3">
-                      {blog.content.substring(0, 150)}...
+                      {getContentPreview(blog.content, 150)}...
                     </p>
                   </CardContent>
                 </Card>
@@ -141,7 +188,7 @@ const Blogs = () => {
                       </CardHeader>
                       <CardContent className="p-0">
                         <p className="text-[#3b2a20]/70 line-clamp-4">
-                          {blog.content.substring(0, 300)}...
+                          {getContentPreview(blog.content, 300)}...
                         </p>
                       </CardContent>
                     </div>

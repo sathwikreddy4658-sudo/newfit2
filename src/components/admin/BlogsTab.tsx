@@ -93,23 +93,94 @@ const BlogsTab = () => {
   };
 
   const uploadImage = async (file: File): Promise<string | null> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `blog-${Date.now()}-${Math.random()}.${fileExt}`;
+    try {
+      // Compress image before upload
+      const compressedFile = await compressImage(file);
+      const fileExt = compressedFile.name.split('.').pop();
+      const fileName = `blog-${Date.now()}-${Math.random()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('blog-images')
-      .upload(fileName, file);
+      const { error: uploadError } = await supabase.storage
+        .from('blog-images')
+        .upload(fileName, compressedFile);
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('blog-images')
+        .getPublicUrl(fileName);
+
+      console.log('Image uploaded successfully:', publicUrl);
+      return publicUrl;
+    } catch (error) {
+      console.error('Error in uploadImage:', error);
       return null;
     }
+  };
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('blog-images')
-      .getPublicUrl(fileName);
+  // Compress image to max 2000px width, min 720px, maintaining aspect ratio
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
 
-    return publicUrl;
+          // Calculate new dimensions (max 2000px width, maintaining aspect ratio)
+          const MAX_WIDTH = 2000;
+          const MIN_WIDTH = 720;
+          
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+          
+          // Ensure minimum width
+          if (width < MIN_WIDTH) {
+            height = Math.round((height * MIN_WIDTH) / width);
+            width = MIN_WIDTH;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress to JPEG with 85% quality
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, { type: 'image/jpeg' });
+                console.log(`Image compressed: ${file.size} -> ${compressedFile.size} bytes`);
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Failed to compress image'));
+              }
+            },
+            'image/jpeg',
+            0.85
+          );
+        };
+        img.onerror = () => {
+          reject(new Error('Failed to load image'));
+        };
+      };
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+    });
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,7 +208,9 @@ const BlogsTab = () => {
       let imageUrl = formData.image_url;
 
       if (imageFile) {
-        imageUrl = await uploadImage(imageFile) || "";
+        const newImageUrl = await uploadImage(imageFile) || "";
+        console.log('New image URL from upload:', newImageUrl);
+        imageUrl = newImageUrl;
       }
 
       // Convert sections to JSON string for storage
@@ -148,6 +221,8 @@ const BlogsTab = () => {
         content: contentJson,
         image_url: imageUrl,
       };
+      
+      console.log('Saving blog with image_url:', imageUrl);
 
       if (editingBlog) {
         const { error } = await supabase
@@ -233,11 +308,17 @@ const BlogsTab = () => {
     if (!content) return '';
     
     try {
-      // Always start with string
       let str = String(content).trim();
       
-      // If it looks like JSON, parse it
-      if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
+      console.log('getPreviewText input type:', typeof content, 'value:', str.substring(0, 100));
+      
+      // Remove surrounding quotes if present
+      if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+        str = str.slice(1, -1);
+      }
+      
+      // If it looks like JSON array or object, MUST parse it
+      if (str.startsWith('[') || str.startsWith('{')) {
         try {
           const parsed = JSON.parse(str);
           
@@ -245,26 +326,43 @@ const BlogsTab = () => {
           if (Array.isArray(parsed)) {
             for (const item of parsed) {
               if (item?.text) {
-                return item.text.substring(0, 100);
+                const text = String(item.text).trim();
+                const result = text.replace(/\n+/g, ' ').substring(0, 100);
+                console.log('Extracted from JSON array:', result);
+                return result;
               }
             }
-            return '';
+            return 'No content';
           }
           
           // If it's an object with text, return it
           if (parsed?.text) {
-            return String(parsed.text).substring(0, 100);
+            const text = String(parsed.text).trim();
+            const result = text.replace(/\n+/g, ' ').substring(0, 100);
+            console.log('Extracted from JSON object:', result);
+            return result;
           }
-        } catch {
-          // Not valid JSON, continue to plain text
+          
+          console.log('Parsed JSON but no text found');
+          return 'Blog content...';
+        } catch (parseErr) {
+          console.error('Failed to parse JSON:', parseErr);
+          return 'Blog content...';
         }
       }
       
-      // Plain text - just return first 100 chars
-      return str.substring(0, 100);
+      // Plain text - but check it doesn't look like JSON
+      if (str.includes('{"type"') || str.includes('{"') || str.includes('["')) {
+        console.log('Content looks like JSON but not detected, returning placeholder');
+        return 'Blog content...';
+      }
+      
+      const result = str.replace(/\n+/g, ' ').substring(0, 100);
+      console.log('Returning plain text:', result);
+      return result;
     } catch (error) {
       console.error('Error extracting preview:', error);
-      return '';
+      return 'Error loading preview';
     }
   };
 
@@ -456,7 +554,14 @@ const BlogsTab = () => {
               {formatDate(blog.created_at)}
             </p>
             <p className="text-sm text-muted-foreground mb-3 line-clamp-3 flex-grow">
-              {getPreviewText(blog.content)}...
+              {(() => {
+                const preview = getPreviewText(blog.content);
+                // Never show JSON - if it starts with [ or {, something went wrong
+                if (preview.startsWith('[') || preview.startsWith('{')) {
+                  return 'Blog content...';
+                }
+                return preview;
+              })()}...
             </p>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => handleEdit(blog)}>
