@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -145,6 +146,9 @@ const BlogDetail = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">
+      <Helmet>
+        <link rel="canonical" href={`https://www.freelit.in/blogs/${id}`} />
+      </Helmet>
       <div className="container mx-auto px-4">
         <article className="max-w-[680px] mx-auto bg-white rounded-lg px-4 py-6 sm:px-6 sm:py-8 md:p-8 shadow-sm">
           {blog.image_url && (
