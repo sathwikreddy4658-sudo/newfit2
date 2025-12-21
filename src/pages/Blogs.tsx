@@ -116,9 +116,9 @@ const Blogs = () => {
   return (
     <div className="bg-[#b5edce]/50 min-h-screen">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex justify-between items-center">
-          <h1 className="font-saira font-black text-6xl text-[#3b2a20] text-left uppercase">Blog</h1>
-          <div className="flex gap-2">
+        <div className="mb-8">
+          <h1 className="font-saira font-black text-6xl text-[#3b2a20] text-left uppercase mb-4">Blog</h1>
+          <div className="flex gap-2 justify-end">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'outline'}
               size="sm"
@@ -148,7 +148,7 @@ const Blogs = () => {
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {blogs.map((blog) => (
               <Link key={blog.id} to={`/blogs/${blog.id}`}>
-                <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer mb-2">
                   <div className="aspect-video overflow-hidden rounded-t-lg">
                     <img
                       src={blog.image_url || '/placeholder.svg'}
@@ -179,7 +179,7 @@ const Blogs = () => {
             ))}
           </div>
         ) : (
-          <div className="space-y-6 max-w-4xl mx-auto">
+          <div className="space-y-32 max-w-4xl mx-auto">
             {blogs.map((blog) => (
               <Link key={blog.id} to={`/blogs/${blog.id}`}>
                 <Card className="hover:shadow-lg transition-shadow cursor-pointer">

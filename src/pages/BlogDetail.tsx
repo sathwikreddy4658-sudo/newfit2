@@ -99,12 +99,18 @@ const BlogDetail = () => {
     return String(text).replace(/&lt;|&gt;|&quot;|&#039;|&amp;/g, m => map[m]);
   };
 
-  // Helper function to render rich HTML content safely
+  // Helper function to render rich HTML content safely with product links
   const renderRichContent = (html: string) => {
     // Unescape HTML if needed
     let unescapedHtml = unescapeHtml(html);
+    
+    // Add product link naturally if content mentions Choco Nut
+    if (unescapedHtml.toLowerCase().includes('choco nut') && !unescapedHtml.includes('/products/CHOCO%20NUT')) {
+      unescapedHtml = unescapedHtml.replace(/Choco Nut/gi, '<a href="https://www.freelit.in/products/CHOCO%20NUT" class="text-blue-600 hover:underline">Choco Nut</a>');
+    }
+    
     // Sanitize with DOMPurify
-    const cleanHtml = DOMPurify.sanitize(unescapedHtml);
+    const cleanHtml = DOMPurify.sanitize(unescapedHtml, { ALLOWED_TAGS: ['p', 'a', 'strong', 'em', 'u', 's', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'span'] });
     return (
       <div 
         className="prose prose-sm max-w-none break-words"
@@ -152,7 +158,7 @@ const BlogDetail = () => {
       <div className="container mx-auto px-4">
         <article className="max-w-[680px] mx-auto bg-white rounded-lg px-4 py-6 sm:px-6 sm:py-8 md:p-8 shadow-sm">
           {blog.image_url && (
-            <div className="aspect-video overflow-hidden rounded-lg mb-8 -mx-4 sm:-mx-6 md:-mx-8 -mt-6 sm:-mt-8 md:-mt-8 mb-8">
+            <div className="aspect-video overflow-hidden rounded-lg mb-10 -mx-4 sm:-mx-6 md:-mx-8 -mt-6 sm:-mt-8 md:-mt-8">
               <img
                 src={blog.image_url}
                 alt={blog.title}
@@ -165,8 +171,9 @@ const BlogDetail = () => {
             </div>
           )}
 
-          <header className="mb-8">
-            <h1 className="text-4xl font-saira font-black mb-4 text-[#3b2a20]">{blog.title}</h1>
+          <header className="mb-10">
+            <h1 className="text-4xl font-saira font-black mb-2 text-[#3b2a20]">{blog.title}</h1>
+            <p className="text-[#3b2a20]/70 font-poppins text-sm mb-4">By Freel It Team</p>
             <div className="flex items-center gap-4 text-[#3b2a20]/70 text-sm font-poppins">
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
@@ -258,6 +265,13 @@ const BlogDetail = () => {
             }
             return null;
           })()}
+
+          {/* Back to Blogs Link */}
+          <div className="mt-12 pt-8 text-center border-t border-[#b5edce]">
+            <Link to="/blogs" className="text-[#3b2a20] hover:text-[#3b2a20]/70 font-poppins text-sm transition-colors">
+              ← Back to all blogs
+            </Link>
+          </div>
         </article>
       </div>
     </div>

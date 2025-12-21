@@ -544,6 +544,7 @@ const BlogsTab = () => {
                                 ['blockquote', 'code-block'],
                                 [{ 'header': 1 }, { 'header': 2 }],
                                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                [{ 'size': ['small', false, 'large', 'huge'] }],
                                 ['link'],
                                 ['clean']
                               ]
@@ -553,6 +554,7 @@ const BlogsTab = () => {
                               'blockquote', 'code-block',
                               'header',
                               'list',
+                              'size',
                               'link'
                             ]}
                             placeholder={section.type === 'heading' ? 'Enter heading...' : 'Enter paragraph text...'}
