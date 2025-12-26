@@ -73,7 +73,7 @@ const Shipping = () => {
             Delays & Exceptions
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
-            <p>If your order is delayed beyond 10 days, please contact us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce', textDecoration: 'underline', textDecorationColor: '#000000' }}>care@freelit.in</a> or +91 6302254190 and we'll coordinate with our courier partner to resolve it.</p>
+            <p>If your order is delayed beyond 10 days, please contact us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce', textDecoration: 'underline', textDecorationColor: '#000000' }}>care@freelit.in</a> or <a href="https://wa.me/message/4WPWICKFBYNCB1" target="_blank" rel="noopener noreferrer" style={{ color: '#b5edce', textDecoration: 'underline', textDecorationColor: '#000000' }}>+91 6302254190 (WhatsApp)</a> and we'll coordinate with our courier partner to resolve it.</p>
           </div>
         </div>
       </div>

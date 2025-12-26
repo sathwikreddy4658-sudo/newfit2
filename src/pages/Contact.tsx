@@ -25,7 +25,7 @@ const Contact = () => {
             <p className="text-primary-dark">For help with orders, shipping, or general inquiries:</p>
             <div className="border-left-accent">
               <p className="text-primary-brown">📧 <a href="mailto:care@freelit.in" className="link-secondary">care@freelit.in</a></p>
-              <p className="text-primary-brown">📞 +91 6302254190</p>
+              <p className="text-primary-brown">📞 <a href="https://wa.me/message/4WPWICKFBYNCB1" target="_blank" rel="noopener noreferrer" className="link-secondary">+91 6302254190 (WhatsApp)</a></p>
             </div>
             <p className="text-primary-dark">We usually respond within 24–48 hours on business days.</p>
           </div>
