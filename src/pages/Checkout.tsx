@@ -756,7 +756,6 @@ const Checkout = () => {
     <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-saira font-black text-[#3b2a20] mb-2">CHECKOUT</h1>
-        <p className="text-gray-600 text-lg">Complete your order</p>
       </div>
       <h1 className="text-3xl font-bold mb-8 sr-only">Checkout</h1>
 
