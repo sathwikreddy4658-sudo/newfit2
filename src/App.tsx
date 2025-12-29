@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { CartProvider } from "@/contexts/CartContext";
 import Header from "@/components/Header";
+import SaleBanner from "@/components/SaleBanner";
 import BackButton from "@/components/BackButton";
 import ScrollToTop from "@/components/ScrollToTop";
 import Footer from "@/components/Footer";
@@ -49,6 +50,7 @@ const App = () => (
           <ScrollToTop />
           <div className="min-h-screen flex flex-col">
             <Header />
+            <SaleBanner />
             <BackButton />
             <main className="flex-1">
               <Routes>
