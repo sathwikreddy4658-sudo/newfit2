@@ -91,7 +91,38 @@ const Cart = () => {
                   <div className="flex-1">
                     <h3 className="font-saira font-black text-lg mb-2 text-[#3b2a20] uppercase">{item.name}</h3>
                     <p className="text-sm font-poppins font-black mb-1 text-black uppercase">Protein: {item.protein}</p>
-                    <p className="font-montserrat text-lg font-bold text-primary">₹{item.price}</p>
+                    {(() => {
+                      const basePrice = item.price * item.quantity;
+                      let discount = 0;
+                      let discountPercent = 0;
+                      
+                      // Calculate combo discount
+                      if (item.quantity >= 6 && item.combo_6_discount) {
+                        discount = (basePrice * item.combo_6_discount) / 100;
+                        discountPercent = item.combo_6_discount;
+                      } else if (item.quantity >= 3 && item.combo_3_discount) {
+                        discount = (basePrice * item.combo_3_discount) / 100;
+                        discountPercent = item.combo_3_discount;
+                      }
+                      
+                      const finalPrice = basePrice - discount;
+                      
+                      return (
+                        <div>
+                          <p className="font-montserrat text-lg font-bold text-primary">
+                            ₹{finalPrice.toFixed(2)}
+                            {discount > 0 && (
+                              <span className="ml-2 text-sm line-through text-gray-500">₹{basePrice.toFixed(2)}</span>
+                            )}
+                          </p>
+                          {discount > 0 && (
+                            <p className="text-xs text-green-600 font-bold">
+                              Save ₹{discount.toFixed(2)} ({discountPercent}% off)
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex flex-col items-end gap-2">

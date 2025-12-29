@@ -146,6 +146,8 @@ const ProductDetail = () => {
       quantity: selectedQuantity,
       protein: selectedProtein,
       image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
+      combo_3_discount: product.combo_3_discount || 0,
+      combo_6_discount: product.combo_6_discount || 0,
     });
     setCartQuantity(prev => prev + selectedQuantity);
     // Toast notification is handled in CartContext
@@ -168,6 +170,8 @@ const ProductDetail = () => {
       quantity: selectedQuantity,
       protein: selectedProtein,
       image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
+      combo_3_discount: product.combo_3_discount || 0,
+      combo_6_discount: product.combo_6_discount || 0,
     });
     
     // Check if user is authenticated

@@ -11,6 +11,8 @@ export interface CartItem {
   image?: string;
   protein: string;
   weight?: number; // Weight in grams
+  combo_3_discount?: number; // 3-pack discount percentage
+  combo_6_discount?: number; // 6-pack discount percentage
 }
 
 interface PromoCode {
@@ -221,8 +223,23 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     toast.success("Promo code removed");
   };
 
+  // Helper function to calculate item price with combo discount
+  const calculateItemPrice = (item: CartItem): number => {
+    const basePrice = item.price * item.quantity;
+    let discount = 0;
+    
+    // Apply combo discount based on quantity
+    if (item.quantity >= 6 && item.combo_6_discount) {
+      discount = (basePrice * item.combo_6_discount) / 100;
+    } else if (item.quantity >= 3 && item.combo_3_discount) {
+      discount = (basePrice * item.combo_3_discount) / 100;
+    }
+    
+    return basePrice - discount;
+  };
+
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalPrice = items.reduce((sum, item) => sum + calculateItemPrice(item), 0);
   const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0);
   
   // Calculate discount only for percentage promo codes (not shipping_discount codes)
