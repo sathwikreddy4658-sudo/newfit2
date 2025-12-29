@@ -658,9 +658,7 @@ const Checkout = () => {
       setSuccessOrderData({
         orderId,
         email: isGuestCheckout ? guestData.email : user?.email || '',
-        isGuest: isGuestCheckout,
-        guestName: isGuestCheckout ? guestData.name : undefined,
-        guestPhone: isGuestCheckout ? guestData.phone : undefined
+        isGuest: isGuestCheckout
       });
       
       return;
