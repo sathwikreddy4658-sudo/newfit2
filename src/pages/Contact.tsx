@@ -12,7 +12,7 @@ const Contact = () => {
         {/* Body */}
         <div className="mb-8 border-left-accent">
           <p className="font-saira font-medium text-base text-primary-dark">
-            Whether it's a feedback, a question about your order, or just a thought about better food — we're always listening.
+            Whether it's a feedback, a question about your order, or just a thought about better food, we're always listening.
           </p>
         </div>
 
