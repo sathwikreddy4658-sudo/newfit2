@@ -12,7 +12,7 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
 interface ContentSection {
-  type: 'heading' | 'paragraph';
+  type: 'heading' | 'paragraph' | 'divider';
   text: string;
 }
 
@@ -237,6 +237,8 @@ const BlogsTab = () => {
       contentSections.forEach((section) => {
         if (section.type === 'heading') {
           contentHtml += `<h2>${section.text}</h2>`;
+        } else if (section.type === 'divider') {
+          contentHtml += '<hr class="blog-divider" />';
         } else {
           // Already has <p> tags from Quill
           contentHtml += section.text;
@@ -301,8 +303,8 @@ const BlogsTab = () => {
       const content = blog.content;
       // If it starts with <, it's pure HTML content (new format)
       if (content.startsWith('<')) {
-        // Split HTML by <h2> tags to separate headings and paragraphs
-        const parts = content.split(/(<h2>.*?<\/h2>)/);
+        // Split HTML by <h2> tags and dividers to separate headings, paragraphs, and dividers
+        const parts = content.split(/(<h2>.*?<\/h2>|<hr[^>]*\s*\/>)/);
         const sections: any[] = [];
         
         for (const part of parts) {
@@ -311,6 +313,9 @@ const BlogsTab = () => {
               // Extract heading text
               const headingText = part.replace(/<\/?h2>/g, '').trim();
               sections.push({ type: 'heading', text: headingText });
+            } else if (part.startsWith('<hr')) {
+              // Divider section
+              sections.push({ type: 'divider', text: '' });
             } else if (part.startsWith('<p>')) {
               sections.push({ type: 'paragraph', text: part });
             } else if (part.trim()) {
@@ -476,7 +481,7 @@ const BlogsTab = () => {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <Label>Content Sections *</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button 
                       type="button" 
                       size="sm" 
@@ -492,6 +497,14 @@ const BlogsTab = () => {
                       onClick={() => setContentSections([...contentSections, { type: 'paragraph', text: '' }])}
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add Paragraph
+                    </Button>
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setContentSections([...contentSections, { type: 'divider', text: '' }])}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Divider
                     </Button>
                   </div>
                 </div>
@@ -509,13 +522,14 @@ const BlogsTab = () => {
                             value={section.type}
                             onChange={(e) => {
                               const updated = [...contentSections];
-                              updated[index].type = e.target.value as 'heading' | 'paragraph';
+                              updated[index].type = e.target.value as 'heading' | 'paragraph' | 'divider';
                               setContentSections(updated);
                             }}
                             className="text-sm border rounded px-2 py-1 bg-white"
                           >
                             <option value="heading">Heading</option>
                             <option value="paragraph">Paragraph</option>
+                            <option value="divider">Divider</option>
                           </select>
                           <Button
                             type="button"
@@ -530,38 +544,44 @@ const BlogsTab = () => {
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="border rounded bg-white">
-                          <ReactQuill
-                            value={section.text}
-                            onChange={(text) => {
-                              const updated = [...contentSections];
-                              updated[index].text = text;
-                              setContentSections(updated);
-                            }}
-                            modules={{
-                              toolbar: [
-                                ['bold', 'italic', 'underline', 'strike'],
-                                ['blockquote', 'code-block'],
-                                [{ 'header': 1 }, { 'header': 2 }],
-                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                                [{ 'size': ['small', false, 'large', 'huge'] }],
-                                ['link'],
-                                ['clean']
-                              ]
-                            }}
-                            formats={[
-                              'bold', 'italic', 'underline', 'strike',
-                              'blockquote', 'code-block',
-                              'header',
-                              'list',
-                              'size',
-                              'link'
-                            ]}
-                            placeholder={section.type === 'heading' ? 'Enter heading...' : 'Enter paragraph text...'}
-                            theme="snow"
-                            style={{ minHeight: section.type === 'heading' ? '120px' : '200px' }}
-                          />
-                        </div>
+                        {section.type === 'divider' ? (
+                          <div className="p-3 bg-slate-100 rounded flex items-center justify-center min-h-[60px] text-sm text-muted-foreground">
+                            A horizontal line divider will appear here
+                          </div>
+                        ) : (
+                          <div className="border rounded bg-white">
+                            <ReactQuill
+                              value={section.text}
+                              onChange={(text) => {
+                                const updated = [...contentSections];
+                                updated[index].text = text;
+                                setContentSections(updated);
+                              }}
+                              modules={{
+                                toolbar: [
+                                  ['bold', 'italic', 'underline', 'strike'],
+                                  ['blockquote', 'code-block'],
+                                  [{ 'header': 1 }, { 'header': 2 }],
+                                  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                  [{ 'size': ['small', false, 'large', 'huge'] }],
+                                  ['link'],
+                                  ['clean']
+                                ]
+                              }}
+                              formats={[
+                                'bold', 'italic', 'underline', 'strike',
+                                'blockquote', 'code-block',
+                                'header',
+                                'list',
+                                'size',
+                                'link'
+                              ]}
+                              placeholder={section.type === 'heading' ? 'Enter heading...' : 'Enter paragraph text...'}
+                              theme="snow"
+                              style={{ minHeight: section.type === 'heading' ? '120px' : '200px' }}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

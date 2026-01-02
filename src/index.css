@@ -237,3 +237,21 @@ All colors MUST be HSL.
 .word-spacing-tight {
   word-spacing: normal;
 }
+
+/* Blog content styling for dividers */
+.prose hr, .blog-divider {
+  border: none;
+  border-top: 2px solid #b5edce;
+  margin: 1.5rem 0;
+}
+
+/* Preserve font sizes from React-Quill */
+.prose span[style*="font-size"],
+.prose p span[style*="font-size"] {
+  font-size: inherit;
+}
+
+/* Handle Quill font size classes */
+.ql-size-small { font-size: 0.75em; }
+.ql-size-large { font-size: 1.5em; }
+.ql-size-huge { font-size: 2.5em; }

@@ -109,8 +109,11 @@ const BlogDetail = () => {
       unescapedHtml = unescapedHtml.replace(/Choco Nut/gi, '<a href="https://www.freelit.in/products/CHOCO%20NUT" class="text-blue-600 hover:underline">Choco Nut</a>');
     }
     
-    // Sanitize with DOMPurify
-    const cleanHtml = DOMPurify.sanitize(unescapedHtml, { ALLOWED_TAGS: ['p', 'a', 'strong', 'em', 'u', 's', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'span'] });
+    // Sanitize with DOMPurify - allow all heading tags and style attributes for font sizes
+    const cleanHtml = DOMPurify.sanitize(unescapedHtml, { 
+      ALLOWED_TAGS: ['p', 'a', 'strong', 'em', 'u', 's', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'span', 'hr'],
+      ALLOWED_ATTR: ['class', 'style', 'href', 'target', 'rel']
+    });
     return (
       <div 
         className="prose prose-sm max-w-none break-words"
@@ -206,7 +209,7 @@ const BlogDetail = () => {
                         <div key={index}>
                           {section.type === 'heading' ? (
                             isRich ? (
-                              <div className="text-2xl font-saira font-semibold mb-3 text-[#3b2a20] mt-6 first:mt-0 pb-3 border-b-2 border-[#b5edce] leading-[1.3]">
+                              <div className="font-saira font-semibold mb-3 text-[#3b2a20] mt-6 first:mt-0 pb-3 border-b-2 border-[#b5edce] leading-[1.3]">
                                 {renderRichContent(section.text)}
                               </div>
                             ) : (
@@ -214,6 +217,8 @@ const BlogDetail = () => {
                                 {section.text}
                               </h2>
                             )
+                          ) : section.type === 'divider' ? (
+                            <hr className="my-6 border-t-2 border-[#b5edce]" />
                           ) : (
                             isRich ? (
                               renderRichContent(section.text)
