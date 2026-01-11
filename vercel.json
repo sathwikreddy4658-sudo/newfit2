@@ -16,13 +16,6 @@
       "destination": "/index.html"
     }
   ],
-  "redirects": [
-    {
-      "source": "/auth",
-      "destination": "/auth",
-      "permanent": false
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
