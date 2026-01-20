@@ -173,7 +173,7 @@ const Products = () => {
             <Card
               key={product.id}
               className="p-4 cursor-pointer product-card"
-              onClick={() => navigate(`/product/${encodeURIComponent(product.name)}`)}
+              onClick={() => navigate(`/products/${encodeURIComponent(product.name)}`)}
             >
               <div 
                 className={`w-48 h-48 rounded-lg mb-4 overflow-hidden mx-auto flex items-center justify-center relative bg-white ${revealClass}`}

@@ -245,7 +245,7 @@ const Index = () => {
                 try our low calorie protein bar
               </p>
               {/* Shop Now button below */}
-              <Link to="/product/CHOCO NUT" ref={shopNowSectionRef}>
+              <Link to="/products/CHOCO%20NUT" ref={shopNowSectionRef}>
                 <Button size="lg" className="bg-white text-black hover:bg-[#5e4338] hover:text-white font-poppins font-bold">SHOP NOW</Button>
               </Link>
             </div>
@@ -309,7 +309,7 @@ const Index = () => {
       
       {/* Mobile Sticky Shop Now Bar - appears when Shop Now button is not visible */}
       {showMobileShopBar && (
-        <Link to="/product/CHOCO NUT" className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex justify-center px-4 pb-4 transition-opacity duration-300">
+        <Link to="/products/CHOCO%20NUT" className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex justify-center px-4 pb-4 transition-opacity duration-300">
           <div className="max-w-md bg-white shadow-lg py-4 px-8 text-center rounded-lg border-t-4 border-black">
             <div className="font-poppins font-bold text-lg text-black">
               SHOP NOW

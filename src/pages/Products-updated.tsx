@@ -180,7 +180,7 @@ const Products = () => {
             <Card
               key={product.id}
               className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => navigate(`/product/${encodeURIComponent(product.name)}`)}
+              onClick={() => navigate(`/products/${encodeURIComponent(product.name)}`)}
             >
               <div className="w-48 h-48 bg-muted rounded-lg mb-4 overflow-hidden mx-auto">
                 {product.products_page_image ? (
