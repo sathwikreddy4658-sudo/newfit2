@@ -170,8 +170,6 @@ const ProductDetail = () => {
       quantity: selectedQuantity,
       protein: selectedProtein,
       image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
-      combo_3_discount: product.combo_3_discount || 0,
-      combo_6_discount: product.combo_6_discount || 0,
     });
     
     // Check if user is authenticated
@@ -683,15 +681,14 @@ const ProductDetail = () => {
                 <h3 className="font-saira font-black text-2xl text-white uppercase mb-4">Inside The Bar</h3>
                 <hr className="border-white mb-4" />
                 <ul className="text-white font-tomorrow list-disc list-inside space-y-1 md:text-lg">
-                  <li>whey protein powder</li>
+                  <li>pure whey protein concentrate</li>
+                  <li>honey</li>
                   <li>pea protein isolate</li>
                   <li>date syrup</li>
-                  <li>peanut butter</li>
-                  <li>phool makhana</li>
-                  <li>water</li>
+                  <li>peanuts</li>
                   <li>cocoa butter</li>
                   <li>cocoa powder</li>
-                  <li>gum arabic</li>
+                  <li>acacia gum</li>
                 </ul>
               </div>
               <div className="bg-[#5e4338] border-4 border-white p-8 rounded-lg">
