@@ -143,6 +143,11 @@ const Footer = () => {
                   Blog
                 </Link>
               </li>
+              <li>
+                <Link to="/labreports" className="hover:opacity-80 transition-colors">
+                  Lab Reports
+                </Link>
+              </li>
             </ul>
           </div>
           <div className="md:hidden">
@@ -170,6 +175,11 @@ const Footer = () => {
                 <div className="border-t border-[#b5edce]/30 pt-2">
                   <Link to="/blogs" className="block hover:opacity-80 transition-colors py-1">
                     Blog
+                  </Link>
+                </div>
+                <div className="border-t border-[#b5edce]/30 pt-2">
+                  <Link to="/labreports" className="block hover:opacity-80 transition-colors py-1">
+                    Lab Reports
                   </Link>
                 </div>
               </CollapsibleContent>

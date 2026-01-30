@@ -81,8 +81,8 @@ const Profile = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">My Profile</h1>
+    <div className="container mx-auto px-4 py-8 pt-16">
+      <h1 className="text-3xl font-saira font-black mb-8 uppercase text-[#3b2a20]">My Profile</h1>
 
       <Card className="p-6 max-w-2xl">
         <div className="space-y-4">

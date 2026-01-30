@@ -155,7 +155,7 @@ const BlogDetail = () => {
       <Helmet>
         <link rel="canonical" href={`https://www.freelit.in/blogs/${id}`} />
       </Helmet>
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 pt-16">
         <article className="max-w-[680px] mx-auto bg-white rounded-lg px-4 py-6 sm:px-6 sm:py-8 md:p-8 shadow-sm">
           {blog.image_url && (
             <div className="aspect-video overflow-hidden rounded-lg mb-10 -mx-4 sm:-mx-6 md:-mx-8 -mt-6 sm:-mt-8 md:-mt-8">

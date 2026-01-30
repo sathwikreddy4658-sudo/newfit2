@@ -36,6 +36,7 @@ import AdminAuth from "./pages/admin/AdminAuth";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Blogs from "./pages/Blogs";
 import BlogDetail from "./pages/BlogDetail";
+import LabReports from "./pages/LabReports";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,7 @@ const App = () => (
                 <Route path="/user-thank-you" element={<UserThankYou />} />
                 <Route path="/blogs" element={<Blogs />} />
                 <Route path="/blogs/:id" element={<BlogDetail />} />
+                <Route path="/labreports" element={<LabReports />} />
                 <Route path="/admin/auth" element={<AdminAuth />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin" element={<Navigate to="/admin/auth" replace />} />

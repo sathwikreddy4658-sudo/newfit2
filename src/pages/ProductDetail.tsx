@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import ProductRatingsDisplay from "@/components/ProductRatingsDisplay";
 import RatingComponent from "@/components/RatingComponent";
 import ProductRatingSummary from "@/components/ProductRatingSummary";
+import ProductLabReports from "@/components/ProductLabReports";
 import { getHeroImageUrl, getLazyLoadingStrategy } from "@/utils/imageOptimization";
 
 import image2 from "@/assets/2.png";
@@ -759,6 +760,13 @@ const ProductDetail = () => {
           </div>
         </div>
       )}
+
+      {/* Lab Reports Section */}
+      <div className="bg-white py-6 sm:py-8 md:py-10 w-full">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <ProductLabReports productId={product.id} />
+        </div>
+      </div>
 
       {/* New section for protein bars benefits */}
       {product.category === 'protein_bars' && (

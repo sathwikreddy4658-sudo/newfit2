@@ -753,7 +753,7 @@ const Checkout = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+    <div className="container mx-auto px-4 py-8 pt-16 bg-gray-50 min-h-screen">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-saira font-black text-[#3b2a20] mb-2">CHECKOUT</h1>
         <p className="text-gray-600 text-lg">Complete your order</p>

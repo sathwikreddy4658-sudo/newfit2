@@ -194,7 +194,7 @@ const Index = () => {
         </div>
         <div className="bg-[#b5edce]/50 py-20">
           <h1 className="text-6xl font-saira font-black text-[#4e342e] mb-12 text-center">
-            BETTER FOOD IS'NT ABOUT LESS. IT'S ABOUT BALANCE.
+            BETTER FOOD ISN'T ABOUT LESS. IT'S ABOUT BALANCE.
           </h1>
           <div
             ref={widgetsRef}
