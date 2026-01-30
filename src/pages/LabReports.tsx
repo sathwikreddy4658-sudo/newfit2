@@ -45,15 +45,6 @@ const LabReports = () => {
     fetchProducts();
   }, []);
 
-  useEffect(() => {
-    // Initialize all products as expanded
-    const initialExpanded: Record<string, boolean> = {};
-    Object.keys(groupedReports).forEach(productName => {
-      initialExpanded[productName] = true;
-    });
-    setExpandedProducts(initialExpanded);
-  }, [labReports]);
-
   const fetchLabReports = async () => {
     try {
       const { data, error } = await supabase
