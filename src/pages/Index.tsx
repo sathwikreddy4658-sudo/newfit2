@@ -193,9 +193,6 @@ const Index = () => {
           </video>
         </div>
         <div className="bg-[#b5edce]/50 py-20">
-          <h1 className="text-6xl font-saira font-black text-[#4e342e] mb-12 text-center">
-            BETTER FOOD ISN'T ABOUT LESS. IT'S ABOUT BALANCE.
-          </h1>
           <div
             ref={widgetsRef}
             className="relative mt-16 max-w-5xl mx-auto container px-4 mb-12 h-96"
@@ -220,10 +217,10 @@ const Index = () => {
 
             <Card className="bg-[#4e342e] text-white rounded-lg" style={getWidgetStyles(2)}>
               <CardHeader className="pb-2">
-                <CardTitle className={`${windowWidth >= 768 ? 'text-3xl' : 'text-lg'} font-saira font-black text-white uppercase`}>BETTER SWEETNESS</CardTitle>
+                <CardTitle className={`${windowWidth >= 768 ? 'text-3xl' : 'text-lg'} font-saira font-black text-white uppercase`}>NOTHING HIDDEN</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>Sweetness, balanced with real and better sources, that goes easy on you.</p>
+                <p className={`${windowWidth >= 768 ? 'text-xl' : 'text-sm'} font-saira font-medium text-white`}>Ingredients and nutrition, clearly laid out.</p>
               </CardContent>
             </Card>
           </div>
