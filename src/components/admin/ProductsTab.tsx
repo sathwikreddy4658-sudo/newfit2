@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, Trash2, Upload, X } from "lucide-react";
+import { Pencil, Trash2, Upload, X, HelpCircle } from "lucide-react";
 import { productSchema } from "@/lib/validation";
+import ProductFAQManager from "./ProductFAQManager";
 
 const ProductsTab = () => {
   const [draftSaved, setDraftSaved] = useState(false);
@@ -18,6 +19,7 @@ const ProductsTab = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [managingFaqsProductId, setManagingFaqsProductId] = useState<string | null>(null);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -819,6 +821,14 @@ const ProductsTab = () => {
               <Button size="sm" variant="outline" onClick={() => handleEdit(product)}>
                 <Pencil className="h-4 w-4" />
               </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setManagingFaqsProductId(product.id)}
+                title="Manage FAQs"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </Button>
               <Button size="sm" variant="destructive" onClick={() => handleDelete(product.id)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -826,6 +836,18 @@ const ProductsTab = () => {
           </Card>
         ))}
       </div>
+
+      {/* FAQ Management Dialog */}
+      <Dialog open={!!managingFaqsProductId} onOpenChange={(open) => !open && setManagingFaqsProductId(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Manage FAQs - {products.find(p => p.id === managingFaqsProductId)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {managingFaqsProductId && <ProductFAQManager productId={managingFaqsProductId} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -14,6 +14,7 @@ import ProductRatingsDisplay from "@/components/ProductRatingsDisplay";
 import RatingComponent from "@/components/RatingComponent";
 import ProductRatingSummary from "@/components/ProductRatingSummary";
 import ProductLabReports from "@/components/ProductLabReports";
+import ProductFAQ from "@/components/ProductFAQ";
 import { getHeroImageUrl, getLazyLoadingStrategy } from "@/utils/imageOptimization";
 
 import image2 from "@/assets/2.png";
@@ -768,6 +769,13 @@ const ProductDetail = () => {
         </div>
       </div>
 
+      {/* FAQ Section */}
+      <div className="bg-gray-50 py-6 sm:py-8 md:py-10 w-full">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <ProductFAQ productId={product.id} />
+        </div>
+      </div>
+
       {/* New section for protein bars benefits */}
       {product.category === 'protein_bars' && (
         <div className="bg-white py-10 w-full mt">
@@ -800,7 +808,7 @@ const ProductDetail = () => {
       )}
 
       {/* Rating Section */}
-      <div className="bg-[#b5edce] w-full py-12 mb-0">
+      <div className="bg-[#c9f4dd] w-full py-12 mb-0">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex flex-col items-center justify-center mb-6 w-full">

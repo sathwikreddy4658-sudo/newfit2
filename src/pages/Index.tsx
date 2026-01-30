@@ -258,7 +258,6 @@ const Index = () => {
             </h2>
             <p className="text-xl font-saira font-medium text-[#3b2a20] mb-8">
               We start with the foods you love - then rebuild them with real ingredients and a balance that keeps both nutrition and flavor in check.<br />
-              We don't just make healthy versions, we build better ones.
             </p>
             <div className="flex flex-col items-center gap-4 md:flex-row md:gap-8 md:justify-center">
               <div className="flex gap-4 justify-center md:hidden">
