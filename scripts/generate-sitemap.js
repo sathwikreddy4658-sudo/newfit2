@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";
+import { config } from "dotenv";
+
+// Load .env file if it exists
+config();
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
@@ -66,7 +70,7 @@ async function generateSitemap() {
         : new Date().toISOString().split("T")[0];
 
       sitemapXml += `  <url>
-    <loc>${siteUrl}/products/${productUrl}</loc>
+    <loc>${siteUrl}/product/${productUrl}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>

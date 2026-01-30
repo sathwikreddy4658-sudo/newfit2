@@ -18,6 +18,29 @@
   ],
   "redirects": [
     {
+      "source": "/(.*)",
+      "destination": "https://freelit.in/$1",
+      "permanent": true,
+      "has": [
+        {
+          "type": "header",
+          "key": "x-forwarded-proto",
+          "value": "http"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://freelit.in/$1",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "www.freelit.in"
+        }
+      ]
+    },
+    {
       "source": "/auth",
       "destination": "/auth",
       "permanent": false

@@ -63,6 +63,7 @@ const App = () => (
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/products" element={<Products />} />
+                <Route path="/products/:name" element={<Navigate to={(location) => `/product/${location.pathname.split('/').pop()}`} replace />} />
                 <Route path="/product/:name" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/address" element={<AddressSelection />} />

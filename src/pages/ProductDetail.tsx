@@ -259,7 +259,7 @@ const ProductDetail = () => {
         {product?.name && (
           <link
             rel="canonical"
-            href={`https://freelit.in/products/${encodeURIComponent(product.name)}`}
+            href={`https://freelit.in/product/${encodeURIComponent(product.name)}`}
           />
         )}
         {product && (
@@ -279,7 +279,7 @@ const ProductDetail = () => {
                 "price": product.price_15g?.toString() || "0",
                 "priceCurrency": "INR",
                 "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-                "url": `https://freelit.in/products/${encodeURIComponent(product.name)}`
+                "url": `https://freelit.in/product/${encodeURIComponent(product.name)}`
               },
               "aggregateRating": {
                 "@type": "AggregateRating",

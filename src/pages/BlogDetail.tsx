@@ -105,8 +105,8 @@ const BlogDetail = () => {
     let unescapedHtml = unescapeHtml(html);
     
     // Add product link naturally if content mentions Choco Nut
-    if (unescapedHtml.toLowerCase().includes('choco nut') && !unescapedHtml.includes('/products/CHOCO%20NUT')) {
-      unescapedHtml = unescapedHtml.replace(/Choco Nut/gi, '<a href="https://www.freelit.in/products/CHOCO%20NUT" class="text-blue-600 hover:underline">Choco Nut</a>');
+    if (unescapedHtml.toLowerCase().includes('choco nut') && !unescapedHtml.includes('/product/CHOCO%20NUT')) {
+      unescapedHtml = unescapedHtml.replace(/Choco Nut/gi, '<a href="https://www.freelit.in/product/CHOCO%20NUT" class="text-blue-600 hover:underline">Choco Nut</a>');
     }
     
     // Sanitize with DOMPurify
