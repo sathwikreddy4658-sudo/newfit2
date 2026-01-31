@@ -8,15 +8,15 @@
   },
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/:path(.*)",
       "has": [
         {
           "type": "host",
           "value": "www.freelit.in"
         }
       ],
-      "destination": "https://freelit.in/:path*",
-      "statusCode": 308
+      "destination": "https://freelit.in/:path",
+      "permanent": true
     }
   ],
   "rewrites": [
@@ -25,7 +25,7 @@
       "destination": "/api/:path*"
     },
     {
-      "source": "/:path((?!api).*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ],
