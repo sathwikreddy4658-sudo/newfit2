@@ -77,7 +77,7 @@ const Header = () => {
               </SheetContent>
             </Sheet>
             <Link to="/" className="flex items-center">
-              <img src={logo} alt="Freelit" className="h-10" />
+              <img src={logo} alt="Freelit" className="h-10 w-auto" loading="eager" decoding="async" />
             </Link>
           </div>
           
@@ -110,7 +110,7 @@ const Header = () => {
           {/* Desktop: Logo */}
           <div className="hidden md:flex items-center">
             <Link to="/" className="flex items-center">
-              <img src={logo} alt="Freelit" className="h-12" />
+              <img src={logo} alt="Freelit" className="h-12 w-auto" loading="eager" decoding="async" />
             </Link>
           </div>
 

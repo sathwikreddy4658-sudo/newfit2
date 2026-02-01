@@ -20,22 +20,72 @@
     <meta name="twitter:image" content="/favicon.png" />
     <meta name="twitter:title" content="Real-Ingredient Snacks Rebuilt Better | Freel It">
     <meta name="twitter:description" content="Freel It rebuilds your favorite snacks with real ingredients and balanced nutrition. No synthetic or artificial ingredients, no preservatives.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://*; connect-src 'self' http://localhost:* https: wss:; style-src 'self' 'unsafe-inline' https:; font-src 'self' https:; img-src 'self' data: blob: https:; frame-src 'self' blob: https:; worker-src 'self' blob: https:; child-src blob: https:;">
+  
+  <!-- Content Security Policy: Allows PhonePe payment integration and necessary resources -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://*;
+    script-src-elem 'self' 'unsafe-inline' blob: data: https://*;
+    connect-src 'self' http://localhost:* https: wss: blob:;
+    style-src 'self' 'unsafe-inline' https:;
+    font-src 'self' data: https:;
+    img-src 'self' data: blob: https:;
+    frame-src 'self' blob: https:;
+    worker-src 'self' blob: data: https:;
+    child-src 'self' blob: data: https:;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self' https:;
+  ">
   
   <!-- Critical CSS inline for render performance -->
   <style>
-    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    #root { display: flex; flex-direction: column; min-height: 100vh; }
+    /* Critical above-the-fold styles */
+    body { 
+      margin: 0; 
+      padding: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    #root { 
+      display: flex; 
+      flex-direction: column; 
+      min-height: 100vh; 
+    }
+    /* Prevent CLS for header */
+    header { 
+      height: 72px; 
+      width: 100%; 
+    }
+    /* Prevent CLS for video container */
+    .video-heading-container {
+      position: relative;
+      aspect-ratio: 16/9;
+    }
+    /* Loading spinner */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
   </style>
   
   <!-- Font Preloading for Performance & Stability -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Saira:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Saira:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Saira:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Free Analytics Alternative Options:
+         1. Google Analytics 4 (GA4) - Free, unlimited
+         2. Plausible Analytics - Privacy-friendly, self-hosted free
+         3. Umami - Open source, self-hosted
+         4. Simple Analytics - Privacy-first
+         Add your preferred analytics script here -->
   </body>
 </html>

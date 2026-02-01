@@ -175,25 +175,35 @@ const Products = () => {
           <p className="font-saira font-black text-6xl text-[#3b2a20]/30">NO PRODUCTS HERE YET!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {filteredProducts.map((product) => (
             <Card
               key={product.id}
-              className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
+              className="p-3 md:p-4 cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigate(`/product/${encodeURIComponent(product.name)}`)}
             >
-              <div className="w-48 h-48 bg-muted rounded-lg mb-4 overflow-hidden mx-auto">
+              <div className="w-full aspect-square bg-muted rounded-lg mb-2 md:mb-4 overflow-hidden">
                 {product.products_page_image ? (
                   <img
                     src={product.products_page_image}
                     alt={product.name}
+                    width="192"
+                    height="192"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
+                    style={{ aspectRatio: '1' }}
                   />
                 ) : product.images && product.images.length > 0 ? (
                   <img
                     src={product.images[0]}
                     alt={product.name}
+                    width="192"
+                    height="192"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
+                    style={{ aspectRatio: '1' }}
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
@@ -201,8 +211,8 @@ const Products = () => {
                   </div>
                 )}
               </div>
-              <h3 className="font-saira font-black text-lg mb-2 text-[#3b2a20] uppercase">{product.name}</h3>
-              <p className="font-montserrat text-xl font-bold text-primary">
+              <h3 className="font-saira font-black text-sm md:text-lg mb-1 md:mb-2 text-[#3b2a20] uppercase">{product.name}</h3>
+              <p className="font-montserrat text-base md:text-xl font-bold text-primary">
                 {product.price ? `₹${product.price}` : `₹${product.price_15g} - ₹${product.price_20g}`}
               </p>
             </Card>

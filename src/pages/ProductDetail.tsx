@@ -300,16 +300,24 @@ const ProductDetail = () => {
           <img 
             src={undressedpb} 
             alt="low calorie protein bar choco nut"
+            width="800"
+            height="800"
             className="w-full h-full object-contain absolute inset-0 -rotate-90 drop-shadow-2xl"
             loading="eager"
+            decoding="async"
+            style={{ aspectRatio: '1' }}
           />
 
           {/* Overlay Image (Dressed) with Reveal Animation */}
           <img 
             src={dressedpb} 
             alt="freel it low calorie protein bar" 
+            width="800"
+            height="800"
             className="w-full h-full object-contain absolute inset-0 image-reveal-left -rotate-90"
             loading="eager"
+            decoding="async"
+            style={{ aspectRatio: '1' }}
           />
         </div>
       </div>
@@ -791,10 +799,10 @@ const ProductDetail = () => {
 
             <div className="bg-white h-48 md:h-48 w-full flex items-center justify-center gap-8 mb-8">
               <div className="grid grid-cols-2 md:flex md:flex-row gap-8">
-                <img src={image2} alt="Ingredient benefits infographic 1" className="h-28 md:h-40 w-auto" loading="lazy" />
-                <img src={image4} alt="Ingredient benefits infographic 2" className="h-28 md:h-40 w-auto" loading="lazy" />
-                <img src={image8} alt="Ingredient benefits infographic 3" className="h-28 md:h-40 w-auto" loading="lazy" />
-                <img src={image10} alt="Ingredient benefits infographic 4" className="h-28 md:h-40 w-auto" loading="lazy" />
+                <img src={image2} alt="Ingredient benefits infographic 1" width="160" height="160" className="h-28 md:h-40 w-auto" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image4} alt="Ingredient benefits infographic 2" width="160" height="160" className="h-28 md:h-40 w-auto" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image8} alt="Ingredient benefits infographic 3" width="160" height="160" className="h-28 md:h-40 w-auto" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image10} alt="Ingredient benefits infographic 4" width="160" height="160" className="h-28 md:h-40 w-auto" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
               </div>
             </div>
 

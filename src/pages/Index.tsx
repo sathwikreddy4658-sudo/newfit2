@@ -3,7 +3,6 @@ import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useRef, useState } from "react";
-import animationVideo from "@/assets/freelit-animation.mp4";
 import newProteinBarImage from "@/assets/newproteinbar.jpg";
 import image2 from "@/assets/2.png";
 import image4 from "@/assets/4.png";
@@ -180,17 +179,10 @@ const Index = () => {
       </Helmet>
     <div className="min-h-screen flex flex-col md:pb-0 pb-20">
       <main className="flex-1">
-        <div className="video-heading-container">
-          <div className="video-heading">REBUILDING YOUR FAVORITE SNACKS INTO HEALTHIER VERSIONS.</div>
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full mb-0 h-48 md:h-96 object-cover"
-          >
-            <source src={animationVideo} type="video/mp4" />
-          </video>
+        <div className="bg-[#3b2a20] py-6 md:py-8">
+          <h1 className="text-[#b5edce] font-saira font-black text-2xl md:text-4xl text-center uppercase px-4">
+            REBUILDING YOUR FAVOURITE SNACKS INTO HEALTHIER VERSIONS.
+          </h1>
         </div>
         <div className="bg-[#b5edce]/50 py-20">
           <div
@@ -226,7 +218,7 @@ const Index = () => {
           </div>
 
           <div className="flex justify-center mb-8">
-            <img src={image24} alt="Image 24" width="700" height="250" className="w-100 h-100 object-contain spaceship-float" loading="lazy" />
+            <img src={image24} alt="Freel It Product Showcase" width="700" height="250" className="w-100 h-100 object-contain spaceship-float" loading="lazy" decoding="async" style={{ aspectRatio: '700/250' }} />
           </div>
 
           <h3 className="text-2xl font-poppins font-bold text-black mb-4 text-center">
@@ -242,9 +234,11 @@ const Index = () => {
                 try our low calorie protein bar
               </p>
               {/* Shop Now button below */}
-              <Link to="/product/CHOCO NUT" ref={shopNowSectionRef}>
-                <Button size="lg" className="bg-white text-black hover:bg-[#5e4338] hover:text-white font-poppins font-bold">SHOP NOW</Button>
-              </Link>
+              <div ref={shopNowSectionRef}>
+                <Link to="/product/CHOCO NUT">
+                  <Button size="lg" className="bg-white text-black hover:bg-[#5e4338] hover:text-white font-poppins font-bold">SHOP NOW</Button>
+                </Link>
+              </div>
             </div>
 
           </div>
@@ -261,20 +255,20 @@ const Index = () => {
             </p>
             <div className="flex flex-col items-center gap-4 md:flex-row md:gap-8 md:justify-center">
               <div className="flex gap-4 justify-center md:hidden">
-                <img src={image2} alt="Image 2" width="96" height="96" className="w-24 h-24" loading="lazy" />
-                <img src={image4} alt="Image 4" width="96" height="96" className="w-24 h-24" loading="lazy" />
-                <img src={image6} alt="Image 6" width="96" height="96" className="w-24 h-24" loading="lazy" />
+                <img src={image2} alt="Real ingredients benefit" width="96" height="96" className="w-24 h-24" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image4} alt="Nutrition facts benefit" width="96" height="96" className="w-24 h-24" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image6} alt="No preservatives benefit" width="96" height="96" className="w-24 h-24" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
               </div>
               <div className="flex gap-4 justify-center md:hidden">
-                <img src={image8} alt="Image 8" width="96" height="96" className="w-24 h-24" loading="lazy" />
-                <img src={image10} alt="Image 10" width="96" height="96" className="w-24 h-24" loading="lazy" />
+                <img src={image8} alt="Quality ingredients benefit" width="96" height="96" className="w-24 h-24" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image10} alt="Healthy snacking benefit" width="96" height="96" className="w-24 h-24" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
               </div>
               <div className="hidden md:flex gap-8 justify-center">
-                <img src={image2} alt="Image 2" width="192" height="192" className="w-48 h-48" loading="lazy" />
-                <img src={image4} alt="Image 4" width="192" height="192" className="w-48 h-48" loading="lazy" />
-                <img src={image6} alt="Image 6" width="192" height="192" className="w-48 h-48" loading="lazy" />
-                <img src={image8} alt="Image 8" width="192" height="192" className="w-48 h-48" loading="lazy" />
-                <img src={image10} alt="Image 10" width="192" height="192" className="w-48 h-48" loading="lazy" />
+                <img src={image2} alt="Real ingredients benefit" width="192" height="192" className="w-48 h-48" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image4} alt="Nutrition facts benefit" width="192" height="192" className="w-48 h-48" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image6} alt="No preservatives benefit" width="192" height="192" className="w-48 h-48" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image8} alt="Quality ingredients benefit" width="192" height="192" className="w-48 h-48" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
+                <img src={image10} alt="Healthy snacking benefit" width="192" height="192" className="w-48 h-48" loading="lazy" decoding="async" style={{ aspectRatio: '1' }} />
               </div>
             </div>
             {/* OUR STORY Button */}
