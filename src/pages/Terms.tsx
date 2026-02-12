@@ -36,8 +36,8 @@ const Terms = () => {
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
             <p>Everything you see here, from our content to our packaging photos, belongs to Freel It.
-                Please don’t reuse, copy, or redistribute anything without written permission.</p>
-            <p style={{ color: '#b5edce' }}>We love when you share your Freel It moments online — just tag us when you do.</p>
+                Please don't reuse, copy, or redistribute anything without written permission.</p>
+            <p style={{ color: '#b5edce' }}>We love when you share your Freel It moments online, just tag us when you do.</p>
           </div>
         </div>
 
@@ -48,7 +48,7 @@ const Terms = () => {
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
             <p>We do our best to show every product as it truly is.</p>
-            <p>Because we use real ingredients, small variations in color, shape, or texture can happen — that's how you know it's made naturally.</p>
+            <p>Because we use real ingredients, small variations in color, shape, or texture can happen.</p>
             <p>If anything feels unclear about a product, please reach out to us at <a href="mailto:care@freelit.in" style={{ color: '#b5edce', textDecoration: 'underline', textDecorationColor: '#000000' }}>care@freelit.in</a> before placing your order, we're happy to explain.</p>
           </div>
         </div>
@@ -60,7 +60,7 @@ const Terms = () => {
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
             <p>All orders are confirmed only after payment is successfully received through our trusted secure gateway partner.</p>
-            <p>If an item is unavailable after you order, we’ll contact you quickly to arrange a refund or replacement — whatever works best for you.</p>
+            <p>If an item is unavailable after you order, we'll contact you quickly to arrange a refund or replacement, whatever works best for you.</p>
           </div>
         </div>
 
@@ -70,10 +70,10 @@ const Terms = () => {
             4. Shipping & Delivery
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
-            <p>Once an order leaves our facility, it’s handled by trusted partners and local couriers.</p>
-            <p>Delivery times (usually 3–7 days) may vary due to weather, strikes, or other regional issues.</p>
+            <p>Once an order leaves our facility, it's handled by trusted partners and local couriers.</p>
+            <p>Delivery times (usually 3-7 days) may vary due to weather, strikes, or other regional issues.</p>
             <p>While such delays are beyond our direct control, we always stay in touch with our shipping partners to get your order to you as fast as possible.</p>
-            <p>If anything goes off schedule, we’ll do everything we can to resolve it quickly and keep you updated.</p>
+            <p>If anything goes off schedule, we'll do everything we can to resolve it quickly and keep you updated.</p>
           </div>
         </div>
 
@@ -83,8 +83,8 @@ const Terms = () => {
             5. Returns & Refunds
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
-            <p>Because our products are food-based, we can’t accept returns for opened or used items — but we absolutely replace or refund when something goes wrong on our end (wrong product or damage in transit).</p>
-            <p>If that ever happens, we’ll handle it with care and make sure you don’t have to face that inconvenience again.</p>
+            <p>Because our products are food-based, we can't accept returns for opened or used items — but we absolutely replace or refund when something goes wrong on our end (wrong product or damage in transit).</p>
+            <p>If that ever happens, we’ll handle it with care and make sure you don't have to face that inconvenience again.</p>
             <p style={{ color: '#3b2a20' }}>Please read our <a href="/refund-policy" style={{ color: '#b5edce' }}>Refund & Return Policy</a> for full details.</p>
           </div>
         </div>
@@ -95,7 +95,7 @@ const Terms = () => {
             6. Limitation of Liability
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
-            <p>We do our best to ensure smooth operations, but there may be rare situations — like courier mishandling or delayed deliveries — where we can’t be directly held responsible.</p>
+            <p>We do our best to ensure smooth operations, but there may be rare situations, like courier mishandling or delayed deliveries, where we can't be directly held responsible.</p>
             <p>That said, we take every issue seriously and always work with our partners to prevent it from happening again.</p>
             <p>Your trust matters more than the fine print.</p>
           </div>

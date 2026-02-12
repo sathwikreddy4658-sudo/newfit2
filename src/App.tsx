@@ -38,6 +38,8 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const Blogs = lazy(() => import("./pages/Blogs"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
 const LabReports = lazy(() => import("./pages/LabReports"));
+const KnowYourFood = lazy(() => import("./pages/KnowYourFood"));
+const Favorites = lazy(() => import("./pages/Favorites"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -90,6 +92,8 @@ const App = () => (
                   <Route path="/blogs" element={<Blogs />} />
                   <Route path="/blogs/:id" element={<BlogDetail />} />
                   <Route path="/labreports" element={<LabReports />} />
+                  <Route path="/knowyourfood" element={<KnowYourFood />} />
+                  <Route path="/favorites" element={<Favorites />} />
                   <Route path="/admin/auth" element={<AdminAuth />} />
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
                   <Route path="/admin" element={<Navigate to="/admin/auth" replace />} />

@@ -48,7 +48,7 @@ const Refund = () => {
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
             <p>Notify us within 2 days of delivery at <a href="mailto:care@freelit.in" style={{ color: '#b5edce', textDecoration: 'underline', textDecorationColor: '#000000' }}>care@freelit.in</a> with your order ID, a brief description, and supporting photos/video.</p>
-            <p>Once verified, we'll arrange a replacement or refund within 5–7 business days.</p>
+            <p>Once verified, we'll arrange a replacement or refund within 5-7 business days.</p>
           </div>
         </div>
 

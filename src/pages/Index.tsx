@@ -10,6 +10,12 @@ import image6 from "@/assets/6.png";
 import image8 from "@/assets/8.png";
 import image10 from "@/assets/10.png";
 import image24 from "@/assets/24.png";
+import ProductAnimation from "@/components/ProductAnimation";
+import i1 from "@/assets/i1.png";
+import i2 from "@/assets/i2.png";
+import i3 from "@/assets/i3.png";
+import wrapper from "@/assets/dressedpb.png";
+import undressedBar from "@/assets/undressedpb.png";
 
 const Index = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -71,11 +77,13 @@ const Index = () => {
 
   const getWidgetStyles = (index: number) => {
     const isMobile = windowWidth < 768;
+    const baseWidth = isMobile ? 320 : 400; // Reduced mobile width for safety
+    const baseHeight = isMobile ? 160 : 300;
     const baseStyles = {
       position: 'absolute' as const,
       transition: isMobile ? 'all 0.8s ease-out' : 'all 0.3s ease-out', // Slower transition on mobile
-      width: isMobile ? '240px' : '400px', // w-60 on mobile, w-96 on desktop
-      height: isMobile ? '180px' : '300px', // h-45 on mobile, h-72 on desktop
+      width: isMobile ? `${baseWidth}px` : '400px',
+      height: isMobile ? `${baseHeight}px` : '300px',
       zIndex: 1,
     };
 
@@ -127,7 +135,12 @@ const Index = () => {
     else {
       if (isMobile) {
         const mergeProgress = (scrollProgress - 0.4) / 0.6; // 0 to 1
-        const scale = 1 + mergeProgress * 0.5; // 1 to 1.5
+        // Calculate max safe scale to prevent overflow - leave 20px padding on each side
+        const viewportPadding = 40;
+        const maxSafeScale = (windowWidth - viewportPadding) / baseWidth;
+        const baseScale = 1.2; // Start at 1.2 instead of 1
+        const maxScale = Math.min(1.4, maxSafeScale); // Don't exceed 1.4 or safe viewport width
+        const scale = baseScale + mergeProgress * (maxScale - baseScale);
         const fadeSpeed = 0.5;
         const opacity = 1 - mergeProgress * fadeSpeed;
         return {
@@ -156,8 +169,13 @@ const Index = () => {
     const gapEnd = isMobile ? 0.5 : 0.4;
     if (scrollProgress < gapEnd) return { opacity: 0 };
     const mergeProgress = (scrollProgress - gapEnd) / (1 - gapEnd); // 0 to 1
-    const finalWidth = isMobile ? 245 : 576; // 9 inches = 576px (64px per inch)
-    const finalHeight = isMobile ? 480 : 224; // 3.5 inches = 224px (64px per inch)
+    
+    // Calculate safe dimensions that won't overflow mobile screens
+    const viewportPadding = 40; // 20px on each side
+    const maxSafeWidth = windowWidth - viewportPadding;
+    const finalWidth = isMobile ? Math.min(340, maxSafeWidth) : 576; // Reduced from 380 to 340 and capped to viewport
+    const finalHeight = isMobile ? 450 : 224; // Slightly reduced from 480
+    
     const baseStyle = {
       position: 'absolute' as const,
       left: '50%',
@@ -176,6 +194,12 @@ const Index = () => {
     <>
       <Helmet>
         <link rel="canonical" href="https://freelit.in/" />
+        {/* Preload critical animation images for faster loading */}
+        <link rel="preload" as="image" href={wrapper} fetchPriority="high" />
+        <link rel="preload" as="image" href={undressedBar} fetchPriority="high" />
+        <link rel="preload" as="image" href={i1} />
+        <link rel="preload" as="image" href={i2} />
+        <link rel="preload" as="image" href={i3} />
       </Helmet>
     <div className="min-h-screen flex flex-col md:pb-0 pb-20">
       <main className="flex-1">
@@ -184,10 +208,16 @@ const Index = () => {
             REBUILDING YOUR FAVOURITE SNACKS INTO HEALTHIER VERSIONS.
           </h1>
         </div>
-        <div className="bg-[#b5edce]/50 py-20">
+
+        {/* Product Animation Section */}
+        <div className="bg-[#b5edce]/50 py-6">
+          <ProductAnimation />
+        </div>
+
+        <div className="bg-[#b5edce]/50 py-20 overflow-visible">
           <div
             ref={widgetsRef}
-            className="relative mt-16 max-w-5xl mx-auto container px-4 mb-12 h-96"
+            className="relative max-w-5xl mx-auto container md:px-4 mb-12 md:h-96 min-h-96 md:min-h-96 sm:min-h-screen overflow-visible"
           >
             <Card className="bg-[#4e342e] text-white rounded-lg" style={getWidgetStyles(0)}>
               <CardHeader className="pb-2">

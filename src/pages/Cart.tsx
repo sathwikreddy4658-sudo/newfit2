@@ -71,9 +71,9 @@ const Cart = () => {
         <div className="lg:col-span-2 space-y-4">
           {items.map((item) => (
             <Link key={`${item.id}-${item.protein}`} to={`/product/${encodeURIComponent(item.name)}`} className="block">
-              <Card className="p-4 bg-white hover:bg-[#3b2a20]/30 transition-colors cursor-pointer">
-                <div className="flex gap-4">
-                  <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+              <Card className="p-2 md:p-4 bg-white hover:bg-[#3b2a20]/30 transition-colors cursor-pointer">
+                <div className="flex gap-2 md:gap-4">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
                     {item.image ? (
                       <img
                         src={getThumbnailUrl(item.image)}
@@ -88,34 +88,69 @@ const Cart = () => {
                     )}
                   </div>
 
-                  <div className="flex-1">
-                    <h3 className="font-saira font-black text-lg mb-2 text-[#3b2a20] uppercase">{item.name}</h3>
-                    <p className="text-sm font-poppins font-black mb-1 text-black uppercase">Protein: {item.protein}</p>
-                    <p className="font-montserrat text-lg font-bold text-primary">₹{item.price}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-saira font-black text-sm md:text-lg mb-1 md:mb-2 text-[#3b2a20] uppercase truncate">{item.name}</h3>
+                    <p className="text-xs md:text-sm font-poppins font-black mb-1 text-black uppercase">Protein: {item.protein}</p>
+                    {(() => {
+                      const subtotal = item.price * item.quantity;
+                      let discount = 0;
+                      let discountPercent = 0;
+                      
+                      // Apply combo pack discount
+                      if (item.quantity >= 6 && item.combo_6_discount) {
+                        discount = (subtotal * item.combo_6_discount) / 100;
+                        discountPercent = item.combo_6_discount;
+                      } else if (item.quantity >= 3 && item.combo_3_discount) {
+                        discount = (subtotal * item.combo_3_discount) / 100;
+                        discountPercent = item.combo_3_discount;
+                      }
+                      
+                      const finalPrice = subtotal - discount;
+                      
+                      return (
+                        <div>
+                          <p className="font-montserrat text-sm md:text-lg font-bold text-primary">
+                            ₹{item.price} {item.quantity > 1 && `× ${item.quantity}`}
+                            {discount > 0 && (
+                              <span className="ml-2 text-xs md:text-sm text-green-600 font-bold">
+                                ({discountPercent}% off)
+                              </span>
+                            )}
+                          </p>
+                          {discount > 0 && (
+                            <p className="text-xs md:text-sm text-green-600 font-bold">
+                              Total: ₹{finalPrice.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  <div className="flex flex-col items-end gap-2">
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeItem(item.id, item.protein); }}>
-                      <Trash2 className="h-4 w-4" />
+                  <div className="flex flex-col items-end gap-1 md:gap-2">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 md:h-10 md:w-10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeItem(item.id, item.protein); }}>
+                      <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
                     </Button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 md:gap-2">
                       <Button
                         variant="outline"
                         size="icon"
+                        className="h-6 w-6 md:h-10 md:w-10"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQuantity(item.id, item.protein, item.quantity - 1); }}
                         disabled={item.quantity <= 1}
                       >
-                        <Minus className="h-4 w-4" />
+                        <Minus className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
-                      <span className="w-8 text-center">{item.quantity}</span>
+                      <span className="w-6 md:w-8 text-center text-xs md:text-base">{item.quantity}</span>
                       <Button
                         variant="outline"
                         size="icon"
+                        className="h-6 w-6 md:h-10 md:w-10"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQuantity(item.id, item.protein, item.quantity + 1); }}
                         disabled={item.quantity >= item.stock}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
                     </div>
                   </div>
@@ -195,14 +230,36 @@ const Cart = () => {
             </div>
 
             <div className="space-y-2 mb-4">
-              <div className="flex justify-between">
-                <span>Items ({items.reduce((sum, item) => sum + item.quantity, 0)})</span>
-                <span>₹{totalPrice.toFixed(2)}</span>
-              </div>
+              {(() => {
+                // Calculate combo pack discounts
+                const itemsBeforeDiscount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const comboDiscount = itemsBeforeDiscount - totalPrice;
+                
+                return (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Items ({items.reduce((sum, item) => sum + item.quantity, 0)})</span>
+                      <span>₹{itemsBeforeDiscount.toFixed(2)}</span>
+                    </div>
+                    {comboDiscount > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Pack Discount</span>
+                        <span>-₹{comboDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {comboDiscount > 0 && (
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>₹{totalPrice.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               {promoCode && (
                 <>
                   <div className="flex justify-between text-green-600">
-                    <span>Discount ({promoCode.discount_percentage}%)</span>
+                    <span>Promo Discount ({promoCode.discount_percentage}%)</span>
                     <span>-₹{discountAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg pt-2 border-t">

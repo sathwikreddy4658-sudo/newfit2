@@ -39,6 +39,8 @@ const ProductDetail = () => {
   const [cartQuantity, setCartQuantity] = useState(0);
   const [minOrderQuantity, setMinOrderQuantity] = useState(1);
   const [selectedProtein, setSelectedProtein] = useState("15g");
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [tapTimeout, setTapTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -67,6 +69,13 @@ const ProductDetail = () => {
       document.title = "Healthy snacks & Protein Bars | Freel It";
     }
   }, [product]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tapTimeout) clearTimeout(tapTimeout);
+    };
+  }, [tapTimeout]);
 
   const fetchProduct = async () => {
     const productName = decodeURIComponent(name!);
@@ -119,8 +128,14 @@ const ProductDetail = () => {
 
   const checkFavorite = async () => {
     if (!user || !product) return;
-    // Favorites feature - skip this for now as profiles table structure may vary
-    setIsFavorite(false);
+    
+    try {
+      const localFavorites = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || '[]');
+      setIsFavorite(localFavorites.includes(product.id));
+    } catch (error) {
+      console.error("Error checking favorites:", error);
+      setIsFavorite(false);
+    }
   };
 
   const toggleFavorite = async () => {
@@ -129,9 +144,56 @@ const ProductDetail = () => {
       return;
     }
 
-    // Favorites feature - toggle locally
-    setIsFavorite(!isFavorite);
-    toast({ title: !isFavorite ? "Added to favorites" : "Removed from favorites" });
+    const currentTime = Date.now();
+    const timeSinceLastTap = currentTime - lastTapTime;
+    
+    // Check for double-tap (within 300ms)
+    if (timeSinceLastTap < 300 && timeSinceLastTap > 0 && lastTapTime !== 0) {
+      // Double-tap detected - ONLY navigate to favorites page, don't toggle
+      if (tapTimeout) clearTimeout(tapTimeout);
+      setLastTapTime(0);
+      navigate("/favorites");
+      return;
+    }
+    
+    // Update last tap time
+    setLastTapTime(currentTime);
+    
+    // Clear any existing timeout
+    if (tapTimeout) clearTimeout(tapTimeout);
+    
+    // Delay the toggle to allow for double-tap detection
+    const newTimeout = setTimeout(() => {
+      // Single tap confirmed - toggle favorite status
+      try {
+        const localFavorites = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || '[]');
+        let updatedFavorites;
+        
+        if (isFavorite) {
+          // Remove from favorites
+          updatedFavorites = localFavorites.filter((id: string) => id !== product.id);
+          setIsFavorite(false);
+          toast({ title: "Removed from favorites" });
+        } else {
+          // Add to favorites
+          if (!localFavorites.includes(product.id)) {
+            updatedFavorites = [...localFavorites, product.id];
+          } else {
+            updatedFavorites = localFavorites;
+          }
+          setIsFavorite(true);
+          toast({ title: "Added to favorites", description: "Double-tap heart icon to view all favorites" });
+        }
+        
+        localStorage.setItem(`favorites_${user.id}`, JSON.stringify(updatedFavorites));
+      } catch (error) {
+        console.error("Error updating favorites:", error);
+        toast({ title: "Error updating favorites", variant: "destructive" });
+      }
+      setTapTimeout(null);
+    }, 300);
+    
+    setTapTimeout(newTimeout);
   };
 
   const handleAddToCart = () => {
@@ -148,6 +210,8 @@ const ProductDetail = () => {
       quantity: selectedQuantity,
       protein: selectedProtein,
       image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
+      combo_3_discount: product.combo_3_discount || 0,
+      combo_6_discount: product.combo_6_discount || 0,
     });
     setCartQuantity(prev => prev + selectedQuantity);
     // Toast notification is handled in CartContext
@@ -166,6 +230,8 @@ const ProductDetail = () => {
       id: product.id,
       name: product.name,
       price: price,
+      combo_3_discount: product.combo_3_discount || 0,
+      combo_6_discount: product.combo_6_discount || 0,
       stock: product.stock,
       quantity: selectedQuantity,
       protein: selectedProtein,
@@ -586,7 +652,7 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-4 flex-wrap">
             <Button
               onClick={handleAddToCart}
               disabled={
@@ -595,9 +661,9 @@ const ProductDetail = () => {
                 (selectedProtein === "15g" && product.stock_status_15g === false) ||
                 (selectedProtein === "20g" && product.stock_status_20g === false)
               }
-              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-3 md:py-4 text-sm md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 min-w-[130px] font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ShoppingCart className="mr-2 h-4 w-4" />
+              <ShoppingCart className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
               {product.stock === 0 || 
                (selectedProtein === "15g" && product.stock_status_15g === false) ||
                (selectedProtein === "20g" && product.stock_status_20g === false) 
@@ -613,7 +679,7 @@ const ProductDetail = () => {
                 (selectedProtein === "15g" && product.stock_status_15g === false) ||
                 (selectedProtein === "20g" && product.stock_status_20g === false)
               }
-              className="flex-1 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-3 md:py-4 text-sm md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 min-w-[100px] font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Buy Now
             </Button>
@@ -621,10 +687,10 @@ const ProductDetail = () => {
             {cartQuantity >= minOrderQuantity && (
               <Button
                 onClick={() => navigate("/cart")}
-                className="px-3 py-4 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] active:scale-105 active:shadow-xl transition-all duration-150 relative"
+                className="px-2 md:px-3 py-2 md:py-4 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] active:scale-105 active:shadow-xl transition-all duration-150 relative shrink-0"
               >
-                <ShoppingBag className="h-4 w-4" />
-                <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
+                <ShoppingBag className="h-3 w-3 md:h-4 md:w-4" />
+                <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-red-500 text-white rounded-full h-4 w-4 md:h-5 md:w-5 flex items-center justify-center text-[10px] md:text-xs font-bold">
                   {cartQuantity}
                 </div>
               </Button>
@@ -633,11 +699,11 @@ const ProductDetail = () => {
               variant={isFavorite ? "default" : "outline"}
               onClick={toggleFavorite}
               className={cn(
-                "px-2 md:px-3 py-3 md:py-4 font-poppins font-bold active:scale-105 active:shadow-xl transition-all duration-150",
+                "px-2 md:px-3 py-2 md:py-4 font-poppins font-bold active:scale-105 active:shadow-xl transition-all duration-150 shrink-0",
                 isFavorite && "bg-red-500 text-white hover:bg-red-600 border-red-500"
               )}
             >
-              <Heart className={isFavorite ? "fill-current text-white" : ""} />
+              <Heart className={cn("h-3 w-3 md:h-5 md:w-5", isFavorite ? "fill-current text-white" : "")} />
             </Button>
           </div>
 
@@ -689,15 +755,16 @@ const ProductDetail = () => {
                 <h3 className="font-saira font-black text-2xl text-white uppercase mb-4">Inside The Bar</h3>
                 <hr className="border-white mb-4" />
                 <ul className="text-white font-tomorrow list-disc list-inside space-y-1 md:text-lg">
-                  <li>whey protein powder</li>
+                  <li>whey protein concentrate</li>
+                  <li>honey</li>
                   <li>pea protein isolate</li>
                   <li>date syrup</li>
-                  <li>peanut butter</li>
-                  <li>phool makhana</li>
-                  <li>water</li>
-                  <li>cocoa butter</li>
+                  <li>peanuts</li>
                   <li>cocoa powder</li>
+                  <li>water</li>
                   <li>gum arabic</li>
+                  <li>cocoa butter</li>
+                  
                 </ul>
               </div>
               <div className="bg-[#5e4338] border-4 border-white p-8 rounded-lg">

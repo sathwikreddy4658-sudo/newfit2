@@ -29,8 +29,8 @@ const Shipping = () => {
             Order Processing
           </h3>
           <div className="font-poppins font-light text-base space-y-2" style={{ color: '#5e4338' }}>
-            <p>Smaller orders are dispatched within 1–2 business days.</p>
-            <p>Bulk or larger quantities may take 2–4 business days to process.</p>
+            <p>Smaller orders are dispatched within 1-2 business days.</p>
+            <p>Bulk or larger quantities may take 2-4 business days to process.</p>
             <p>Orders are shipped only after successful payment confirmation.</p>
           </div>
         </div>

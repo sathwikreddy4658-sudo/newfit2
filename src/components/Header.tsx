@@ -55,6 +55,9 @@ const Header = () => {
                   <Link to="/blogs" onClick={() => setIsOpen(false)}>
                     <Button variant="ghost" className="text-white hover:bg-white/10 font-poppins font-bold text-lg py-6 w-full justify-start border-b border-white/20">Blog</Button>
                   </Link>
+                  <Link to="/knowyourfood" onClick={() => setIsOpen(false)}>
+                    <Button variant="ghost" className="text-white hover:bg-white/10 font-poppins font-bold text-lg py-6 w-full justify-start border-b border-white/20">Know Your Food</Button>
+                  </Link>
                   <Link to="/about" onClick={() => setIsOpen(false)}>
                     <Button variant="ghost" className="text-white hover:bg-white/10 font-poppins font-bold text-lg py-6 w-full justify-start border-b border-white/20">About Us</Button>
                   </Link>
@@ -120,6 +123,9 @@ const Header = () => {
             </Link>
             <Link to="/blogs">
               <Button variant="ghost" className="bg-white hover:bg-[#b5edce]/50 font-poppins font-bold">Blog</Button>
+            </Link>
+            <Link to="/knowyourfood">
+              <Button variant="ghost" className="bg-white hover:bg-[#b5edce]/50 font-poppins font-bold">Know Your Food</Button>
             </Link>
             {!user && (
               <Link to="/track-order">

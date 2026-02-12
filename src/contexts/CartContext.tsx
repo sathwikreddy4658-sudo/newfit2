@@ -11,6 +11,8 @@ export interface CartItem {
   image?: string;
   protein: string;
   weight?: number; // Weight in grams
+  combo_3_discount?: number; // 3-pack discount percentage
+  combo_6_discount?: number; // 6-pack discount percentage
 }
 
 interface PromoCode {
@@ -67,10 +69,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const productIds = [...new Set(items.map(item => item.id))];
       
       try {
-        // Fetch current stock for all products in cart
+        // Fetch current stock and combo discount info for all products in cart
         const { data: products, error } = await supabase
           .from('products')
-          .select('id, stock, name')
+          .select('id, stock, name, combo_3_discount, combo_6_discount')
           .in('id', productIds);
 
         if (error) {
@@ -104,11 +106,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           });
         }
 
-        // Update stock information for cart items
+        // Update stock and combo discount information for cart items
         setItems((prev) =>
           prev.map((item) => {
             const product = products.find(p => p.id === item.id);
-            return product ? { ...item, stock: product.stock } : item;
+            return product ? { 
+              ...item, 
+              stock: product.stock,
+              combo_3_discount: product.combo_3_discount || item.combo_3_discount || 0,
+              combo_6_discount: product.combo_6_discount || item.combo_6_discount || 0
+            } : item;
           })
         );
       } catch (error) {
@@ -129,7 +136,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (existing) {
         return prev.map((i) =>
           i.id === item.id && i.protein === (item.protein || "15g")
-            ? { ...i, quantity: Math.min(i.quantity + (item.quantity || 1), item.stock) }
+            ? { 
+                ...i, 
+                quantity: Math.min(i.quantity + (item.quantity || 1), item.stock),
+                combo_3_discount: item.combo_3_discount || i.combo_3_discount,
+                combo_6_discount: item.combo_6_discount || i.combo_6_discount
+              }
             : i
         );
       }
@@ -222,7 +234,22 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  
+  // Calculate total price with combo discounts applied per item
+  const totalPrice = items.reduce((sum, item) => {
+    const subtotal = item.price * item.quantity;
+    let discount = 0;
+    
+    // Apply combo pack discount based on quantity
+    if (item.quantity >= 6 && item.combo_6_discount) {
+      discount = (subtotal * item.combo_6_discount) / 100;
+    } else if (item.quantity >= 3 && item.combo_3_discount) {
+      discount = (subtotal * item.combo_3_discount) / 100;
+    }
+    
+    return sum + (subtotal - discount);
+  }, 0);
+  
   const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0);
   
   // Calculate discount only for percentage promo codes (not shipping_discount codes)

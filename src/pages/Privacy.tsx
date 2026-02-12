@@ -4,7 +4,7 @@ const Privacy = () => {
       <div className="max-w-4xl mx-auto px-4">
         {/* Headline */}
         <div className="mb-8 text-center">
-          <h1 className="font-poppins font-black text-4xl uppercase heading-primary-radius">
+          <h1 className="font-poppins font-black text-4xl uppercase" style={{ color: '#3b2a20', borderBottom: '4px solid #b5edce', display: 'inline-block' }}>
             PRIVACY POLICY
           </h1>
         </div>

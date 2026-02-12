@@ -139,8 +139,18 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/favorites" className="hover:opacity-80 transition-colors">
+                  My Favorites
+                </Link>
+              </li>
+              <li>
                 <Link to="/blogs" className="hover:opacity-80 transition-colors">
                   Blog
+                </Link>
+              </li>
+              <li>
+                <Link to="/knowyourfood" className="hover:opacity-80 transition-colors">
+                  Know Your Food
                 </Link>
               </li>
               <li>
@@ -173,8 +183,18 @@ const Footer = () => {
                   </Link>
                 </div>
                 <div className="border-t border-[#b5edce]/30 pt-2">
+                  <Link to="/favorites" className="block hover:opacity-80 transition-colors py-1">
+                    My Favorites
+                  </Link>
+                </div>
+                <div className="border-t border-[#b5edce]/30 pt-2">
                   <Link to="/blogs" className="block hover:opacity-80 transition-colors py-1">
                     Blog
+                  </Link>
+                </div>
+                <div className="border-t border-[#b5edce]/30 pt-2">
+                  <Link to="/knowyourfood" className="block hover:opacity-80 transition-colors py-1">
+                    Know Your Food
                   </Link>
                 </div>
                 <div className="border-t border-[#b5edce]/30 pt-2">

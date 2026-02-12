@@ -68,6 +68,9 @@ const ProductAnimation = () => {
           alt="Wrapper"
           className="w-[150px] md:w-[250px] h-auto object-contain"
           style={{ transform: "rotate(-90deg)" }}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
         />
       </div>
 
@@ -86,6 +89,9 @@ const ProductAnimation = () => {
             src={ingredient.src}
             alt={`Ingredient ${index + 1}`}
             className="w-[120px] md:w-[200px] h-auto object-contain"
+            loading="eager"
+            decoding="async"
+            fetchPriority={index < 3 ? "high" : "low"}
           />
         </div>
       ))}
@@ -104,6 +110,9 @@ const ProductAnimation = () => {
           alt="Final Product"
           className="w-[220px] md:w-[350px] h-auto object-contain"
           style={{ width: isMobile ? '220px' : '350px', height: 'auto' }}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
         />
       </div>
 

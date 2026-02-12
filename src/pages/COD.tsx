@@ -4,7 +4,7 @@ const COD = () => {
       <div className="max-w-4xl mx-auto px-4">
         {/* Headline */}
         <div className="mb-8 text-center">
-          <h1 className="font-poppins font-black text-4xl uppercase heading-primary-radius">
+          <h1 className="font-poppins font-black text-4xl uppercase" style={{ color: '#3b2a20', borderBottom: '4px solid #b5edce', display: 'inline-block' }}>
             CASH ON DELIVERY (COD) POLICY
           </h1>
         </div>
@@ -51,7 +51,7 @@ const COD = () => {
           </h3>
           <div className="font-poppins font-light text-base space-y-2 text-primary-brown">
             <p>If a COD order qualifies for a refund (for example, wrong or damaged item):</p>
-            <p>You'll be asked to share your bank account details for a secure refund transfer within 5–7 business days.</p>
+            <p>You'll be asked to share your bank account details for a secure refund transfer within 5-7 business days.</p>
           </div>
         </div>
 
