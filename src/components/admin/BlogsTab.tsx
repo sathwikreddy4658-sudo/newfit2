@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,11 +8,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Pencil, Trash2, Upload, X, Plus, Save, Bold, Italic, Type } from "lucide-react";
-import ReactQuill from "react-quill";
+import ReactQuill, { Quill } from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
+// Custom line break button for Quill
+const LineBreakBlot = Quill.import('blots/break');
+class CustomLineBreak extends LineBreakBlot {}
+Quill.register(CustomLineBreak);
+
+// Add custom icons to Quill
+const icons = Quill.import('ui/icons');
+icons['linebreak'] = '<svg viewBox="0 0 18 18"><path d="M14,13 L4,13 M14,10 L4,10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M4,13 L4,10" stroke="currentColor" stroke-width="2"/></svg>';
+
 interface ContentSection {
-  type: 'heading' | 'paragraph';
+  type: 'heading' | 'paragraph' | 'linebreak';
   text: string;
 }
 
@@ -40,6 +49,39 @@ const BlogsTab = () => {
   });
   const [draftSaved, setDraftSaved] = useState(false);
   const saveDraftTimeoutRef = useRef<NodeJS.Timeout>();
+  const quillRefs = useRef<{ [key: number]: any }>({});
+
+  // Custom modules configuration with line break handler
+  const modules = useMemo(() => ({
+    toolbar: {
+      container: [
+        ['bold', 'italic', 'underline', 'strike'],
+        ['blockquote', 'code-block'],
+        [{ 'header': 1 }, { 'header': 2 }],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        ['linebreak'], // Custom line break button
+        [{ 'size': ['small', false, 'large', 'huge'] }],
+        ['link'],
+        ['clean']
+      ],
+      handlers: {
+        'linebreak': function() {
+          const cursorPosition = this.quill.getSelection()?.index || 0;
+          this.quill.insertText(cursorPosition, '\n');
+          this.quill.setSelection(cursorPosition + 1);
+        }
+      }
+    }
+  }), []);
+
+  const formats = [
+    'bold', 'italic', 'underline', 'strike',
+    'blockquote', 'code-block',
+    'header',
+    'list',
+    'size',
+    'link'
+  ];
 
   useEffect(() => {
     fetchBlogs();
@@ -237,6 +279,8 @@ const BlogsTab = () => {
       contentSections.forEach((section) => {
         if (section.type === 'heading') {
           contentHtml += `<h2>${section.text}</h2>`;
+        } else if (section.type === 'linebreak') {
+          contentHtml += '<br/><br/>';
         } else {
           // Already has <p> tags from Quill
           contentHtml += section.text;
@@ -493,6 +537,14 @@ const BlogsTab = () => {
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add Paragraph
                     </Button>
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setContentSections([...contentSections, { type: 'linebreak', text: '' }])}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Line Break
+                    </Button>
                   </div>
                 </div>
 
@@ -509,13 +561,14 @@ const BlogsTab = () => {
                             value={section.type}
                             onChange={(e) => {
                               const updated = [...contentSections];
-                              updated[index].type = e.target.value as 'heading' | 'paragraph';
+                              updated[index].type = e.target.value as 'heading' | 'paragraph' | 'linebreak';
                               setContentSections(updated);
                             }}
                             className="text-sm border rounded px-2 py-1 bg-white"
                           >
                             <option value="heading">Heading</option>
                             <option value="paragraph">Paragraph</option>
+                            <option value="linebreak">Line Break</option>
                           </select>
                           <Button
                             type="button"
@@ -530,38 +583,31 @@ const BlogsTab = () => {
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="border rounded bg-white">
-                          <ReactQuill
-                            value={section.text}
-                            onChange={(text) => {
-                              const updated = [...contentSections];
-                              updated[index].text = text;
-                              setContentSections(updated);
-                            }}
-                            modules={{
-                              toolbar: [
-                                ['bold', 'italic', 'underline', 'strike'],
-                                ['blockquote', 'code-block'],
-                                [{ 'header': 1 }, { 'header': 2 }],
-                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                                [{ 'size': ['small', false, 'large', 'huge'] }],
-                                ['link'],
-                                ['clean']
-                              ]
-                            }}
-                            formats={[
-                              'bold', 'italic', 'underline', 'strike',
-                              'blockquote', 'code-block',
-                              'header',
-                              'list',
-                              'size',
-                              'link'
-                            ]}
-                            placeholder={section.type === 'heading' ? 'Enter heading...' : 'Enter paragraph text...'}
-                            theme="snow"
-                            style={{ minHeight: section.type === 'heading' ? '120px' : '200px' }}
-                          />
-                        </div>
+                        {section.type === 'linebreak' ? (
+                          <div className="border rounded bg-slate-100 p-4 text-center text-sm text-muted-foreground">
+                            <div className="border-t-2 border-slate-300 my-2"></div>
+                            Line Break (adds spacing between sections)
+                          </div>
+                        ) : (
+                          <div className="border rounded bg-white">
+                            <div className="text-xs text-muted-foreground px-2 py-1 bg-slate-50 border-b">
+                              Tip: Use the ⏎ button for line breaks within paragraphs, or press Shift+Enter
+                            </div>
+                            <ReactQuill
+                              value={section.text}
+                              onChange={(text) => {
+                                const updated = [...contentSections];
+                                updated[index].text = text;
+                                setContentSections(updated);
+                              }}
+                              modules={modules}
+                              formats={formats}
+                              placeholder={section.type === 'heading' ? 'Enter heading...' : 'Enter paragraph text...'}
+                              theme="snow"
+                              style={{ minHeight: section.type === 'heading' ? '120px' : '200px' }}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

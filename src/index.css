@@ -181,6 +181,20 @@ All colors MUST be HSL.
   color: #444;
 }
 
+/* Custom line break button styling */
+.ql-linebreak {
+  width: 28px !important;
+}
+
+.ql-linebreak:hover {
+  color: #06c !important;
+}
+
+.ql-linebreak svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Blog Content Styling */
 .prose {
   font-family: 'Poppins', sans-serif;
