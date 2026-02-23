@@ -675,6 +675,7 @@ const Checkout = () => {
       redirectUrl: `${window.location.origin}/payment/callback?transactionId=${merchantTransactionId}&order=${orderId}`,
       callbackUrl: `https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-webhook`,
       mobileNumber: phoneNumber,
+      billingAddress: isGuestCheckout ? guestData.address : profile.address, // Required by PhonePe (10-500 chars)
       deviceContext: {
         deviceOS: navigator.platform.includes('Mac') ? 'MAC' : 'WINDOWS'
       }

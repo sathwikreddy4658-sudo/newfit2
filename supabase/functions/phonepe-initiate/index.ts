@@ -1,22 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const PHONEPE_MERCHANT_ID = Deno.env.get('PHONEPE_MERCHANT_ID') || 'M23DXJKWOH2QZ';
-const PHONEPE_CLIENT_ID = Deno.env.get('PHONEPE_CLIENT_ID') || 'SU2511071520405754774079';
-const PHONEPE_CLIENT_SECRET = Deno.env.get('PHONEPE_CLIENT_SECRET') || '';
-const PHONEPE_API_URL = Deno.env.get('PHONEPE_API_URL') || 'https://api.phonepe.com/apis/pg';
-const PHONEPE_ENV = Deno.env.get('PHONEPE_ENV') || 'SANDBOX'; // Default to SANDBOX since credentials appear to be sandbox
+const PHONEPE_SALT_KEY = Deno.env.get('PHONEPE_SALT_KEY') || '';
+const PHONEPE_SALT_INDEX = Deno.env.get('PHONEPE_SALT_INDEX') || '1';
+const PHONEPE_ENV = Deno.env.get('PHONEPE_ENV') || 'SANDBOX';
 
 console.log('[PhonePe Init] Configuration:', {
   env: PHONEPE_ENV,
   merchantId: PHONEPE_MERCHANT_ID,
-  hasSecret: !!PHONEPE_CLIENT_SECRET
+  hasSaltKey: !!PHONEPE_SALT_KEY,
+  saltIndex: PHONEPE_SALT_INDEX
 });
 
-// Helper: URL encode form data for OAuth
-function urlEncode(obj: Record<string, string>): string {
-  return Object.entries(obj)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-    .join('&');
+// Helper: Generate SHA256 hash
+async function sha256(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Payment request payload interface for v2.0
@@ -101,13 +103,19 @@ serve(async (req: Request) => {
       amount,
       callbackUrl,
       redirectUrl,
+      merchantUserId,
+      mobileNumber,
+      billingAddress,
     } = body;
 
     console.log('[PhonePe Initiate] Extracted fields:', {
       merchantTransactionId,
       amount,
       callbackUrl,
-      redirectUrl
+      redirectUrl,
+      merchantUserId,
+      mobileNumber,
+      billingAddress: billingAddress ? `${billingAddress.substring(0, 30)}...` : 'none'
     });
 
     // Validate required fields
@@ -211,11 +219,18 @@ serve(async (req: Request) => {
     // Step 2: Create payment request with PhonePe v2.0 payload
     console.log('[PhonePe Initiate] Step 2: Creating payment request...');
     
+    // Ensure billing address meets PhonePe requirements (10-500 characters)
+    const finalBillingAddress = billingAddress && billingAddress.length >= 10 
+      ? billingAddress.substring(0, 500) 
+      : 'Default Address - Payment Processing';
+    
     const payload: any = {
       merchantId: PHONEPE_MERCHANT_ID, // Required for v2.0 API
       merchantOrderId: merchantTransactionId,
       amount: Math.round(amount * 100), // Convert to paise
       expireAfter: 1200, // 20 minutes
+      billingAddress: finalBillingAddress, // Required: 10-500 characters
+      mobileNumber: mobileNumber || '',
       metaInfo: {
         transactionId: merchantTransactionId
       },
