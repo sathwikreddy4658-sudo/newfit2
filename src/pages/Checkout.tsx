@@ -667,6 +667,26 @@ const Checkout = () => {
     // Generate merchant user ID - use actual user ID if authenticated, or generate a guest ID
     const merchantUserId = authUser?.id || `GUEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+    // Get billing address with proper fallback (PhonePe requires 10-500 chars)
+    let billingAddress = '';
+    if (isGuestCheckout) {
+      billingAddress = guestData.address || '';
+    } else {
+      // For authenticated users, try multiple sources
+      billingAddress = profile?.address || userContactData?.address || '';
+    }
+
+    // Ensure address meets PhonePe minimum length (10 chars)
+    if (!billingAddress || billingAddress.trim().length < 10) {
+      billingAddress = `${phoneNumber}, India`; // Fallback with phone number
+    }
+
+    console.log('[Checkout] Billing address for payment:', {
+      isGuest: isGuestCheckout,
+      addressLength: billingAddress.length,
+      addressPreview: billingAddress.substring(0, 50)
+    });
+
     // Initiate PhonePe payment
     const paymentOptions = {
       amount: Math.round(finalPricing.total), // Send final total in rupees - Edge Function converts to paisa
@@ -675,7 +695,7 @@ const Checkout = () => {
       redirectUrl: `${window.location.origin}/payment/callback?transactionId=${merchantTransactionId}&order=${orderId}`,
       callbackUrl: `https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-webhook`,
       mobileNumber: phoneNumber,
-      billingAddress: isGuestCheckout ? guestData.address : profile.address, // Required by PhonePe (10-500 chars)
+      billingAddress: billingAddress, // Required by PhonePe (10-500 chars)
       deviceContext: {
         deviceOS: navigator.platform.includes('Mac') ? 'MAC' : 'WINDOWS'
       }
@@ -686,7 +706,8 @@ const Checkout = () => {
       merchantTransactionId: { value: paymentOptions.merchantTransactionId, type: typeof paymentOptions.merchantTransactionId },
       callbackUrl: { value: paymentOptions.callbackUrl, type: typeof paymentOptions.callbackUrl },
       merchantUserId: { value: merchantUserId, isGuest: isGuestCheckout, type: typeof merchantUserId },
-      mobileNumber: paymentOptions.mobileNumber
+      mobileNumber: paymentOptions.mobileNumber,
+      billingAddress: { length: paymentOptions.billingAddress.length, preview: paymentOptions.billingAddress.substring(0, 30) }
     });
 
     const paymentResponse = await initiatePhonePePayment(paymentOptions);

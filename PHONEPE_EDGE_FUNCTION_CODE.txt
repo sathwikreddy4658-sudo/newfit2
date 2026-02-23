@@ -1,0 +1,273 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const PHONEPE_MERCHANT_ID = Deno.env.get('PHONEPE_MERCHANT_ID') || 'M23DXJKWOH2QZ';
+const PHONEPE_CLIENT_ID = Deno.env.get('PHONEPE_CLIENT_ID') || 'SU2511071520405754774079';
+const PHONEPE_CLIENT_SECRET = Deno.env.get('PHONEPE_CLIENT_SECRET') || '';
+const PHONEPE_ENV = Deno.env.get('PHONEPE_ENV') || 'PRODUCTION';
+
+console.log('[PhonePe Init] Configuration:', {
+  env: PHONEPE_ENV,
+  merchantId: PHONEPE_MERCHANT_ID,
+  hasSecret: !!PHONEPE_CLIENT_SECRET
+});
+
+// Helper: URL encode form data for OAuth
+function urlEncode(obj: Record<string, string>): string {
+  return Object.entries(obj)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&');
+}
+
+serve(async (req: Request) => {
+  // Enable CORS for all requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
+        'Access-Control-Max-Age': '86400',
+      },
+    });
+  }
+
+  try {
+    if (req.method !== 'POST') {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Only POST requests allowed' }),
+        { 
+          status: 405,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    const body = await req.json();
+    const {
+      merchantTransactionId,
+      amount,
+      callbackUrl,
+      redirectUrl,
+      merchantUserId,
+      mobileNumber,
+      billingAddress,
+    } = body;
+
+    console.log('[PhonePe] Received:', {
+      merchantTransactionId,
+      amount,
+      hasBillingAddress: !!billingAddress
+    });
+
+    // Validate required fields
+    if (!merchantTransactionId || !amount || !callbackUrl || !redirectUrl) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'INVALID_REQUEST',
+          message: 'Missing required fields'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    if (!PHONEPE_CLIENT_SECRET) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'CONFIG_ERROR',
+          message: 'PhonePe credentials not configured'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    // Step 1: Get OAuth token
+    const oauthUrl = PHONEPE_ENV === 'PRODUCTION' 
+      ? 'https://api.phonepe.com/apis/identity-manager/v1/oauth/token'
+      : 'https://api-preprod.phonepe.com/apis/pg-sandbox/v1/oauth/token';
+
+    const tokenFormData = {
+      client_id: PHONEPE_CLIENT_ID,
+      client_version: '1',
+      client_secret: PHONEPE_CLIENT_SECRET,
+      grant_type: 'client_credentials'
+    };
+
+    console.log('[PhonePe] Getting OAuth token from:', oauthUrl);
+
+    const tokenResponse = await fetch(oauthUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: urlEncode(tokenFormData)
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      console.error('[PhonePe] OAuth failed:', tokenData);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'OAUTH_ERROR',
+          message: 'Failed to authenticate with PhonePe',
+          details: tokenData
+        }),
+        {
+          status: tokenResponse.status,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    console.log('[PhonePe] OAuth success');
+
+    // Step 2: Create payment
+    const finalBillingAddress = billingAddress && billingAddress.length >= 10 
+      ? billingAddress.substring(0, 500) 
+      : 'Default Address - Payment Processing';
+    
+    const payload = {
+      merchantId: PHONEPE_MERCHANT_ID,
+      merchantOrderId: merchantTransactionId,
+      amount: Math.round(amount * 100), // Convert to paise
+      expireAfter: 1200,
+      billingAddress: finalBillingAddress,
+      mobileNumber: mobileNumber || '',
+      metaInfo: {
+        transactionId: merchantTransactionId
+      },
+      paymentFlow: {
+        type: 'PG_CHECKOUT',
+        message: 'Payment for order',
+        merchantUrls: {
+          redirectUrl: redirectUrl || callbackUrl
+        },
+        paymentModeConfig: {
+          enabledPaymentModes: [
+            { type: 'UPI_COLLECT' },
+            { type: 'UPI_INTENT' },
+            { type: 'UPI_QR' },
+            { type: 'NET_BANKING' },
+            { type: 'CARD', cardTypes: ['DEBIT_CARD', 'CREDIT_CARD'] }
+          ]
+        }
+      }
+    };
+
+    const paymentUrl = PHONEPE_ENV === 'PRODUCTION'
+      ? 'https://api.phonepe.com/apis/pg/checkout/v2/pay'
+      : 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay';
+
+    console.log('[PhonePe] Creating payment at:', paymentUrl);
+
+    const response = await fetch(paymentUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `${tokenData.token_type} ${tokenData.access_token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    console.log('[PhonePe] Payment response status:', response.status);
+
+    if (!response.ok) {
+      console.error('[PhonePe] Payment failed:', data);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'PAYMENT_API_ERROR',
+          message: data.message || data.errorMsg || 'Failed to initiate payment',
+          details: data
+        }),
+        {
+          status: response.status,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    const redirectUrlFromPhonePe = data?.data?.redirectUrl || data?.redirectUrl;
+
+    if (!redirectUrlFromPhonePe) {
+      console.error('[PhonePe] No redirect URL:', data);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'NO_REDIRECT_URL',
+          message: 'PhonePe response missing redirectUrl',
+          details: data
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    console.log('[PhonePe] Success! Redirect URL:', redirectUrlFromPhonePe);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        code: 'SUCCESS',
+        message: 'Payment initiated successfully',
+        data: { redirectUrl: redirectUrlFromPhonePe }
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+
+  } catch (error) {
+    console.error('[PhonePe] Error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        code: 'SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Internal server error'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  }
+});
