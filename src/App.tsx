@@ -34,7 +34,15 @@ const TrackOrder = lazy(() => import("./pages/TrackOrder"));
 const GuestThankYou = lazy(() => import("./pages/GuestThankYou"));
 const UserThankYou = lazy(() => import("./pages/UserThankYou"));
 const AdminAuth = lazy(() => import("./pages/admin/AdminAuth"));
-const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboardNew"));
+const AdminProducts = lazy(() => import("./pages/admin/AdminProducts"));
+const AdminBlogs = lazy(() => import("./pages/admin/AdminBlogs"));
+const AdminLabReports = lazy(() => import("./pages/admin/AdminLabReports"));
+const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
+const AdminPromoCodes = lazy(() => import("./pages/admin/AdminPromoCodes"));
+const AdminRatings = lazy(() => import("./pages/admin/AdminRatings"));
+const AdminNewsletter = lazy(() => import("./pages/admin/AdminNewsletter"));
+const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const Blogs = lazy(() => import("./pages/Blogs"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
 const LabReports = lazy(() => import("./pages/LabReports"));
@@ -96,7 +104,15 @@ const App = () => (
                   <Route path="/favorites" element={<Favorites />} />
                   <Route path="/admin/auth" element={<AdminAuth />} />
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                  <Route path="/admin" element={<Navigate to="/admin/auth" replace />} />
+                  <Route path="/admin/products" element={<AdminProducts />} />
+                  <Route path="/admin/blogs" element={<AdminBlogs />} />
+                  <Route path="/admin/lab-reports" element={<AdminLabReports />} />
+                  <Route path="/admin/orders" element={<AdminOrders />} />
+                  <Route path="/admin/promo-codes" element={<AdminPromoCodes />} />
+                  <Route path="/admin/ratings" element={<AdminRatings />} />
+                  <Route path="/admin/newsletter" element={<AdminNewsletter />} />
+                  <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                  <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

@@ -18,10 +18,9 @@ export interface CartItem {
 interface PromoCode {
   code: string;
   discount_percentage: number;
-  promo_type?: 'percentage' | 'shipping_discount';
-  shipping_discount_percentage?: number;
-  allowed_states?: string[];
-  allowed_pincodes?: string[];
+  free_shipping: boolean;
+  min_order_amount: number;
+  max_discount_amount: number | null;
 }
 
 interface CartContextType {
@@ -174,7 +173,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (userId) {
         const { data: canUse, error: checkError } = await supabase
           .from("promo_codes")
-          .select("usage_count, usage_limit")
+          .select("current_uses, max_uses")
           .eq("code", code.toUpperCase())
           .eq("active", true)
           .single();
@@ -185,7 +184,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // Check if usage limit is exceeded
-        if (canUse.usage_limit && canUse.usage_count >= canUse.usage_limit) {
+        if (canUse.max_uses && canUse.current_uses >= canUse.max_uses) {
           toast.error("Promo code usage limit exceeded");
           return false;
         }
@@ -194,7 +193,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Get the promo code details (for both authenticated and guest users)
       const { data, error } = await supabase
         .from("promo_codes")
-        .select("code, discount_percentage, promo_type, shipping_discount_percentage, allowed_states, allowed_pincodes")
+        .select("code, discount_percentage, free_shipping, min_order_amount, max_discount_amount")
         .eq("code", code.toUpperCase())
         .eq("active", true)
         .single();
@@ -207,19 +206,29 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
       console.log('[Cart] Promo code fetched:', {
         code: data.code,
-        promo_type: data.promo_type,
         discount_percentage: data.discount_percentage,
-        shipping_discount_percentage: data.shipping_discount_percentage
+        free_shipping: data.free_shipping,
+        min_order_amount: data.min_order_amount
       });
+
+      // Check minimum order amount
+      if (data.min_order_amount > 0 && totalPrice < data.min_order_amount) {
+        toast.error(`Minimum order amount of ₹${data.min_order_amount} required for this promo code`);
+        return false;
+      }
 
       setPromoCode(data);
       
-      if (data.promo_type === 'shipping_discount') {
-        const discountText = data.shipping_discount_percentage === 100 ? 'Free shipping' : `${data.shipping_discount_percentage}% off shipping`;
-        toast.success(`Promo code ${data.code} applied! ${discountText}${data.allowed_states ? ' for ' + data.allowed_states.join(', ') : ''}`);
-      } else {
-        toast.success(`Promo code ${data.code} applied! ${data.discount_percentage}% discount`);
+      // Build success message based on promo benefits
+      const benefits = [];
+      if (data.free_shipping) {
+        benefits.push('Free Shipping');
       }
+      if (data.discount_percentage > 0) {
+        benefits.push(`${data.discount_percentage}% OFF`);
+      }
+      
+      toast.success(`Promo code ${data.code} applied! ${benefits.join(' + ')}`);
       return true;
     } catch (error) {
       console.error("Error applying promo code:", error);
@@ -252,18 +261,26 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   
   const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0);
   
-  // Calculate discount only for percentage promo codes (not shipping_discount codes)
-  const discountAmount = promoCode && promoCode.promo_type === 'percentage' 
-    ? (totalPrice * (promoCode.discount_percentage || 0)) / 100 
-    : 0;
+  // Calculate discount from promo code (if applicable)
+  let discountAmount = 0;
+  if (promoCode && promoCode.discount_percentage > 0) {
+    discountAmount = (totalPrice * promoCode.discount_percentage) / 100;
+    
+    // Apply max discount cap if set
+    if (promoCode.max_discount_amount && discountAmount > promoCode.max_discount_amount) {
+      discountAmount = promoCode.max_discount_amount;
+    }
+  }
+  
   const discountedTotal = totalPrice - discountAmount;
 
   console.log('[Cart] Discount calculation:', {
     promoCode: promoCode?.code,
-    promoType: promoCode?.promo_type,
+    freeShipping: promoCode?.free_shipping,
     discountPercentage: promoCode?.discount_percentage,
     totalPrice,
     discountAmount,
+    maxDiscountAmount: promoCode?.max_discount_amount,
     discountedTotal
   });
 

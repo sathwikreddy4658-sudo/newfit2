@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test PhonePe OAuth</title>
+</head>
+<body>
+    <h1>PhonePe OAuth Token Test</h1>
+    <button onclick="testOAuth()">Test OAuth Token Generation</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testOAuth() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing PhonePe OAuth...\n';
+
+            const CLIENT_ID = 'SU2511071520405754774079';
+            const CLIENT_SECRET = 'c70dce3a-c985-4237-add4-b8b9ad647bbf';
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('client_id', CLIENT_ID);
+                formData.append('client_version', '1');
+                formData.append('client_secret', CLIENT_SECRET);
+                formData.append('grant_type', 'client_credentials');
+
+                console.log('Calling PhonePe OAuth...');
+                
+                const response = await fetch('https://api.phonepe.com/apis/identity-manager/v1/oauth/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData.toString()
+                });
+
+                const responseText = await response.text();
+                
+                resultDiv.textContent = `Status: ${response.status} ${response.statusText}\n\n`;
+                resultDiv.textContent += `Response:\n${responseText}\n\n`;
+                
+                if (response.ok) {
+                    const data = JSON.parse(responseText);
+                    resultDiv.textContent += `✅ SUCCESS!\n`;
+                    resultDiv.textContent += `Access Token: ${data.access_token?.substring(0, 20)}...\n`;
+                    resultDiv.textContent += `Expires: ${new Date(data.expires_at * 1000).toLocaleString()}\n`;
+                } else {
+                    resultDiv.textContent += `❌ FAILED!\n`;
+                    resultDiv.textContent += `Your PhonePe credentials are invalid or expired.\n`;
+                    resultDiv.textContent += `You need to get new credentials from PhonePe Business dashboard.\n`;
+                }
+
+                console.log('Full response:', response.status, responseText);
+
+            } catch (err) {
+                resultDiv.textContent = '❌ Error:\n' + err.message + '\n\nStack:\n' + err.stack;
+                console.error('Test error:', err);
+            }
+        }
+    </script>
+</body>
+</html>

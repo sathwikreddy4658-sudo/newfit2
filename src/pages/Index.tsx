@@ -214,7 +214,7 @@ const Index = () => {
           <ProductAnimation />
         </div>
 
-        <div className="bg-[#b5edce]/50 py-20 overflow-visible">
+        <div className="bg-[#b5edce]/50 py-12 md:py-8 md:pt-4 overflow-visible">
           <div
             ref={widgetsRef}
             className="relative max-w-5xl mx-auto container md:px-4 mb-12 md:h-96 min-h-96 md:min-h-96 sm:min-h-screen overflow-visible"

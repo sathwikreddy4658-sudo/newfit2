@@ -17,8 +17,12 @@ interface PromoCode {
   active: boolean;
   created_at: string;
   updated_at: string;
-  usage_limit: number | null;
-  usage_count: number;
+  max_uses: number | null;
+  current_uses: number;
+  free_shipping: boolean | null;
+  min_order_amount: number | null;
+  description: string | null;
+  max_discount_amount: number | null;
 }
 
 const PromoCodesTab = () => {
@@ -29,7 +33,11 @@ const PromoCodesTab = () => {
   const [formData, setFormData] = useState({
     code: "",
     discount_percentage: "",
-    usage_limit: "",
+    max_uses: "",
+    free_shipping: false,
+    min_order_amount: "",
+    description: "",
+    max_discount_amount: "",
   });
 
   const fetchPromoCodes = async () => {
@@ -56,17 +64,27 @@ const PromoCodesTab = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const discount = parseFloat(formData.discount_percentage);
-    if (isNaN(discount) || discount <= 0 || discount > 100) {
+    // Validate discount percentage if provided
+    const discount = formData.discount_percentage ? parseFloat(formData.discount_percentage) : 0;
+    if (formData.discount_percentage && (isNaN(discount) || discount <= 0 || discount > 100)) {
       toast.error("Discount percentage must be between 1 and 100");
       return;
     }
 
-    const usageLimit = formData.usage_limit ? parseInt(formData.usage_limit) : null;
-    if (usageLimit !== null && (isNaN(usageLimit) || usageLimit <= 0)) {
+    // For non-free-shipping codes, discount is required
+    if (!formData.free_shipping && discount === 0) {
+      toast.error("Discount percentage is required for discount codes");
+      return;
+    }
+
+    const maxUses = formData.max_uses ? parseInt(formData.max_uses) : null;
+    if (maxUses !== null && (isNaN(maxUses) || maxUses <= 0)) {
       toast.error("Usage limit must be a positive number");
       return;
     }
+
+    const minOrderAmount = formData.min_order_amount ? parseFloat(formData.min_order_amount) : 0;
+    const maxDiscountAmount = formData.max_discount_amount ? parseFloat(formData.max_discount_amount) : null;
 
     try {
       if (editingCode) {
@@ -75,7 +93,11 @@ const PromoCodesTab = () => {
           .update({
             code: formData.code.toUpperCase(),
             discount_percentage: discount,
-            usage_limit: usageLimit,
+            max_uses: maxUses,
+            free_shipping: formData.free_shipping,
+            min_order_amount: minOrderAmount,
+            description: formData.description || null,
+            max_discount_amount: maxDiscountAmount,
           })
           .eq("id", editingCode.id);
 
@@ -87,14 +109,26 @@ const PromoCodesTab = () => {
           .insert({
             code: formData.code.toUpperCase(),
             discount_percentage: discount,
-            usage_limit: usageLimit,
+            max_uses: maxUses,
+            free_shipping: formData.free_shipping,
+            min_order_amount: minOrderAmount,
+            description: formData.description || null,
+            max_discount_amount: maxDiscountAmount,
           });
 
         if (error) throw error;
         toast.success("Promo code created successfully");
       }
 
-      setFormData({ code: "", discount_percentage: "", usage_limit: "" });
+      setFormData({ 
+        code: "", 
+        discount_percentage: "", 
+        max_uses: "", 
+        free_shipping: false,
+        min_order_amount: "",
+        description: "",
+        max_discount_amount: "",
+      });
       setShowForm(false);
       setEditingCode(null);
       fetchPromoCodes();
@@ -113,7 +147,11 @@ const PromoCodesTab = () => {
     setFormData({
       code: promoCode.code,
       discount_percentage: promoCode.discount_percentage.toString(),
-      usage_limit: promoCode.usage_limit?.toString() || "",
+      max_uses: promoCode.max_uses?.toString() || "",
+      free_shipping: promoCode.free_shipping || false,
+      min_order_amount: promoCode.min_order_amount?.toString() || "",
+      description: promoCode.description || "",
+      max_discount_amount: promoCode.max_discount_amount?.toString() || "",
     });
     setShowForm(true);
   };
@@ -153,7 +191,15 @@ const PromoCodesTab = () => {
   };
 
   const resetForm = () => {
-    setFormData({ code: "", discount_percentage: "", usage_limit: "" });
+    setFormData({ 
+      code: "", 
+      discount_percentage: "", 
+      max_uses: "", 
+      free_shipping: false,
+      min_order_amount: "",
+      description: "",
+      max_discount_amount: "",
+    });
     setEditingCode(null);
     setShowForm(false);
   };
@@ -179,9 +225,25 @@ const PromoCodesTab = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex items-center space-x-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <Switch
+                  id="free_shipping"
+                  checked={formData.free_shipping}
+                  onCheckedChange={(checked) => setFormData({ ...formData, free_shipping: checked })}
+                />
+                <div>
+                  <Label htmlFor="free_shipping" className="font-semibold cursor-pointer">
+                    🚚 Free Shipping Promo
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Enable free shipping. Can also include percentage discount for dual benefits.
+                  </p>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="code">Promo Code</Label>
+                  <Label htmlFor="code">Promo Code *</Label>
                   <Input
                     id="code"
                     value={formData.code}
@@ -190,35 +252,97 @@ const PromoCodesTab = () => {
                     required
                   />
                 </div>
+                
                 <div>
-                  <Label htmlFor="discount">Discount Percentage</Label>
+                  <Label htmlFor="discount">Discount Percentage {!formData.free_shipping && '*'}</Label>
                   <Input
                     id="discount"
                     type="number"
-                    min="1"
+                    min="0"
                     max="100"
                     step="0.01"
                     value={formData.discount_percentage}
                     onChange={(e) => setFormData({ ...formData, discount_percentage: e.target.value })}
                     placeholder="10.00"
-                    required
+                    required={!formData.free_shipping}
                   />
+                  {formData.free_shipping && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Optional: Add discount on top of free shipping
+                    </p>
+                  )}
                 </div>
               </div>
+              
+              {formData.free_shipping && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="min_order">Minimum Order Amount (₹)</Label>
+                    <Input
+                      id="min_order"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.min_order_amount}
+                      onChange={(e) => setFormData({ ...formData, min_order_amount: e.target.value })}
+                      placeholder="499.00"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Minimum order value for this promo
+                    </p>
+                  </div>
+                  <div></div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="max_uses">Usage Limit (optional)</Label>
+                  <Input
+                    id="max_uses"
+                    type="number"
+                    min="1"
+                    value={formData.max_uses}
+                    onChange={(e) => setFormData({ ...formData, max_uses: e.target.value })}
+                    placeholder="Leave empty for unlimited"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Maximum number of times this code can be used
+                  </p>
+                </div>
+                
+                {formData.discount_percentage && (
+                  <div>
+                    <Label htmlFor="max_discount">Max Discount Amount (₹)</Label>
+                    <Input
+                      id="max_discount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.max_discount_amount}
+                      onChange={(e) => setFormData({ ...formData, max_discount_amount: e.target.value })}
+                      placeholder="Leave empty for no cap"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Maximum discount amount for percentage-based codes
+                    </p>
+                  </div>
+                )}
+              </div>
+              
               <div>
-                <Label htmlFor="usage_limit">Usage Limit (optional)</Label>
+                <Label htmlFor="description">Description (optional)</Label>
                 <Input
-                  id="usage_limit"
-                  type="number"
-                  min="1"
-                  value={formData.usage_limit}
-                  onChange={(e) => setFormData({ ...formData, usage_limit: e.target.value })}
-                  placeholder="Leave empty for unlimited"
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Internal note about this promo code"
                 />
-                <p className="text-sm text-muted-foreground mt-1">
-                  Maximum number of times this promo code can be used. Leave empty for unlimited usage.
+                <p className="text-xs text-muted-foreground mt-1">
+                  Admin-only note to remember the purpose of this code
                 </p>
               </div>
+              
               <div className="flex gap-2">
                 <Button type="submit" className="font-poppins font-bold">
                   {editingCode ? "Update" : "Create"} Promo Code
@@ -238,9 +362,10 @@ const PromoCodesTab = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Code</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Discount</TableHead>
-                <TableHead>Usage Count</TableHead>
-                <TableHead>Usage Limit</TableHead>
+                <TableHead>Usage</TableHead>
+                <TableHead>Min Order</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
@@ -250,9 +375,32 @@ const PromoCodesTab = () => {
               {promoCodes.map((promoCode) => (
                 <TableRow key={promoCode.id}>
                   <TableCell className="font-mono font-bold">{promoCode.code}</TableCell>
-                  <TableCell>{promoCode.discount_percentage}%</TableCell>
-                  <TableCell>{promoCode.usage_count}</TableCell>
-                  <TableCell>{promoCode.usage_limit || "Unlimited"}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {promoCode.free_shipping && (
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                          🚚 Free Shipping
+                        </Badge>
+                      )}
+                      {promoCode.discount_percentage > 0 && (
+                        <Badge variant="outline" className="bg-green-50 text-green-800">
+                          💰 {promoCode.discount_percentage}% OFF
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {promoCode.discount_percentage > 0 
+                      ? `${promoCode.discount_percentage}%${promoCode.max_discount_amount ? ` (max ₹${promoCode.max_discount_amount})` : ''}`
+                      : "-"
+                    }
+                  </TableCell>
+                  <TableCell>
+                    {promoCode.current_uses} / {promoCode.max_uses || "∞"}
+                  </TableCell>
+                  <TableCell>
+                    {promoCode.min_order_amount ? `₹${promoCode.min_order_amount}` : "-"}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
@@ -264,7 +412,14 @@ const PromoCodesTab = () => {
                       </Badge>
                     </div>
                   </TableCell>
-                  <TableCell>{new Date(promoCode.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{new Date(promoCode.created_at).toLocaleDateString()}</span>
+                      {promoCode.description && (
+                        <span className="text-xs text-muted-foreground">{promoCode.description}</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button

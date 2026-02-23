@@ -193,9 +193,10 @@ const Cart = () => {
                     <Tag className="w-5 h-5 text-green-600" />
                     <span className="font-mono font-bold text-green-700">{promoCode.code}</span>
                     <span className="text-sm text-green-600">
-                      {promoCode.promo_type === 'shipping_discount' 
-                        ? `(${promoCode.shipping_discount_percentage}% off shipping)` 
-                        : `(${promoCode.discount_percentage}% off)`}
+                      {[
+                        promoCode.free_shipping && '🚚 Free Shipping',
+                        promoCode.discount_percentage > 0 && `💰 ${promoCode.discount_percentage}% OFF`
+                      ].filter(Boolean).join(' + ')}
                     </span>
                   </div>
                   <Button

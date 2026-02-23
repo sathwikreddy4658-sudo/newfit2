@@ -1,0 +1,30 @@
+name: Deploy Supabase Functions
+
+on:
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+
+      - name: Deploy PhonePe Functions
+        run: |
+          supabase functions deploy phonepe-initiate --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy phonepe-check-status --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy phonepe-webhook --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+# Setup Instructions:
+# 1. Go to https://app.supabase.com/account/tokens
+# 2. Generate an access token
+# 3. Go to your GitHub repo → Settings → Secrets → Actions
+# 4. Add secrets:
+#    - SUPABASE_ACCESS_TOKEN: (your token)
+#    - SUPABASE_PROJECT_REF: oikibnfnhauymhfpxiwi
+# 5. Go to Actions tab → Deploy Supabase Functions → Run workflow

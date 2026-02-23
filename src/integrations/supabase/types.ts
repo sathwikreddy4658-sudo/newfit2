@@ -218,10 +218,14 @@ export interface Database {
           protein: string | null
           shelf_life: string | null
           stock: number | null
+          stock_status_15g: boolean | null
+          stock_status_20g: boolean | null
           sugar: string | null
           updated_at: string
           weight: string | null
           cart_image: string | null
+          combo_3_discount: number | null
+          combo_6_discount: number | null
         }
         Insert: {
           allergens?: string | null
@@ -242,10 +246,14 @@ export interface Database {
           protein?: string | null
           shelf_life?: string | null
           stock?: number | null
+          stock_status_15g?: boolean | null
+          stock_status_20g?: boolean | null
           sugar?: string | null
           updated_at?: string
           weight?: string | null
           cart_image?: string | null
+          combo_3_discount?: number | null
+          combo_6_discount?: number | null
         }
         Update: {
           allergens?: string | null
@@ -266,10 +274,14 @@ export interface Database {
           protein?: string | null
           shelf_life?: string | null
           stock?: number | null
+          stock_status_15g?: boolean | null
+          stock_status_20g?: boolean | null
           sugar?: string | null
           updated_at?: string
           weight?: string | null
           cart_image?: string | null
+          combo_3_discount?: number | null
+          combo_6_discount?: number | null
         }
         Relationships: []
       }
@@ -281,6 +293,14 @@ export interface Database {
           discount_percentage: number
           id: string
           updated_at: string
+          max_uses: number | null
+          current_uses: number
+          valid_from: string | null
+          valid_until: string | null
+          free_shipping: boolean | null
+          min_order_amount: number | null
+          description: string | null
+          max_discount_amount: number | null
         }
         Insert: {
           active?: boolean
@@ -289,6 +309,14 @@ export interface Database {
           discount_percentage: number
           id?: string
           updated_at?: string
+          max_uses?: number | null
+          current_uses?: number
+          valid_from?: string | null
+          valid_until?: string | null
+          free_shipping?: boolean | null
+          min_order_amount?: number | null
+          description?: string | null
+          max_discount_amount?: number | null
         }
         Update: {
           active?: boolean
@@ -297,8 +325,128 @@ export interface Database {
           discount_percentage?: number
           id?: string
           updated_at?: string
+          max_uses?: number | null
+          current_uses?: number
+          valid_from?: string | null
+          valid_until?: string | null
+          free_shipping?: boolean | null
+          min_order_amount?: number | null
+          description?: string | null
+          max_discount_amount?: number | null
         }
         Relationships: []
+      }
+      profiles: {
+        Row: {
+          id: string
+          name: string | null
+          email: string
+          address: string | null
+          favorites: string[] | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          name?: string | null
+          email: string
+          address?: string | null
+          favorites?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string | null
+          email?: string
+          address?: string | null
+          favorites?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lab_reports: {
+        Row: {
+          id: string
+          product_id: string
+          file_url: string
+          file_name: string
+          file_size: number | null
+          test_type: string | null
+          test_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          file_url: string
+          file_name: string
+          file_size?: number | null
+          test_type?: string | null
+          test_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          file_url?: string
+          file_name?: string
+          file_size?: number | null
+          test_type?: string | null
+          test_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_reports_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      product_faqs: {
+        Row: {
+          id: string
+          product_id: string
+          question: string
+          answer: string
+          display_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          question: string
+          answer: string
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          question?: string
+          answer?: string
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_faqs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       user_roles: {
         Row: {

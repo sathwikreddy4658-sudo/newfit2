@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PhonePe Edge Function Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>PhonePe Function Test</h1>
+    <button onclick="testPhonePe()">Test PhonePe Initiate</button>
+    <pre id="result"></pre>
+
+    <script>
+        const supabase = supabase.createClient(
+            'https://oikibnfnhauymhfpxiwi.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pa2libmZuaGF1eW1oZnB4aXdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5MTAxMzgsImV4cCI6MjA0OTQ4NjEzOH0.ihFWLrBbDbZR3J8BLtkuXM_c_o6RqA8GsbGxDw2wYPk'
+        );
+
+        async function testPhonePe() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing...\n';
+
+            try {
+                console.log('Calling phonepe-initiate...');
+                
+                const { data, error } = await supabase.functions.invoke('phonepe-initiate', {
+                    body: {
+                        merchantTransactionId: 'TEST' + Date.now(),
+                        amount: 100,
+                        redirectUrl: 'http://localhost:8080/test',
+                        callbackUrl: 'https://oikibnfnhauymhfpxiwi.supabase.co/functions/v1/phonepe-webhook',
+                        merchantUserId: 'test-user-' + Date.now()
+                    }
+                });
+
+                resultDiv.textContent = 'Response:\n' + JSON.stringify({ data, error }, null, 2);
+                console.log('Full response:', { data, error });
+
+            } catch (err) {
+                resultDiv.textContent = 'Error:\n' + err.message + '\n\nStack:\n' + err.stack;
+                console.error('Test error:', err);
+            }
+        }
+    </script>
+</body>
+</html>

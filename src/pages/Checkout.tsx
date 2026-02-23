@@ -58,27 +58,11 @@ const Checkout = () => {
 
   // Calculate shipping discount from promo code
   const getShippingDiscount = () => {
-    if (!promoCode || promoCode.promo_type !== 'shipping_discount') return 0;
-    if (!deliveryChecked || !selectedState || !shippingCharge) return 0;
+    if (!promoCode || !promoCode.free_shipping) return 0;
+    if (!deliveryChecked || !shippingCharge) return 0;
 
-    // Check if state is allowed
-    if (promoCode.allowed_states && promoCode.allowed_states.length > 0) {
-      const stateMatch = promoCode.allowed_states.some(
-        allowedState => selectedState.toUpperCase().includes(allowedState.toUpperCase())
-      );
-      if (!stateMatch) return 0;
-    }
-
-    // Check if pincode pattern is allowed
-    if (promoCode.allowed_pincodes && promoCode.allowed_pincodes.length > 0) {
-      const pincodeMatch = promoCode.allowed_pincodes.some(pattern => {
-        const regex = new RegExp('^' + pattern.replace('%', '.*'));
-        return regex.test(selectedPincode);
-      });
-      if (!pincodeMatch) return 0;
-    }
-
-    return (shippingCharge * (promoCode.shipping_discount_percentage || 0)) / 100;
+    // Free shipping promo gives 100% discount on shipping
+    return shippingCharge;
   };
 
   // Guest checkout state
@@ -416,7 +400,8 @@ const Checkout = () => {
       discountedTotal,
       discountAmount,
       promoCode: promoCode?.code,
-      promoType: promoCode?.promo_type,
+      freeShipping: promoCode?.free_shipping,
+      discountPercentage: promoCode?.discount_percentage,
       usingPrice: discountedTotal !== undefined ? discountedTotal : totalPrice
     });
 
@@ -1056,9 +1041,10 @@ const Checkout = () => {
                     <Tag className="w-5 h-5 text-green-600" />
                     <span className="font-mono font-bold text-green-700">{promoCode.code}</span>
                     <span className="text-sm text-green-600">
-                      {promoCode.promo_type === 'shipping_discount' 
-                        ? `(${promoCode.shipping_discount_percentage}% off shipping)` 
-                        : `(${promoCode.discount_percentage}% off)`}
+                      {[
+                        promoCode.free_shipping && '🚚 Free Shipping',
+                        promoCode.discount_percentage > 0 && `💰 ${promoCode.discount_percentage}% OFF`
+                      ].filter(Boolean).join(' + ')}
                     </span>
                   </div>
                   <Button
@@ -1100,17 +1086,17 @@ const Checkout = () => {
                 <span className="font-medium">₹{totalPrice}</span>
               </div>
               
-              {promoCode && promoCode.promo_type === 'percentage' && discountAmount > 0 && (
+              {promoCode && promoCode.discount_percentage > 0 && discountAmount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Discount ({promoCode.discount_percentage}%)</span>
                   <span>-₹{discountAmount.toFixed(2)}</span>
                 </div>
               )}
               
-              {promoCode && promoCode.promo_type === 'shipping_discount' && getShippingDiscount() > 0 && (
+              {promoCode && promoCode.free_shipping && getShippingDiscount() > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-blue-600">
-                    🎉 Shipping Discount ({promoCode.shipping_discount_percentage}%)
+                    🎉 Free Shipping
                   </span>
                   <span className="text-blue-600 font-medium">({promoCode.code})</span>
                 </div>

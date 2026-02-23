@@ -113,7 +113,7 @@ export async function initiatePhonePePayment(
 
       // Use Supabase functions.invoke() - it handles authentication automatically
       // This works for both authenticated users and guest users (uses anon key)
-      const { data, error } = await supabase.functions.invoke('phonepe_initiate', {
+      const { data, error } = await supabase.functions.invoke('phonepe-initiate', {
         body: requestBody
       });
 

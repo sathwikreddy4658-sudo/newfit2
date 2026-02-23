@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://osromibanfzzthdmhyzp.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zcm9taWJhbmZ6enRoZG1oeXpwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgzMDMyOSwiZXhwIjoyMDc4NDA2MzI5fQ.I1P1jpiI5hHe5Hue57p1i8_kkQEC3a8tWtPJQUTpdTk';
+const supabaseUrl = 'https://oikibnfnhauymhfpxiwi.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pa2libmZuaGF1eW1oZnB4aXdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc1NTExNTgsImV4cCI6MjA1MzEyNzE1OH0.U7FaI1E3M6FxwZCOZ1lRSvAiKL-kKW0e6Gk2qlZSkUY';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -27,17 +27,20 @@ async function testAdminVerification() {
 
     console.log('Sign-in successful:', data.user?.email);
 
-    // Test admin verification
-    const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-admin', {
-      headers: {
-        Authorization: `Bearer ${data.session?.access_token}`,
-      },
-    });
+    // Test admin verification via direct database query
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
 
     if (verifyError) {
       console.error('Admin verification error:', verifyError);
+    } else if (verifyData) {
+      console.log('Admin verification result: User has admin role');
     } else {
-      console.log('Admin verification result:', verifyData);
+      console.log('Admin verification result: User does NOT have admin role');
     }
 
   } catch (err) {

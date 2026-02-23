@@ -21,14 +21,15 @@ const AdminAuth = () => {
   const checkAdminAccess = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      // Verify admin access via server-side Edge Function
-      const { data, error } = await supabase.functions.invoke('verify-admin', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      // Check admin role directly from database
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
 
-      if (!error && data?.isAdmin) {
+      if (!error && data) {
         navigate("/admin/dashboard");
       }
     }
@@ -62,14 +63,15 @@ const AdminAuth = () => {
     }
 
     if (data.user) {
-      // Verify admin access via server-side Edge Function
-      const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-admin', {
-        headers: {
-          Authorization: `Bearer ${data.session?.access_token}`,
-        },
-      });
+      // Check admin role directly from database
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
 
-      if (verifyError || !verifyData?.isAdmin) {
+      if (roleError || !roleData) {
         await supabase.auth.signOut();
         toast({ title: "Access denied", description: "Admin access required", variant: "destructive" });
       } else {

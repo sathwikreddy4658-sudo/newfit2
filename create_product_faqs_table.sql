@@ -35,9 +35,9 @@ CREATE POLICY "Admins can insert product FAQs"
   TO authenticated
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.is_admin = true
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role = 'admin'
     )
   );
 
@@ -48,9 +48,9 @@ CREATE POLICY "Admins can update product FAQs"
   TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.is_admin = true
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role = 'admin'
     )
   );
 
@@ -61,9 +61,9 @@ CREATE POLICY "Admins can delete product FAQs"
   TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.is_admin = true
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role = 'admin'
     )
   );
 

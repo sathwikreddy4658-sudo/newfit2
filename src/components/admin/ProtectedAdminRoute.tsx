@@ -27,16 +27,17 @@ const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
           return;
         }
 
-        // Verify admin access via server-side Edge Function
-        const { data, error } = await supabase.functions.invoke('verify-admin', {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        });
+        // Check admin role directly from database
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
 
         if (!isMounted) return;
 
-        if (error || !data?.isAdmin) {
+        if (roleError || !roleData) {
           navigate("/", { replace: true });
           return;
         }

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Helmet } from "react-helmet-async";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,11 +23,39 @@ import image8 from "@/assets/8.png";
 import image10 from "@/assets/10.png";
 import undressedpb from "@/assets/undressedpb.png";
 import dressedpb from "@/assets/dressedpb.png";
+import undressedcc from "@/assets/undressedcc.png";
+import dressedcc from "@/assets/dressedcc.png";
+import undressedcp from "@/assets/undressedcp.png";
+import dressedcp from "@/assets/dressedcp.png";
+
+// Product-specific color mapping
+const getProductAccentColor = (productName: string | undefined): string => {
+  if (!productName) return "5e4338";
+  const lowerName = productName.toLowerCase();
+  const colorMap: { [key: string]: string } = {
+    "cranberry cocoa": "6f3237",
+    "caramelly peanut": "ecbc72",
+  };
+  return colorMap[lowerName] || "5e4338";
+};
+
+// Product-specific animation image mapping
+const getAnimationImages = (productName: string | undefined): { undressed: string; dressed: string } => {
+  if (!productName) return { undressed: undressedpb, dressed: dressedpb };
+  const lowerName = productName.toLowerCase();
+  const imageMap: { [key: string]: { undressed: string; dressed: string } } = {
+    "cranberry cocoa": { undressed: undressedcc, dressed: dressedcc },
+    "caramelly peanut": { undressed: undressedcp, dressed: dressedcp },
+  };
+  return imageMap[lowerName] || { undressed: undressedpb, dressed: dressedpb };
+};
 
 const ProductDetail = () => {
   const { name } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { addItem } = useCart();
+  const animationSectionRef = useRef<HTMLDivElement>(null);
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -41,6 +69,9 @@ const ProductDetail = () => {
   const [selectedProtein, setSelectedProtein] = useState("15g");
   const [lastTapTime, setLastTapTime] = useState(0);
   const [tapTimeout, setTapTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [swipeStartX, setSwipeStartX] = useState(0);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const accentColor = getProductAccentColor(product?.name);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -51,9 +82,21 @@ const ProductDetail = () => {
   useEffect(() => {
     if (name) {
       fetchProduct();
+      fetchAllProducts();
       if (user) checkFavorite();
+      // Scroll to hero section when product changes
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [name, user]);
+
+  useEffect(() => {
+    if (product && animationSectionRef.current) {
+      // Only scroll to animation section if navigation came from animation
+      if (location.state?.from === 'animation') {
+        animationSectionRef.current?.scrollIntoView({ behavior: "auto", block: "center" });
+      }
+    }
+  }, [product, location]);
 
   useEffect(() => {
     if (product?.min_order_quantity) {
@@ -124,6 +167,24 @@ const ProductDetail = () => {
       console.log('❌ No data returned for product');
     }
     setLoading(false);
+  };
+
+  const fetchAllProducts = async () => {
+    try {
+      const { data: products, error } = await supabase
+        .from("products")
+        .select("name")
+        .eq("is_hidden", false)
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching all products:", error);
+      } else if (products) {
+        setAllProducts(products);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
   };
 
   const checkFavorite = async () => {
@@ -286,6 +347,55 @@ const ProductDetail = () => {
     }
   };
 
+  const handleSwipeStart = (e: React.TouchEvent) => {
+    setSwipeStartX(e.touches[0].clientX);
+  };
+
+  const handleSwipeEnd = (e: React.TouchEvent) => {
+    const swipeEndX = e.changedTouches[0].clientX;
+    const swipeDiff = swipeStartX - swipeEndX;
+    
+    if (Math.abs(swipeDiff) > 50) {
+      if (swipeDiff > 0) {
+        // Swiped left, go to next product
+        navigateToNextProduct();
+      } else {
+        // Swiped right, go to previous product
+        navigateToPreviousProduct();
+      }
+    }
+  };
+
+  const navigateToNextProduct = () => {
+    if (!product || allProducts.length === 0) return;
+
+    // Find current product index
+    const currentIndex = allProducts.findIndex(p => p.name === product.name);
+    
+    // Get next product index (loop to first product if at the end)
+    const nextIndex = (currentIndex + 1) % allProducts.length;
+    const nextProduct = allProducts[nextIndex];
+
+    if (nextProduct) {
+      navigate(`/product/${encodeURIComponent(nextProduct.name)}`, { state: { from: 'animation' } });
+    }
+  };
+
+  const navigateToPreviousProduct = () => {
+    if (!product || allProducts.length === 0) return;
+
+    // Find current product index
+    const currentIndex = allProducts.findIndex(p => p.name === product.name);
+    
+    // Get previous product index (loop to last product if at the beginning)
+    const prevIndex = (currentIndex - 1 + allProducts.length) % allProducts.length;
+    const prevProduct = allProducts[prevIndex];
+
+    if (prevProduct) {
+      navigate(`/product/${encodeURIComponent(prevProduct.name)}`, { state: { from: 'animation' } });
+    }
+  };
+
 
 
   if (loading) {
@@ -357,26 +467,29 @@ const ProductDetail = () => {
         )}
       </Helmet>
       <div className="min-h-screen w-full bg-[#b5edce]/30">
-        <div className="container mx-auto px-4 py-0">
+        <div className="container mx-auto px-4 pt-6 md:pt-0">
 
-    {/* Animated Hero Section - Suit-Up Reveal Effect */}
-    <div className="mb-0 flex justify-center">
+    {/* Animated Hero Section - Suit-Up Reveal Effect (Desktop Only) */}
+    <div className="mb-0 hidden md:flex justify-center">
       <div className="relative h-96 w-full max-w-4xl md:h-screen md:max-w-full overflow-hidden flex items-center justify-center">
           {/* Base Image (Undressed) */}
           <img 
-            src={undressedpb} 
+            src={getAnimationImages(product?.name).undressed} 
             alt="low calorie protein bar choco nut"
             width="800"
             height="800"
-            className="w-full h-full object-contain absolute inset-0 -rotate-90 drop-shadow-2xl"
+            className="w-full h-full object-contain absolute inset-0 drop-shadow-2xl"
             loading="eager"
             decoding="async"
-            style={{ aspectRatio: '1' }}
+            style={{ 
+              aspectRatio: '1',
+              transform: product?.name?.toLowerCase() === 'cranberry cocoa' ? 'rotate(-90deg) scale(0.75)' : product?.name?.toLowerCase() === 'caramelly peanut' ? 'rotate(-90deg) scale(0.78)' : 'rotate(-90deg)'
+            }}
           />
 
           {/* Overlay Image (Dressed) with Reveal Animation */}
           <img 
-            src={dressedpb} 
+            src={getAnimationImages(product?.name).dressed} 
             alt="freel it low calorie protein bar" 
             width="800"
             height="800"
@@ -388,7 +501,7 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8 -mt-20 md:-mt-40">
+      <div className="grid md:grid-cols-2 gap-8 md:-mt-40">
         <div className="relative">
           <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
             <DialogTrigger asChild>
@@ -493,8 +606,14 @@ const ProductDetail = () => {
                   onClick={() => setCurrentImageIndex(index)}
                   className={cn(
                     "flex-shrink-0 w-10 h-10 rounded border-2 overflow-hidden transition-all",
-                    index === currentImageIndex ? "border-[#5e4338] ring-2 ring-[#5e4338]/30" : "border-gray-300 hover:border-gray-400"
+                    index === currentImageIndex ? "border-gray-300 hover:border-gray-400" : "border-gray-300 hover:border-gray-400"
                   )}
+                  style={{
+                    ...(index === currentImageIndex && {
+                      borderColor: `#${accentColor}`,
+                      boxShadow: `0 0 0 2px rgba(${parseInt(accentColor.slice(0, 2), 16)}, ${parseInt(accentColor.slice(2, 4), 16)}, ${parseInt(accentColor.slice(4, 6), 16)}, 0.3)`
+                    })
+                  }}
                 >
                   <img
                     src={image}
@@ -511,7 +630,7 @@ const ProductDetail = () => {
         <div>
           <div className="flex items-start gap-4 mb-3">
             <div className="flex-1">
-              <h1 className="font-saira font-black text-[#5e4338] text-4xl md:text-5xl mb-1 uppercase-text">{product.name}</h1>
+              <h1 className="font-saira font-black text-4xl md:text-5xl mb-1 uppercase-text" style={{ color: `#${accentColor}` }}>{product.name}</h1>
               <p className="font-poppins font-black uppercase text-[#3b2a20] text-lg md:text-lg">PROTEIN BAR</p>
             </div>
             {product.stock === 0 && (
@@ -661,7 +780,12 @@ const ProductDetail = () => {
                 (selectedProtein === "15g" && product.stock_status_15g === false) ||
                 (selectedProtein === "20g" && product.stock_status_20g === false)
               }
-              className="flex-1 min-w-[130px] font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 min-w-[130px] font-poppins font-black text-white py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed hover:text-white"
+              style={{
+                backgroundColor: `#${accentColor}`,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'white', e.currentTarget.style.color = `#${accentColor}`)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = `#${accentColor}`, e.currentTarget.style.color = 'white')}
             >
               <ShoppingCart className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
               {product.stock === 0 || 
@@ -679,7 +803,12 @@ const ProductDetail = () => {
                 (selectedProtein === "15g" && product.stock_status_15g === false) ||
                 (selectedProtein === "20g" && product.stock_status_20g === false)
               }
-              className="flex-1 min-w-[100px] font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 min-w-[100px] font-poppins font-black text-white py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed hover:text-white"
+              style={{
+                backgroundColor: `#${accentColor}`,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'white', e.currentTarget.style.color = `#${accentColor}`)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = `#${accentColor}`, e.currentTarget.style.color = 'white')}
             >
               Buy Now
             </Button>
@@ -687,7 +816,12 @@ const ProductDetail = () => {
             {cartQuantity >= minOrderQuantity && (
               <Button
                 onClick={() => navigate("/cart")}
-                className="px-2 md:px-3 py-2 md:py-4 font-poppins font-black text-white bg-[#5e4338] hover:bg-white hover:text-[#5e4338] active:scale-105 active:shadow-xl transition-all duration-150 relative shrink-0"
+                className="px-2 md:px-3 py-2 md:py-4 font-poppins font-black text-white active:scale-105 active:shadow-xl transition-all duration-150 relative shrink-0 hover:text-white"
+                style={{
+                  backgroundColor: `#${accentColor}`,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'white', e.currentTarget.style.color = `#${accentColor}`)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = `#${accentColor}`, e.currentTarget.style.color = 'white')}
               >
                 <ShoppingBag className="h-3 w-3 md:h-4 md:w-4" />
                 <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-red-500 text-white rounded-full h-4 w-4 md:h-5 md:w-5 flex items-center justify-center text-[10px] md:text-xs font-bold">
@@ -716,8 +850,14 @@ const ProductDetail = () => {
                   onClick={() => setCurrentImageIndex(index)}
                   className={cn(
                     "flex-shrink-0 w-20 h-20 rounded border-2 overflow-hidden transition-all",
-                    index === currentImageIndex ? "border-[#5e4338] ring-2 ring-[#5e4338]/30" : "border-gray-300 hover:border-gray-400"
+                    index === currentImageIndex ? "border-gray-300 hover:border-gray-400" : "border-gray-300 hover:border-gray-400"
                   )}
+                  style={{
+                    ...(index === currentImageIndex && {
+                      borderColor: `#${accentColor}`,
+                      boxShadow: `0 0 0 2px rgba(${parseInt(accentColor.slice(0, 2), 16)}, ${parseInt(accentColor.slice(2, 4), 16)}, ${parseInt(accentColor.slice(4, 6), 16)}, 0.3)`
+                    })
+                  }}
                 >
                   <img
                     src={image}
@@ -732,13 +872,72 @@ const ProductDetail = () => {
         </div>
       </div>
 
+      {/* Animated Hero Section - Mobile Only (between buttons and description) */}
+      <div ref={animationSectionRef} className="mb-0 flex md:hidden justify-center mt-2">
+        <div 
+          className="relative h-96 w-full overflow-hidden flex items-center justify-center group"
+          onTouchStart={handleSwipeStart}
+          onTouchEnd={handleSwipeEnd}
+        >
+          {/* Base Image (Undressed) */}
+          <img 
+            src={getAnimationImages(product?.name).undressed} 
+            alt="low calorie protein bar choco nut"
+            width="400"
+            height="400"
+            className="w-full h-full object-contain absolute inset-0 drop-shadow-lg"
+            loading="eager"
+            decoding="async"
+            style={{ 
+              aspectRatio: '1',
+              transform: product?.name?.toLowerCase() === 'cranberry cocoa' ? 'rotate(-90deg) scale(0.75)' : product?.name?.toLowerCase() === 'caramelly peanut' ? 'rotate(-90deg) scale(0.78)' : 'rotate(-90deg)'
+            }}
+          />
 
+          {/* Overlay Image (Dressed) with Reveal Animation */}
+          <img 
+            src={getAnimationImages(product?.name).dressed} 
+            alt="freel it low calorie protein bar" 
+            width="400"
+            height="400"
+            className="w-full h-full object-contain absolute inset-0 image-reveal-left -rotate-90"
+            loading="eager"
+            decoding="async"
+            style={{ aspectRatio: '1' }}
+          />
+
+          {/* Left Navigation Button */}
+          <Button
+            onClick={navigateToPreviousProduct}
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white border-0 rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+            size="sm"
+            variant="outline"
+          >
+            <ChevronLeft className="h-5 w-5 text-black" />
+          </Button>
+
+          {/* Right Navigation Button */}
+          <Button
+            onClick={navigateToNextProduct}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white border-0 rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+            size="sm"
+            variant="outline"
+          >
+            <ChevronRight className="h-5 w-5 text-black" />
+          </Button>
+
+          {/* Swipe Hint Text */}
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-600 bg-white/70 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+            Swipe or click to explore
+          </div>
+        </div>
+      </div>
 
       </div>
 
       {/* New section for protein bars */}
       {product.category === 'protein_bars' && (
-        <div className="bg-[#5e4338] py-4 w-full">
+        <div className="py-2 w-full" style={{ backgroundColor: `#${accentColor}` }}>
           <div className="w-full">
             <div className="px-4 mb-12 pt-8 ">
               <h2 className="font-saira font-black text-2xl text-left text-[#b5edce] uppercase">Product description:</h2>
@@ -751,7 +950,7 @@ const ProductDetail = () => {
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-12 max-w-none px-4">
-              <div className="bg-[#5e4338] border-4 border-white p-8 rounded-lg">
+              <div className="border-4 border-white p-8 rounded-lg" style={{ backgroundColor: `#${accentColor}` }}>
                 <h3 className="font-saira font-black text-2xl text-white uppercase mb-4">Inside The Bar</h3>
                 <hr className="border-white mb-4" />
                 <ul className="text-white font-tomorrow list-disc list-inside space-y-1 md:text-lg">
@@ -767,7 +966,7 @@ const ProductDetail = () => {
                   
                 </ul>
               </div>
-              <div className="bg-[#5e4338] border-4 border-white p-8 rounded-lg">
+              <div className="border-4 border-white p-8 rounded-lg" style={{ backgroundColor: `#${accentColor}` }}>
                 <h3 className="font-saira font-black text-2xl text-white uppercase mb-4">Nutrition Info</h3>
                 <hr className="border-white mb-4" />
                 <table className="w-full text-white font-tomorrow">
@@ -856,7 +1055,7 @@ const ProductDetail = () => {
         <div className="bg-white py-10 w-full mt">
           <div className="max-w-6xl mx-auto px-4">
             <div className="text-center mb-8">
-              <h2 className="font-saira font-black text-3xl md:text-5xl text-[#5e4338] uppercase mb-4">
+              <h2 className="font-saira font-black text-3xl md:text-5xl uppercase mb-4" style={{ color: `#${accentColor}` }}>
                 Not Just a Regular Real-Ingredient Bar, but a Bar Built Better.
               </h2>
               <p className="font-saira font-semibold text-xl md:text-3xl text-[#b5edce] mb-8">
@@ -890,7 +1089,7 @@ const ProductDetail = () => {
               <ProductRatingSummary productId={product.id} />
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button className="bg-[#5e4338] hover:bg-[#4a3528] text-white font-saira font-black uppercase px-6 py-3 mt-4">
+                  <Button className="text-white font-saira font-black uppercase px-6 py-3 mt-4" style={{ backgroundColor: `#${accentColor}` }} onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')} onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
                     Rate This Product
                   </Button>
                 </DialogTrigger>
@@ -919,7 +1118,8 @@ const ProductDetail = () => {
             <div className="flex flex-col md:flex-row gap-4 justify-center">
               <Link
                 to="/products"
-                className="px-6 py-2 bg-[#5e4338] text-white rounded hover:bg-[#4a3528] transition text-center font-poppins font-semibold"
+                className="px-6 py-2 text-white rounded transition text-center font-poppins font-semibold hover:opacity-90"
+                style={{ backgroundColor: `#${accentColor}` }}
               >
                 See All Products
               </Link>
