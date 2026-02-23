@@ -6,6 +6,12 @@
       "maxDuration": 10
     }
   },
+  "crons": [
+    {
+      "path": "/api/keep-alive",
+      "schedule": "0 * * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",

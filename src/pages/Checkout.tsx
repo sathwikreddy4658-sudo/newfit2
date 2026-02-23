@@ -676,15 +676,21 @@ const Checkout = () => {
       billingAddress = profile?.address || userContactData?.address || '';
     }
 
-    // Ensure address meets PhonePe minimum length (10 chars)
+    // Ensure address meets PhonePe minimum length (10 chars) - CRITICAL FIX
     if (!billingAddress || billingAddress.trim().length < 10) {
-      billingAddress = `${phoneNumber}, India`; // Fallback with phone number
+      // Build fallback address with guaranteed minimum 10 chars
+      if (phoneNumber && phoneNumber.length >= 10) {
+        billingAddress = `${phoneNumber}, India`;
+      } else {
+        billingAddress = 'Customer Address, India'; // Safe fallback (24 chars)
+      }
     }
 
     console.log('[Checkout] Billing address for payment:', {
       isGuest: isGuestCheckout,
       addressLength: billingAddress.length,
-      addressPreview: billingAddress.substring(0, 50)
+      addressPreview: billingAddress.substring(0, 50),
+      phoneNumber: phoneNumber || 'none'
     });
 
     // Initiate PhonePe payment
