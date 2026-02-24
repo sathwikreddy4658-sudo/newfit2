@@ -157,7 +157,7 @@ const OrdersTab = () => {
     // Try to fetch additional data (profiles and payment_transactions) separately
     // This won't fail if tables don't exist or relationships aren't set up
     const orderIds = ordersData.map(o => o.id);
-    const userIds = [...new Set(ordersData.map(o => o.user_id))];
+    const userIds = [...new Set(ordersData.map(o => o.user_id).filter(Boolean))];
 
     // Fetch profiles separately
     let profilesMap: any = {};
@@ -201,21 +201,6 @@ const OrdersTab = () => {
       payment_transactions: paymentsMap[order.id] || []
     }));
 
-    // Log first order to check pricing columns
-    if (enrichedOrders.length > 0) {
-      console.log('[Admin] Sample order data:', {
-        id: enrichedOrders[0].id,
-        total_price: enrichedOrders[0].total_price,
-        shipping_charge: enrichedOrders[0].shipping_charge,
-        cod_charge: enrichedOrders[0].cod_charge,
-        discount_applied: enrichedOrders[0].discount_applied,
-        payment_method: enrichedOrders[0].payment_method,
-        customer_name: enrichedOrders[0].customer_name,
-        customer_email: enrichedOrders[0].customer_email,
-        customer_phone: enrichedOrders[0].customer_phone
-      });
-    }
-
     setOrders(enrichedOrders);
     setFilteredOrders(enrichedOrders);
     
@@ -224,11 +209,6 @@ const OrdersTab = () => {
       setLastOrderCount(enrichedOrders.length);
       isInitialLoad.current = false;
     } else if (enrichedOrders.length > lastOrderCount) {
-      // New orders detected
-      const newOrdersCount = enrichedOrders.length - lastOrderCount;
-      if (notificationsEnabled && newOrdersCount > 0) {
-        playNotificationSound();
-      }
       setLastOrderCount(enrichedOrders.length);
     }
   };
@@ -249,7 +229,66 @@ const OrdersTab = () => {
       toast({ title: "Status update failed", variant: "destructive" });
     } else {
       toast({ title: "Order status updated" });
+      
+      // Auto-send emails for shipped and delivered statuses
+      if (newStatus === "shipped" || newStatus === "delivered") {
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+          setTimeout(() => {
+            handleStatusChangeEmail(orderId, newStatus, order);
+          }, 500);
+        }
+      }
+      
       fetchOrders();
+    }
+  };
+
+  const handleStatusChangeEmail = async (orderId: string, status: string, order: any) => {
+    const customerEmail = order.customer_email || order.profiles?.email;
+    if (!customerEmail) {
+      console.log("No email found for auto-sending status email");
+      return;
+    }
+
+    try {
+      const apiUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3001/api/send-email'
+        : `${window.location.origin}/api/send-email`;
+
+      let emailPayload: any = {
+        orderId: order.id,
+        customerEmail: customerEmail,
+        customerName: order.customer_name || order.profiles?.name || "Customer",
+        address: order.address,
+      };
+
+      if (status === "shipped") {
+        emailPayload.emailType = "shipped";
+        emailPayload.trackingNumber = order.tracking_number || "";
+        emailPayload.carrierName = order.carrier_name || "";
+        emailPayload.estimatedDeliveryDate = order.estimated_delivery || "";
+      } else if (status === "delivered") {
+        emailPayload.emailType = "delivered";
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailPayload)
+      });
+
+      const data = await response.json();
+      console.log(`Auto-sent ${status} email:`, { status: response.status, success: data.success });
+
+      if (!response.ok || data?.success === false) {
+        console.warn(`Failed to auto-send ${status} email:`, data.error);
+      }
+    } catch (error) {
+      console.error(`Error auto-sending ${status} email:`, error);
+      // Don't show toast - this is a background operation
     }
   };
 

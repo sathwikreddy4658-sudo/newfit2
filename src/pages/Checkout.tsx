@@ -458,13 +458,31 @@ const Checkout = () => {
       }))
     });
 
-    // Create order params - Use simpler function signature without discount parameters
+    // Build customer details (for both guest and authenticated users)
+    const customerName = isGuestCheckout ? guestData.name?.trim() : userContactData.name?.trim();
+    const customerEmail = isGuestCheckout ? guestData.email?.trim() : userContactData.email?.trim();
+    const customerPhone = isGuestCheckout ? guestData.phone?.trim() : userContactData.phone?.trim();
+
+    // Pricing breakdown
+    const itemsSubtotal = discountedTotal !== undefined ? discountedTotal : totalPrice; // after product discount
+    const appliedDiscount = discountAmount || 0;
+    const netShipping = Math.max(0, shippingCharge - shippingDiscount);
+    const codCharge = finalPricing.codCharge || 0;
+
+    // Create order params - all pricing + customer details saved atomically via SECURITY DEFINER
     const orderParams = {
       p_user_id: authUser?.id || null,
-      p_total_price: itemsTotal,
+      p_total_price: itemsSubtotal,       // after-discount items subtotal (for DB validation)
       p_address: isGuestCheckout ? guestData.address : profile.address,
       p_payment_id: null,
-      p_items: orderItems
+      p_items: orderItems,
+      p_discount_amount: appliedDiscount,  // actual promo/coupon discount
+      p_customer_name: customerName || null,
+      p_customer_email: customerEmail || null,
+      p_customer_phone: customerPhone || null,
+      p_shipping_charge: netShipping,      // shipping after any shipping discount
+      p_cod_charge: codCharge,             // COD surcharge (0 for online payments)
+      p_payment_method: paymentMethod      // 'cod' or 'online'
     };
 
     console.log('[Checkout] Sending orderParams to database:', orderParams);
@@ -504,48 +522,7 @@ const Checkout = () => {
 
     const orderId = result.order_id;
     console.log('[Checkout] Order created successfully with ID:', orderId);
-
-    // Update order with customer info and all pricing details after creation
-    const updateData: any = {
-      customer_name: isGuestCheckout ? guestData.name : userContactData.name,
-      customer_email: isGuestCheckout ? guestData.email : userContactData.email,
-      customer_phone: isGuestCheckout ? guestData.phone : userContactData.phone,
-      total_price: finalPricing.total, // Final total with all charges
-      shipping_charge: shippingCharge - shippingDiscount, // Shipping after discount
-      cod_charge: finalPricing.codCharge || 0, // COD charge if applicable
-      discount_applied: discountAmount || 0, // Product discount
-      payment_method: paymentMethod // 'online' or 'cod'
-    };
-
-    console.log('[Checkout] Updating order with customer info and pricing:', {
-      orderId,
-      updateData,
-      finalPricing,
-      breakdown: {
-        itemsTotal: finalPricing.subtotal,
-        shippingCharge: finalPricing.shippingCharge,
-        codCharge: finalPricing.codCharge,
-        discount: discountAmount,
-        finalTotal: finalPricing.total
-      }
-    });
-
-    const { data: updateResult, error: updateError } = await supabase
-      .from("orders")
-      .update(updateData)
-      .eq("id", orderId)
-      .select();
-
-    if (updateError) {
-      console.error('[Checkout] CRITICAL ERROR updating order:', updateError);
-      toast({
-        title: "Warning",
-        description: "Order created but pricing may be incorrect. Please contact support.",
-        variant: "destructive"
-      });
-    } else {
-      console.log('[Checkout] Order updated successfully:', updateResult);
-    }
+    console.log('[Checkout] Customer details saved with order:', { customerName, customerEmail, customerPhone });
 
     // Track promo code usage if a promo code was applied (only for authenticated users)
     if (promoCode && !isGuestCheckout && authUser) {
