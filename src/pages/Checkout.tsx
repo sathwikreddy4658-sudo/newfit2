@@ -30,7 +30,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<any>({});
   const [processing, setProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successOrderData, setSuccessOrderData] = useState<{orderId: string, email: string, isGuest: boolean, guestName?: string, guestPhone?: string} | null>(null);
@@ -115,9 +115,20 @@ const Checkout = () => {
     }
   }, [isGuestCheckout, navigate]);
 
+  // Debug: Track profile changes
+  useEffect(() => {
+    console.log('[Checkout] Profile state changed:', {
+      profile,
+      hasAddress: !!profile?.address,
+      addressLength: profile?.address?.length || 0,
+      addressSaved
+    });
+  }, [profile, addressSaved]);
+
   // Update contact form when profile loads or user changes
   useEffect(() => {
     if (!isGuestCheckout && (profile || user)) {
+      console.log('[Checkout] Updating userContactData from profile:', { profile, user: !!user });
       setUserContactData({
         name: profile?.full_name || user?.email?.split('@')[0] || '',
         email: user?.email || '',
@@ -163,11 +174,13 @@ const Checkout = () => {
       
       if (userDocSnap.exists()) {
         const data = userDocSnap.data();
-        setProfile({
+        const profileData = {
           address: data.address || '',
           full_name: data.full_name || '',
           phone: data.phone || ''
-        });
+        };
+        console.log('[Checkout] Setting profile from Firestore:', profileData);
+        setProfile(profileData);
         
         // Pre-fill contact form with existing data if available
         setUserContactData({
@@ -290,14 +303,18 @@ const Checkout = () => {
       currentProfile: profile
     });
     
+    // Ensure profile object exists before spreading
     setProfile({ 
-      ...profile, 
+      ...(profile || {}), 
       address: formattedAddress,
       phone: address.phone 
     });
     setAddressSaved(true);
     
-    console.log('[Checkout] Profile updated with saved address, addressSaved set to true');
+    console.log('[Checkout] Profile updated with saved address:', {
+      newProfile: { address: formattedAddress, phone: address.phone },
+      addressSaved: true
+    });
     
     // Auto-trigger delivery check
     setCheckingDelivery(true);
