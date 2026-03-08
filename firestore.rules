@@ -105,6 +105,14 @@ service cloud.firestore {
                                resource.data.user_id == request.auth.uid;
     }
 
+    // ============ USER ROLES ============
+    // Only the owning user or an admin can read roles.
+    // Only server-side (Admin SDK) can write — clients cannot self-assign admin.
+    match /user_roles/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false; // write only via Admin SDK
+    }
+
     // Deny all other access by default
     match /{document=**} {
       allow read, write: if false;
