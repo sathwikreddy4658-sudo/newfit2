@@ -185,6 +185,26 @@ export async function createOrder(
   }
 }
 
+export async function deductStock(
+  items: Array<{ productId?: string; product_id?: string; quantity?: number }>
+): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    for (const item of items) {
+      const pid = item.productId || item.product_id;
+      const qty = item.quantity || 1;
+      if (pid) {
+        batch.update(doc(db, 'products', pid), { stock: increment(-qty) });
+      }
+    }
+    await batch.commit();
+    console.log('[deductStock] Stock deducted for', items.length, 'items');
+  } catch (error) {
+    console.error('[deductStock] Error:', error);
+    throw error;
+  }
+}
+
 export async function updateOrder(
   orderId: string,
   updates: Partial<Order>

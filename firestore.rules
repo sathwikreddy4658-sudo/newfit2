@@ -24,12 +24,22 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.token.admin == true;
     }
 
+    // ============ PAYMENT TRANSACTIONS ============
+    // Authenticated users can read their own payment transactions
+    // Anyone can create (guest checkout support)
+    match /payment_transactions/{txId} {
+      allow read: if request.auth != null;
+      allow create: if true;
+      allow update: if false; // only updated server-side via Admin SDK
+      allow delete: if false;
+    }
+
     // ============ ORDERS ============
     // Authenticated users can read their own orders, admins can read/write all.
     // Guest checkout is supported — order creation is allowed without auth.
     match /orders/{orderId} {
       allow read: if request.auth != null && 
-                    (resource.data.userId == request.auth.uid || 
+                    (resource.data.user_id == request.auth.uid || 
                      request.auth.token.admin == true);
       allow create: if true;  // guests and logged-in users can both place orders
       allow update: if request.auth != null && request.auth.token.admin == true;

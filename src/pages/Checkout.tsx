@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { getCurrentUser, auth } from "@/integrations/firebase/auth";
-import { createOrder, getPromoCode, getAllProducts, getVisiblePromoCodes } from "@/integrations/firebase/db";
+import { createOrder, getPromoCode, getAllProducts, getVisiblePromoCodes, deductStock } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -575,8 +575,14 @@ const Checkout = () => {
     if (paymentMethod === 'cod') {
       console.log('[Checkout] Confirming COD order:', { orderId, codTransactionId });
       
-      // For COD, order is already marked as confirmed during creation
-      // Just store the transaction ID if needed for records
+      // Deduct stock immediately for COD orders (no webhook for COD)
+      try {
+        await deductStock(orderItems.map(i => ({ productId: i.productId, quantity: i.quantity })));
+        console.log('[Checkout] Stock deducted for COD order');
+      } catch (err) {
+        console.error('[Checkout] Stock deduction error (non-fatal):', err);
+      }
+      
       console.log('[Checkout] COD order confirmed successfully');
       
       // Prevent cart redirect during success flow

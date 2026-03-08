@@ -41,9 +41,11 @@ const PaymentCallback = () => {
         console.log('[PaymentCallback] PhonePe API response:', JSON.stringify(data, null, 2));
 
         // Check if the request was successful
+        // NOTE: Return PENDING (not FAILED) for server/config errors (e.g. 403 IAM, 5xx)
+        // so we don't falsely mark a successful payment as failed.
         if (!response.ok) {
-          console.error('[PaymentCallback] PhonePe check-status error:', response.status, data);
-          return 'FAILED';
+          console.error('[PaymentCallback] PhonePe check-status HTTP error:', response.status, data);
+          return 'PENDING';
         }
 
         // Check the Edge Function response structure
@@ -255,7 +257,7 @@ const PaymentCallback = () => {
               setStatus('success');
               return;
             } else if (phonePeStatus === 'FAILED') {
-              console.log('[PaymentCallback] Payment FAILED');
+              console.log('[PaymentCallback] Payment FAILED confirmed by PhonePe');
               
               const txDoc = await getPaymentTx(transactionId);
               if (txDoc?.ref) {
@@ -267,9 +269,20 @@ const PaymentCallback = () => {
 
               setStatus('failed');
               return;
+            } else {
+              // PENDING or any non-conclusive status (includes 403/5xx from API)
+              console.warn('[PaymentCallback] Payment status inconclusive — redirecting to orders page');
+              toast({
+                title: "Payment Processing",
+                description: "Your payment is being verified. Please check your orders page for the latest status.",
+              });
+              clearCart();
+              setTimeout(() => navigate('/orders'), 3000);
+              setStatus('success');
+              return;
             }
           } catch (phonepeError) {
-            console.error('[PaymentCallback] PhonePe API call failed (this is OK if webhook processed):', phonepeError);
+            console.error('[PaymentCallback] PhonePe API call failed:', phonepeError);
             
             // One final check - maybe webhook processed while we were trying PhonePe API
             const finalTxCheck = await getPaymentTx(transactionId);
@@ -292,8 +305,15 @@ const PaymentCallback = () => {
               }
             }
             
-            console.warn('[PaymentCallback] Payment verification inconclusive after all attempts');
-            setStatus('failed');
+            // Inconclusive — don't show 'failed', redirect to orders
+            console.warn('[PaymentCallback] Payment verification inconclusive — redirecting to orders page');
+            toast({
+              title: "Payment Under Review",
+              description: "We couldn't automatically verify your payment. Check your orders page — if payment was deducted, your order is confirmed.",
+            });
+            clearCart();
+            setTimeout(() => navigate('/orders'), 4000);
+            setStatus('success');
             return;
           }
         }
