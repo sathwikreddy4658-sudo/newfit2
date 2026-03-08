@@ -525,6 +525,26 @@ const Checkout = () => {
       return;
     }
 
+    // Get the address based on checkout type
+    const orderAddress = isGuestCheckout ? guestData.address : profile?.address;
+    
+    // CRITICAL: Validate address is not empty before creating order
+    if (!orderAddress || orderAddress.trim().length === 0) {
+      console.error('[Checkout] Address validation failed:', {
+        isGuestCheckout,
+        guestDataAddress: guestData.address,
+        profileAddress: profile?.address,
+        addressSaved
+      });
+      toast({
+        title: "Address Required",
+        description: "Please save your complete delivery address before placing the order.",
+        variant: "destructive"
+      });
+      setProcessing(false);
+      return;
+    }
+
     // Create order using Firebase
     const orderData: any = {
       order_number: `ORD-${Date.now()}`,
@@ -532,7 +552,7 @@ const Checkout = () => {
       customer_name: customerName || null,
       customer_email: customerEmail || null,
       customer_phone: customerPhone || null,
-      address: isGuestCheckout ? (guestData.address || null) : (profile?.address || null),
+      address: orderAddress,
       items: orderItems,
       total_amount: itemsSubtotal + netShipping + codCharge - appliedDiscount,
       status: paymentMethod === 'cod' ? 'confirmed' : 'pending',
@@ -544,7 +564,11 @@ const Checkout = () => {
       promo_code: promoCode?.code || null
     };
 
-    console.log('[Checkout] Creating order with Firebase:', orderData);
+    console.log('[Checkout] Creating order with Firebase:', {
+      ...orderData,
+      isGuestCheckout,
+      addressLength: orderAddress.length
+    });
 
     let orderId: string;
     try {
@@ -787,8 +811,10 @@ const Checkout = () => {
                 </div>
                 <AddressForm
                   onAddressSubmit={(address, phone) => {
+                    console.log('[Checkout] Guest address submitted:', { address, phone, addressLength: address?.length });
                     setGuestData({ ...guestData, address, phone: phone || guestData.phone });
                     setAddressSaved(true);
+                    console.log('[Checkout] Guest data updated, addressSaved set to true');
                   }}
                   initialAddress={guestData.address}
                   initialPhone={guestData.phone}
@@ -895,16 +921,19 @@ const Checkout = () => {
                 {(!user || !useSavedAddress) && (
                   <AddressForm
                     onAddressSubmit={(address, phone) => {
+                      console.log('[Checkout] Address submitted:', { address, phone, addressLength: address?.length, isUser: !!user });
                       if (user) {
                         // Use phone from contact info if available, otherwise use the one from address form
                         const finalPhone = userContactData.phone || phone;
                         // Just update local state - all info goes to orders table
                         setProfile({ ...profile, address, phone: finalPhone });
                         setAddressSaved(true);
+                        console.log('[Checkout] User profile updated, addressSaved set to true');
                       } else {
                         // Guest checkout - update guestData
                         setGuestData({ ...guestData, address, phone: phone || guestData.phone });
                         setAddressSaved(true);
+                        console.log('[Checkout] Guest data updated (fallback), addressSaved set to true');
                       }
                     }}
                     initialAddress={user ? profile?.address : guestData.address}

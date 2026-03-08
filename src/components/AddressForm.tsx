@@ -126,6 +126,7 @@ const AddressForm = ({ onAddressSubmit, initialAddress, initialPhone, isLoading,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("=== AddressForm Submit Started ===");
+    console.log("Form Data:", formData);
     console.log("Phone value:", phone);
     console.log("Phone length:", phone.length);
     console.log("Phone cleaned:", phone.replace(/\D/g, ''));
