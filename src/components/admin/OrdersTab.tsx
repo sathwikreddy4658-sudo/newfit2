@@ -367,52 +367,7 @@ const OrdersTab = () => {
 
     try {
       // TODO: Implement Firebase Cloud Functions for notification
-      // Call Firebase Cloud Function instead of Supabase Edge Function
-      // For now, this functionality is disabled
-      return; // Skip notification for now
-      
-      // const response = await fetch(
-      //   `${import.meta.env.VITE_API_URL}/telegram-order-notification`,
-      //   {
-      //     method: 'POST',
-      //     headers: {
-      //       'Content-Type': 'application/json',
-      //       'Authorization': `Bearer ${await (await getCurrentUser())?.getIdToken() || ''}`,
-      //     },
-      //     body: JSON.stringify({
-      //       record: {
-      //         id: order.id,
-      //         user_id: order.user_id,
-      //         customer_name: order.customer_name,
-      //         customer_email: order.customer_email,
-      //         customer_phone: order.customer_phone,
-              total_price: order.total_price,
-              payment_method: order.payment_method,
-              address: order.address,
-              status: order.status,
-              created_at: order.created_at
-            }
-          })
-        }
-      );
-
-      const data = await response.json();
-      console.log('Telegram notification response:', { status: response.status, data });
-
-      if (!response.ok) {
-        console.error('Telegram error:', data);
-        toast({ 
-          title: "Failed to send Telegram notification", 
-          description: data.error || "Check function logs for details",
-          variant: "destructive",
-          duration: 8000,
-        });
-      } else {
-        toast({ 
-          title: "✅ Telegram notification sent!", 
-          description: `Admin notification sent successfully`,
-        });
-      }
+      return; // Skip notification - Firebase Cloud Function setup required
     } catch (error: any) {
       console.error('Telegram notification error:', error);
       toast({ 
@@ -430,40 +385,6 @@ const OrdersTab = () => {
     // For now, notifications are skipped
     console.log('[Auto Telegram] Notification feature requires Firebase Cloud Function setup:', order.id);
   };
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            record: {
-              id: order.id,
-              user_id: order.user_id,
-              customer_name: order.customer_name,
-              customer_email: order.customer_email,
-              customer_phone: order.customer_phone,
-              total_price: order.total_price,
-              payment_method: order.payment_method,
-              address: order.address,
-              status: order.status,
-              created_at: order.created_at
-            }
-          })
-        }
-      );
-
-      const data = await response.json();
-      console.log('[Auto Telegram] Response:', { status: response.status, data });
-
-      if (response.ok) {
-        console.log('[Auto Telegram] ✅ Notification sent automatically for order:', order.id);
-      } else {
-        console.error('[Auto Telegram] Failed to send:', data);
-      }
-    } catch (error: any) {
-      console.error('[Auto Telegram] Error:', error.message);
-    }
-  };
 
   const handleDeleteOrder = async (orderId: string) => {
     if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
@@ -474,15 +395,11 @@ const OrdersTab = () => {
     try {
       // For testing purposes, we'll just call deleteProduct which deletes the entire document
       // In Firebase, deleting a document automatically deletes nested collections
-      const { deleteProduct } = await import("@/integrations/firebase/db");\n      // Actually, we need deleteOrder function. For now, let's use this placeholder
       console.log('Delete order:', orderId);
-      
-      // Create a deleteOrder function if it doesn't exist
-      // For now, we'll skip deletion in Tests
-      toast({ title: "Order deletion requires Firebase Cloud Function setup", variant: "destructive" });
-      
+      toast({ title: "Order deletion not yet implemented", variant: "destructive" });
     } catch (error) {
-      console.error('Delete error:', error);\n      toast({ title: "Failed to delete order", variant: "destructive" });
+      console.error('Delete error:', error);
+      toast({ title: "Failed to delete order", variant: "destructive" });
     }
   };
 

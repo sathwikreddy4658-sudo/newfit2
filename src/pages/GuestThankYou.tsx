@@ -108,25 +108,6 @@ const GuestThankYou = () => {
       setIsCreatingAccount(false);
     }
   };
-          title: "Account Created! 🎉",
-          description: "Your account has been created and your order has been linked to it.",
-        });
-
-        // Redirect to orders page after a short delay
-        setTimeout(() => {
-          navigate('/orders');
-        }, 1500);
-      }
-    } catch (error: any) {
-      console.error('Error creating account:', error);
-      toast({
-        title: "Account Creation Failed",
-        description: error.message || "Failed to create account. You can sign up later from the main page.",
-        variant: "destructive"
-      });
-      setIsCreatingAccount(false);
-    }
-  };
 
   const handleExit = () => {
     // Navigate to home
