@@ -129,7 +129,7 @@ export async function getOrder(orderId: string): Promise<Order | null> {
   try {
     const docRef = doc(db, 'orders', orderId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? (docSnap.data() as Order) : null;
+    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Order) : null;
   } catch (error) {
     console.error('Error fetching order:', error);
     throw error;

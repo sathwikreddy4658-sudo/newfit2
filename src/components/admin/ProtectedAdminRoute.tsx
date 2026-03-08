@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/integrations/firebase/client";
 import { getUserRoles } from "@/integrations/firebase/db";
 
@@ -9,7 +10,8 @@ interface ProtectedAdminRouteProps {
 
 /**
  * Protected route wrapper that verifies admin access before rendering content.
- * Prevents unauthorized UI exposure by not rendering children until verification completes.
+ * Uses onAuthStateChanged so Firebase can restore the session after a page refresh
+ * before the check runs — prevents redirect-to-login on every refresh.
  */
 const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
   const navigate = useNavigate();
@@ -17,63 +19,34 @@ const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const verifyAdminAccess = async () => {
+    // onAuthStateChanged fires once Firebase resolves the persisted session,
+    // so auth.currentUser is always valid (or null) by the time this callback runs.
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
-        // 1. Check if user is authenticated
-        const user = auth.currentUser;
-        
         if (!user) {
           console.warn('Admin access denied: No authenticated user');
-          if (isMounted) {
-            navigate("/admin/auth", { replace: true });
-          }
+          navigate("/admin/auth", { replace: true });
           return;
         }
 
-        // 2. Check user's admin role in Firebase
         const roles = await getUserRoles(user.uid);
 
-        if (!roles || roles.length === 0) {
-          console.warn('Admin access denied: User has no roles');
-          if (isMounted) {
-            navigate("/", { replace: true });
-          }
+        if (!roles?.includes('admin')) {
+          console.warn('Admin access denied: user is not admin');
+          navigate("/", { replace: true });
           return;
         }
 
-        // 3. Verify user has admin role
-        if (!roles.includes('admin')) {
-          console.warn(`Admin access denied: User roles are [${roles.join(', ')}], not 'admin'`);
-          if (isMounted) {
-            navigate("/", { replace: true });
-          }
-          return;
-        }
-
-        // 4. User is verified as admin
-        if (isMounted) {
-          setIsVerified(true);
-        }
+        setIsVerified(true);
       } catch (error) {
         console.error('Error verifying admin access:', error);
-        if (isMounted) {
-          navigate("/", { replace: true });
-        }
+        navigate("/", { replace: true });
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
-    };
+    });
 
-    verifyAdminAccess();
-
-    // Cleanup
-    return () => {
-      isMounted = false;
-    };
+    return () => unsubscribe();
   }, [navigate]);
 
   // Don't render anything until verification is complete

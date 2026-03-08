@@ -11,6 +11,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Phone, MapPin, CreditCard, Package, Trash2, Download, FileSpreadsheet, Bell, BellOff } from "lucide-react";
 
+// Helper: convert Firestore Timestamp or ISO string to JS Date
+const getOrderDate = (order: any): Date => {
+  const ts = order?.createdAt;
+  if (!ts) return new Date(0);
+  return ts?.toDate ? ts.toDate() : (ts instanceof Date ? ts : new Date(ts));
+};
+
 const OrdersTab = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
@@ -24,35 +31,38 @@ const OrdersTab = () => {
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
-    fetchOrders();
+    // listenToOrderChanges is async — store the unsubscribe ref once the Promise resolves.
+    // The first snapshot fires immediately and populates orders, so no separate fetchOrders() needed.
+    let unsubscribeFn: (() => void) | null = null;
 
-    // Set up real-time listener for order changes
-    const unsubscribe = listenToOrderChanges((newOrders) => {
+    listenToOrderChanges((newOrders) => {
       setOrders(newOrders);
       setFilteredOrders(newOrders);
-      
-      // Check if new order was added
+
       if (newOrders.length > lastOrderCount && !isInitialLoad.current && notificationsEnabled) {
         const newOrder = newOrders[0]; // Most recent order
         playNotificationSound();
         showNewOrderNotification(newOrder);
-        
-        // Auto-send Telegram notification for non-pending orders (COD and paid)
+
         if (newOrder.status !== 'pending') {
           sendTelegramNotificationAuto(newOrder);
         }
       }
-      
+
       setLastOrderCount(newOrders.length);
       if (isInitialLoad.current) {
         isInitialLoad.current = false;
       }
-    }).catch((error) => {
-      console.error("Failed to set up real-time listener:", error);
-    });
+    })
+      .then((unsub) => {
+        unsubscribeFn = unsub;
+      })
+      .catch((error) => {
+        console.error("Failed to set up real-time listener:", error);
+      });
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeFn) unsubscribeFn();
     };
   }, [notificationsEnabled]);
 
@@ -86,7 +96,7 @@ const OrdersTab = () => {
     // Browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('🎉 New Order Received!', {
-        body: `Order ID: ${orderData.id.slice(0, 8)} | Amount: ₹${orderData.total_price}`,
+        body: `Order ID: ${orderData.id.slice(0, 8)} | Amount: ₹${orderData.total_amount}`,
         icon: '/icon.png',
         tag: orderData.id,
         requireInteraction: true
@@ -96,7 +106,7 @@ const OrdersTab = () => {
     // Toast notification
     toast({
       title: "🎉 New Order Received!",
-      description: `Order ID: ${orderData.id.slice(0, 8)} | Amount: ₹${orderData.total_price}`,
+      description: `Order ID: ${orderData.id.slice(0, 8)} | Amount: ₹${orderData.total_amount}`,
       duration: 8000,
     });
   };
@@ -123,13 +133,13 @@ const OrdersTab = () => {
     if (fromDate) {
       const from = new Date(fromDate);
       from.setHours(0, 0, 0, 0);
-      filtered = filtered.filter(order => new Date(order.created_at) >= from);
+      filtered = filtered.filter(order => getOrderDate(order) >= from);
     }
 
     if (toDate) {
       const to = new Date(toDate);
       to.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(order => new Date(order.created_at) <= to);
+      filtered = filtered.filter(order => getOrderDate(order) <= to);
     }
 
     setFilteredOrders(filtered);
@@ -250,8 +260,8 @@ const OrdersTab = () => {
     const confirmed = confirm(
       `Send order confirmation email to ${customerEmail}?\n\n` +
       `Order ID: ${order.id.slice(0, 8)}\n` +
-      `Total: ₹${order.total_price}\n` +
-      `Items: ${order.order_items.length} product(s)`
+      `Total: ₹${order.total_amount}\n` +
+      `Items: ${order.items?.length || 0} product(s)`
     );
 
     if (!confirmed) return;
@@ -276,11 +286,11 @@ const OrdersTab = () => {
           orderId: order.id,
           customerEmail: customerEmail,
           customerName: order.customer_name || order.profiles?.name || "Customer",
-          totalPrice: order.total_price,
-          orderItems: order.order_items,
+          totalPrice: order.total_amount,
+          orderItems: order.items,
           address: order.address,
-          paymentMethod: order.payment_id && order.payment_id.startsWith('COD-') ? 'COD' : 'Online Payment',
-          createdAt: order.created_at
+          paymentMethod: order.payment_method === 'cod' ? 'COD' : 'Online Payment',
+          createdAt: getOrderDate(order).toISOString()
         })
       });
 
@@ -354,7 +364,7 @@ const OrdersTab = () => {
     const confirmed = confirm(
       `Send Telegram notification for this order?\n\n` +
       `Order ID: ${order.id.slice(0, 8)}\n` +
-      `Total: ₹${order.total_price}\n` +
+      `Total: ₹${order.total_amount}\n` +
       `Status: ${order.status}`
     );
 
@@ -562,20 +572,20 @@ const OrdersTab = () => {
 
     const rows = ordersToExport.map(order => {
       const customerPhone = order.customer_phone || order.profiles?.phone || "";
-      const isCOD = order.payment_id && order.payment_id.startsWith('COD-');
+      const isCOD = order.payment_method === 'cod';
       const paymentMethod = isCOD ? "COD" : "Online Payment";
 
       return [
         order.id,
-        new Date(order.created_at).toLocaleString(),
+        getOrderDate(order).toLocaleString(),
         order.customer_name || order.profiles?.name || "Guest",
         order.customer_email || order.profiles?.email || "",
         customerPhone,
         order.status.toUpperCase(),
         paymentMethod,
-        order.total_price,
+        order.total_amount,
         order.address || "",
-        order.order_items?.length || 0
+        order.items?.length || 0
       ];
     });
 
@@ -635,14 +645,14 @@ const OrdersTab = () => {
     // Add data rows
     ordersToExport.forEach(order => {
       const customerPhone = order.customer_phone || order.profiles?.phone || "";
-      const isCOD = order.payment_id && order.payment_id.startsWith('COD-');
+      const isCOD = order.payment_method === 'cod';
       const paymentMethod = isCOD ? "COD" : "Online Payment";
       const customerName = order.customer_name || order.profiles?.name || "Guest";
       const customerEmail = order.customer_email || order.profiles?.email || "";
-      const date = new Date(order.created_at).toLocaleString();
+      const date = getOrderDate(order).toLocaleString();
 
-      if (order.order_items && order.order_items.length > 0) {
-        order.order_items.forEach((item: any, index: number) => {
+      if (order.items && order.items.length > 0) {
+        order.items.forEach((item: any, index: number) => {
           detailedRows.push([
             index === 0 ? order.id.slice(0, 8) : "",
             index === 0 ? date : "",
@@ -652,11 +662,11 @@ const OrdersTab = () => {
             index === 0 ? order.status.toUpperCase() : "",
             index === 0 ? paymentMethod : "",
             index === 0 ? order.address || "" : "",
-            item.product_name,
+            item.name,
             item.quantity.toString(),
-            item.product_price.toString(),
-            (item.product_price * item.quantity).toFixed(2),
-            index === 0 ? order.total_price.toString() : ""
+            item.price.toString(),
+            (item.price * item.quantity).toFixed(2),
+            index === 0 ? order.total_amount?.toString() || '0' : ""
           ]);
         });
       } else {
@@ -674,7 +684,7 @@ const OrdersTab = () => {
           "0",
           "0",
           "0",
-          order.total_price.toString()
+          order.total_amount?.toString() || '0'
         ]);
       }
     });
@@ -882,7 +892,7 @@ const OrdersTab = () => {
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">Order ID</p>
                     <p className="font-mono font-bold">{order.id.slice(0, 8)}</p>
                     <p className="text-xs text-muted-foreground mt-2">
-                      {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString()}
+                      {getOrderDate(order).toLocaleDateString()} {getOrderDate(order).toLocaleTimeString()}
                     </p>
                   </div>
                 </div>
@@ -935,7 +945,7 @@ const OrdersTab = () => {
                       <Badge variant={getStatusColor(order.status)} className="text-sm px-2 py-1">
                         {order.status.toUpperCase()}
                       </Badge>
-                      {order.payment_id && order.payment_id.startsWith('COD-') && order.status === 'confirmed' && (
+                      {order.payment_method === 'cod' && order.status === 'confirmed' && (
                         <Badge className="bg-blue-100 text-blue-800 text-xs px-2 py-1">
                           COD
                         </Badge>
@@ -1062,21 +1072,21 @@ const OrdersTab = () => {
                   className="flex items-center gap-2 w-full text-left font-semibold mb-3 hover:text-blue-600 transition-colors"
                 >
                   <Package className="h-5 w-5" />
-                  <span>Order Items ({order.order_items.length})</span>
+                  <span>Order Items ({order.items?.length || 0})</span>
                   <span className="ml-auto text-2xl">{isExpanded ? "−" : "+"}</span>
                 </button>
 
                 {isExpanded && (
                   <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
-                    {order.order_items.map((item: any) => (
-                      <div key={item.id} className="flex justify-between items-center text-sm py-1">
+                    {order.items?.map((item: any) => (
+                      <div key={item.productId || item.id} className="flex justify-between items-center text-sm py-1">
                         <div className="flex-1">
-                          <p className="font-medium">{item.product_name}</p>
+                          <p className="font-medium">{item.name}</p>
                           <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">₹{(item.product_price * item.quantity).toFixed(2)}</p>
-                          <p className="text-xs text-muted-foreground">@ ₹{item.product_price}</p>
+                          <p className="font-semibold">₹{(item.price * item.quantity).toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">@ ₹{item.price}</p>
                         </div>
                       </div>
                     ))}
@@ -1086,14 +1096,14 @@ const OrdersTab = () => {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Items Total:</span>
                         <span className="font-medium">
-                          ₹{order.order_items.reduce((sum: number, item: any) => sum + (item.product_price * item.quantity), 0).toFixed(2)}
+                          ₹{(order.items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0).toFixed(2)}
                         </span>
                       </div>
                       
-                      {order.discount_applied > 0 && (
+                      {order.discount_amount > 0 && (
                         <div className="flex justify-between text-sm text-green-700">
                           <span>Discount Applied:</span>
-                          <span className="font-medium">-₹{parseFloat(order.discount_applied).toFixed(2)}</span>
+                          <span className="font-medium">-₹{parseFloat(order.discount_amount).toFixed(2)}</span>
                         </div>
                       )}
                       
@@ -1113,14 +1123,14 @@ const OrdersTab = () => {
                       
                       <div className="flex justify-between font-bold text-lg pt-2 border-t">
                         <span>Order Total:</span>
-                        <span className="text-primary">₹{parseFloat(order.total_price).toFixed(2)}</span>
+                        <span className="text-primary">₹{parseFloat(order.total_amount).toFixed(2)}</span>
                       </div>
                       
                       {order.payment_method && (
                         <div className="flex justify-between text-xs pt-1">
                           <span className="text-muted-foreground">Payment Method:</span>
                           <Badge variant="outline" className="text-xs">
-                            {order.payment_id?.startsWith('COD-') ? 'Cash on Delivery' : order.payment_method}
+                            {order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method}
                           </Badge>
                         </div>
                       )}

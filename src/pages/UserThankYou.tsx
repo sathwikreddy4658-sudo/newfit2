@@ -30,10 +30,10 @@ const UserThankYou = () => {
           setOrder(data);
           console.log('[UserThankYou] Order data:', {
             id: data.id,
-            total_price: data.total_amount,
+            total_amount: data.total_amount,
             shipping_charge: (data as any).shipping_charge || 0,
             cod_charge: (data as any).cod_charge || 0,
-            discount_applied: (data as any).discount_applied || 0,
+            discount_amount: (data as any).discount_amount || 0,
             payment_method: (data as any).payment_method || 'online'
           });
         }
@@ -55,7 +55,7 @@ const UserThankYou = () => {
     );
   }
 
-  const isCOD = order?.payment_id?.startsWith('COD-');
+  const isCOD = order?.payment_method === 'cod';
   const paymentMethod = isCOD ? 'Cash on Delivery' : 'Online Payment';
 
   return (
@@ -94,11 +94,11 @@ const UserThankYou = () => {
             <div className="mb-6">
               <h3 className="font-semibold mb-3" style={{ color: '#3b2a20' }}>Items Ordered</h3>
               <div className="space-y-2">
-                {order.order_items?.map((item: any, idx: number) => (
+                {order.items?.map((item: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center p-3 rounded" style={{ backgroundColor: 'rgba(181, 237, 206, 0.15)' }}>
-                    <span className="text-sm md:text-base" style={{ color: '#3b2a20' }}>{item.product_name}</span>
+                    <span className="text-sm md:text-base" style={{ color: '#3b2a20' }}>{item.name}</span>
                     <span className="text-sm md:text-base font-semibold" style={{ color: '#3b2a20' }}>
-                      {item.quantity}x ₹{item.product_price}
+                      {item.quantity}x ₹{item.price}
                     </span>
                   </div>
                 ))}
@@ -111,14 +111,14 @@ const UserThankYou = () => {
                 <div className="flex justify-between text-sm">
                   <span style={{ color: '#3b2a20' }}>Items Total</span>
                   <span className="font-medium" style={{ color: '#3b2a20' }}>
-                    ₹{order.order_items?.reduce((sum: number, item: any) => sum + (item.product_price * item.quantity), 0).toFixed(2)}
+                    ₹{order.items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0).toFixed(2)}
                   </span>
                 </div>
                 
-                {order.discount_applied > 0 && (
+                {order.discount_amount > 0 && (
                   <div className="flex justify-between text-sm" style={{ color: '#16a34a' }}>
                     <span>Discount Applied</span>
-                    <span className="font-medium">-₹{parseFloat(order.discount_applied).toFixed(2)}</span>
+                    <span className="font-medium">-₹{parseFloat(order.discount_amount).toFixed(2)}</span>
                   </div>
                 )}
                 
@@ -138,7 +138,7 @@ const UserThankYou = () => {
                 
                 <div className="flex justify-between items-center pt-3" style={{ borderTop: '2px solid #b5edce' }}>
                   <span className="text-lg font-bold" style={{ color: '#3b2a20' }}>Total Amount</span>
-                  <span className="text-xl md:text-2xl font-bold" style={{ color: '#3b2a20' }}>₹{parseFloat(order.total_price).toFixed(2)}</span>
+                  <span className="text-xl md:text-2xl font-bold" style={{ color: '#3b2a20' }}>₹{parseFloat(order.total_amount).toFixed(2)}</span>
                 </div>
               </div>
             </div>

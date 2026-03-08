@@ -2,6 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ============ ADMIN HELPER ============
+    // Checks user_roles/{uid}.roles array for 'admin' — no custom claim required.
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/user_roles/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.roles.hasAny(['admin']);
+    }
+
     // ============ PINCODES ============
     // Public read - anyone can check delivery availability
     // No write allowed from client (only Admin SDK can write)
@@ -14,14 +22,14 @@ service cloud.firestore {
     // Public read for browsing, only admin can write
     match /products/{productId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.admin == true;
+      allow write: if request.auth != null && isAdmin();
     }
 
     // ============ BLOGS ============
     // Public read, only admin can write
     match /blogs/{blogId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.admin == true;
+      allow write: if request.auth != null && isAdmin();
     }
 
     // ============ PAYMENT TRANSACTIONS ============
@@ -40,10 +48,10 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow read: if request.auth != null && 
                     (resource.data.user_id == request.auth.uid || 
-                     request.auth.token.admin == true);
+                     isAdmin());
       allow create: if true;  // guests and logged-in users can both place orders
-      allow update: if request.auth != null && request.auth.token.admin == true;
-      allow delete: if false;
+      allow update: if request.auth != null && isAdmin();
+      allow delete: if request.auth != null && isAdmin();
     }
 
     // ============ USER PROFILES ============
@@ -51,7 +59,7 @@ service cloud.firestore {
     // Admins can read all profiles
     match /profiles/{userId} {
       allow read: if request.auth != null && 
-                    (request.auth.uid == userId || request.auth.token.admin == true);
+                    (request.auth.uid == userId || isAdmin());
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
@@ -59,7 +67,7 @@ service cloud.firestore {
     // Users can read/write their own document
     match /users/{userId} {
       allow read: if request.auth != null && 
-                    (request.auth.uid == userId || request.auth.token.admin == true);
+                    (request.auth.uid == userId || isAdmin());
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
@@ -68,14 +76,14 @@ service cloud.firestore {
     // Only admin can write
     match /promo_codes/{promoId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.admin == true;
+      allow write: if request.auth != null && isAdmin();
     }
 
     // ============ NEWSLETTER SUBSCRIBERS ============
     // Anyone can subscribe (create), only admin can read all
     match /newsletter_subscribers/{subId} {
       allow create: if true;
-      allow read: if request.auth != null && request.auth.token.admin == true;
+      allow read: if request.auth != null && isAdmin();
       allow update, delete: if false;
     }
 
@@ -83,7 +91,7 @@ service cloud.firestore {
     // Public read, only admin can write
     match /product_faqs/{faqId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.admin == true;
+      allow write: if request.auth != null && isAdmin();
     }
 
     // ============ LAB REPORTS ============
@@ -91,8 +99,8 @@ service cloud.firestore {
     match /lab_reports/{reportId} {
       allow read: if request.auth != null && 
                     (resource.data.userId == request.auth.uid || 
-                     request.auth.token.admin == true);
-      allow write: if request.auth != null && request.auth.token.admin == true;
+                     isAdmin());
+      allow write: if request.auth != null && isAdmin();
     }
 
     // ============ SAVED ADDRESSES ============
