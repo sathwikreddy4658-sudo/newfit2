@@ -1,0 +1,38 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "saved_addresses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "user_id", "order": "ASCENDING" },
+        { "fieldPath": "is_default", "order": "DESCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pincodes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pincode", "order": "ASCENDING" },
+        { "fieldPath": "delivery", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pincodes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "delivery", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "promo_codes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "visible_to_users", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

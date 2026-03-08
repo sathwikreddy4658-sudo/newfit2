@@ -1,6 +1,6 @@
 /**
  * Image Optimization Utilities
- * Handles Supabase image transformation and lazy loading strategy
+ * Handles Firebase Storage image URLs and lazy loading strategy
  */
 
 interface ImageTransformOptions {
@@ -10,26 +10,18 @@ interface ImageTransformOptions {
 }
 
 /**
- * Get optimized image URL with Supabase transformation
- * For thumbnail/listing images - compressed and smaller
+ * Get optimized image URL
+ * Firebase Storage doesn't have built-in image transformation.
+ * Images are returned as-is. For advanced transformations, consider
+ * using the Firebase Extensions "Resize Images" or a CDN like Cloudflare.
  */
 export const getOptimizedImageUrl = (
   imageUrl: string,
-  options: ImageTransformOptions = {}
+  _options: ImageTransformOptions = {}
 ): string => {
   if (!imageUrl) return imageUrl;
-
-  // Only transform Supabase Storage URLs
-  if (!imageUrl.includes('supabase.co')) {
-    return imageUrl;
-  }
-
-  const { width = 500, height = 500, quality = 85 } = options;
-
-  // Supabase image transformation format
-  // https://supabase.com/docs/guides/storage/image-transformations
-  const transformedUrl = `${imageUrl}?width=${width}&height=${height}&quality=${quality}`;
-  return transformedUrl;
+  // Return the URL as-is (Firebase Storage serves images without transformation params)
+  return imageUrl;
 };
 
 /**

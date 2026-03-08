@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllProducts } from "@/integrations/firebase/db";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import { getThumbnailUrl, getLazyLoadingStrategy } from "@/utils/imageOptimizati
 const Products = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -18,39 +17,23 @@ const Products = () => {
 
   useEffect(() => {
     fetchProducts();
-
-    const channel = supabase
-      .channel("products-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "products" },
-        () => fetchProducts()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
-  useEffect(() => {
-    filterProducts();
-  }, [products, searchQuery, categoryFilter]);
-
   const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("is_hidden", false)
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
+    try {
+      setLoading(true);
+      // Limit to 20 products for faster initial load (can add load more later)
+      const data = await getAllProducts(20);
       setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const filterProducts = () => {
+  // Memoize filter calculation to prevent unnecessary recalculation
+  const filteredProducts = useMemo(() => {
     let filtered = products;
 
     if (categoryFilter !== "all") {
@@ -62,13 +45,13 @@ const Products = () => {
       filtered = filtered.filter(
         (p) =>
           p.name.toLowerCase().includes(query) ||
-          p.nutrition.toLowerCase().includes(query) ||
-          p.description?.toLowerCase().includes(query)
+          (p.nutrition && p.nutrition.toLowerCase().includes(query)) ||
+          (p.description && p.description.toLowerCase().includes(query))
       );
     }
 
-    setFilteredProducts(filtered);
-  };
+    return filtered;
+  }, [products, searchQuery, categoryFilter]);
 
   const handleCategoryClick = (category: string) => {
     setCategoryFilter(category);
@@ -161,38 +144,29 @@ const Products = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredProducts.map((product, index) => {
-            // Cycle through three different reveal animation styles
-            const revealStyles = ['image-reveal-left', 'image-reveal-top', 'image-reveal-diagonal'];
-            const revealClass = revealStyles[index % revealStyles.length];
-            
-            // Add delay based on index so animations are staggered
-            const delay = index * 0.1;
-
-            return (
+          {filteredProducts.map((product) => (
             <Card
               key={product.id}
-              className="p-4 cursor-pointer product-card"
+              className="p-4 cursor-pointer product-card hover:shadow-lg transition-shadow"
               onClick={() => navigate(`/product/${encodeURIComponent(product.name)}`)}
             >
-              <div 
-                className={`w-48 h-48 rounded-lg mb-4 overflow-hidden mx-auto flex items-center justify-center relative bg-white ${revealClass}`}
-                style={{ animationDelay: `${delay}s` }}
-              >
+              <div className="w-48 h-48 rounded-lg mb-4 overflow-hidden mx-auto flex items-center justify-center bg-white">
                 {/* Single Image */}
                 {product.products_page_image ? (
                   <img
                     src={getThumbnailUrl(product.products_page_image)}
                     alt={product.name}
                     className="w-full h-full object-cover"
-                    loading="eager"
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : product.images && product.images.length > 0 ? (
                   <img
                     src={getThumbnailUrl(product.images[0])}
                     alt={product.name}
                     className="w-full h-full object-cover"
-                    loading="eager"
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600">No Image</div>
@@ -203,8 +177,7 @@ const Products = () => {
                 {product.price ? `₹${product.price}` : `₹${product.price_15g} - ₹${product.price_20g}`}
               </p>
             </Card>
-            );
-          })}
+          ))}
         </div>
       )}
       </div>

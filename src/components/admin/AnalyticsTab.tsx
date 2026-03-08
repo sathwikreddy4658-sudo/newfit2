@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllOrders } from "@/integrations/firebase/db";
 import { Card } from "@/components/ui/card";
 
 const AnalyticsTab = () => {
@@ -14,30 +14,35 @@ const AnalyticsTab = () => {
   }, []);
 
   const fetchAnalytics = async () => {
-    const { data: orders } = await supabase
-      .from("orders")
-      .select("total_price, status");
+    const orders = await getAllOrders();
 
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("product_name, quantity, product_price");
+    const completedOrders = orders.filter((o: any) => o.status !== "cancelled");
 
-    if (orders) {
-      const completedOrders = orders.filter(o => o.status !== "cancelled");
-      setStats({
-        totalOrders: completedOrders.length,
-        totalRevenue: completedOrders.reduce((sum, o) => sum + o.total_price, 0),
-        soldProducts: items || [],
+    // Order items are embedded as an array in each order document
+    const allItems: any[] = [];
+    completedOrders.forEach((order: any) => {
+      const items = order.items || order.order_items || [];
+      items.forEach((item: any) => {
+        allItems.push(item);
       });
-    }
+    });
+
+    setStats({
+      totalOrders: completedOrders.length,
+      totalRevenue: completedOrders.reduce((sum: number, o: any) => sum + (o.total_price || o.totalPrice || 0), 0),
+      soldProducts: allItems,
+    });
   };
 
   const productSales = stats.soldProducts.reduce((acc: any, item) => {
-    if (!acc[item.product_name]) {
-      acc[item.product_name] = { quantity: 0, revenue: 0 };
+    const name = item.product_name || item.name || "Unknown";
+    const qty = item.quantity || item.qty || 1;
+    const price = item.product_price || item.price || 0;
+    if (!acc[name]) {
+      acc[name] = { quantity: 0, revenue: 0 };
     }
-    acc[item.product_name].quantity += item.quantity;
-    acc[item.product_name].revenue += item.quantity * item.product_price;
+    acc[name].quantity += qty;
+    acc[name].revenue += qty * price;
     return acc;
   }, {});
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
+import { getOrder, getUserOrders } from "@/integrations/firebase/db";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -13,67 +14,32 @@ const Orders = () => {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (!firebaseUser) {
         navigate("/auth");
         return;
       }
-      setUser(session.user);
-      fetchOrders(session.user.id);
+      setUser(firebaseUser as any);
+      fetchOrders(firebaseUser.uid);
     });
 
-    const channel = supabase
-      .channel("orders-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => {
-          if (user) fetchOrders(user.id);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+    return () => unsubscribe();
+  }, [navigate]);
 
   const fetchOrders = async (userId: string) => {
-    // Fetch user's email first
-    const { data: { user } } = await supabase.auth.getUser();
-    const userEmail = user?.email;
-
-    // Fetch orders by user_id OR by email (for guest orders)
-    let query = supabase
-      .from("orders")
-      .select(`
-        *,
-        order_items (*)
-      `)
-      .order("created_at", { ascending: false });
-
-    // Get orders where user_id matches OR customer_email matches
-    if (userEmail) {
-      query = query.or(`user_id.eq.${userId},customer_email.eq.${userEmail}`);
-    } else {
-      query = query.eq("user_id", userId);
+    try {
+      const orders = await getUserOrders(userId);
+      setOrders(orders || []);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load orders",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-
-    const { data, error } = await query;
-
-    if (!error && data) {
-      // Filter to show only successful orders:
-      // - paid: online payment successful
-      // - confirmed: COD orders
-      // Exclude: pending (payment not completed), cancelled
-      setOrders(data.filter(order => 
-        order.status === 'paid' || 
-        order.status === 'confirmed' || 
-        order.status === 'shipped' || 
-        order.status === 'delivered'
-      ));
-    }
-    setLoading(false);
   };
 
   const getStatusColor = (status: string) => {

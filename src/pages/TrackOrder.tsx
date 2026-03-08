@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth"; 
+import { getOrder } from "@/integrations/firebase/db";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ const TrackOrder = () => {
   useEffect(() => {
     // Redirect to My Orders if user is logged in
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (user) {
         navigate('/orders');
       }
@@ -42,22 +43,19 @@ const TrackOrder = () => {
     setSearched(true);
     
     try {
-      // Use secure RPC to bypass RLS safely
-      const { data, error } = await (supabase.rpc as any)(
-        'get_orders_with_items_public',
-        { p_email: email || null, p_phone: phone || null }
-      );
-
-      if (error) throw error;
-
-      setOrders(data || []);
+      // TODO: Implement Firebase Cloud Function to search orders by email/phone
+      // This would require creating a secure Cloud Function that:
+      // 1. Takes email or phone as input
+      // 2. Queries Firestore for matching orders
+      // 3. Returns orders with items and status
       
-      if (!data || data.length === 0) {
-        toast({
-          title: "No Orders Found",
-          description: "We couldn't find any orders with the provided information.",
-        });
-      }
+      // For now, show a placeholder message
+      toast({
+        title: "Coming Soon",
+        description: "Order tracking functionality is being updated. Please check back soon.",
+      });
+      
+      setOrders([]);
     } catch (error: any) {
       console.error("Error fetching orders:", error);
       toast({

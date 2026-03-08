@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { 
+  getAllNewsletterSubscribers, 
+  deleteNewsletterSubscriber 
+} from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Trash2, Mail, Download } from "lucide-react";
 
 const NewsletterTab = () => {
@@ -29,13 +32,19 @@ const NewsletterTab = () => {
     if (fromDate) {
       const from = new Date(fromDate);
       from.setHours(0, 0, 0, 0);
-      filtered = filtered.filter(sub => new Date(sub.created_at) >= from);
+      filtered = filtered.filter(sub => {
+        const subDate = sub.createdAt?.toDate?.() || new Date(sub.createdAt);
+        return subDate >= from;
+      });
     }
 
     if (toDate) {
       const to = new Date(toDate);
       to.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(sub => new Date(sub.created_at) <= to);
+      filtered = filtered.filter(sub => {
+        const subDate = sub.createdAt?.toDate?.() || new Date(sub.createdAt);
+        return subDate <= to;
+      });
     }
 
     setFilteredSubscribers(filtered);
@@ -45,19 +54,13 @@ const NewsletterTab = () => {
 
   const fetchSubscribers = async () => {
     try {
-      const { data, error } = await supabase
-        .from("newsletter_subscribers")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        toast({ title: "Error fetching subscribers", variant: "destructive" });
-      } else {
-        setSubscribers(data || []);
-        setFilteredSubscribers(data || []);
-      }
+      setLoading(true);
+      const data = await getAllNewsletterSubscribers();
+      setSubscribers(data || []);
+      setFilteredSubscribers(data || []);
     } catch (error) {
-      toast({ title: "Error fetching subscribers", variant: "destructive" });
+      console.error("Error fetching subscribers:", error);
+      toast.error("Error fetching subscribers");
     } finally {
       setLoading(false);
     }
@@ -67,19 +70,12 @@ const NewsletterTab = () => {
     if (!confirm(`Are you sure you want to remove ${email} from the newsletter?`)) return;
 
     try {
-      const { error } = await supabase
-        .from("newsletter_subscribers")
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        toast({ title: "Deletion failed", variant: "destructive" });
-      } else {
-        toast({ title: "Subscriber removed successfully" });
-        fetchSubscribers();
-      }
+      await deleteNewsletterSubscriber(id);
+      toast.success("Subscriber removed successfully");
+      fetchSubscribers();
     } catch (error) {
-      toast({ title: "Deletion failed", variant: "destructive" });
+      console.error("Error deleting subscriber:", error);
+      toast.error("Deletion failed");
     }
   };
 
@@ -103,7 +99,7 @@ const NewsletterTab = () => {
 
   const handleDeleteSelected = async () => {
     if (selectedSubscribers.size === 0) {
-      toast({ title: "No subscribers selected", variant: "destructive" });
+      toast.error("No subscribers selected");
       return;
     }
 
@@ -114,34 +110,20 @@ const NewsletterTab = () => {
 
     if (!confirmed) return;
 
-    toast({ 
-      title: "Deleting selected subscribers...", 
-      description: "This may take a moment" 
-    });
+    toast.loading("Deleting selected subscribers...");
 
     try {
       const subscriberIds = Array.from(selectedSubscribers);
+      await Promise.all(
+        subscriberIds.map(id => deleteNewsletterSubscriber(id))
+      );
 
-      const { error } = await supabase
-        .from("newsletter_subscribers")
-        .delete()
-        .in("id", subscriberIds);
-
-      if (error) throw error;
-
-      toast({ 
-        title: "Subscribers deleted successfully", 
-        description: `${selectedSubscribers.size} subscriber(s) have been removed` 
-      });
-      
+      toast.success(`${selectedSubscribers.size} subscriber(s) have been removed`);
       setSelectedSubscribers(new Set());
       fetchSubscribers();
     } catch (error: any) {
-      toast({ 
-        title: "Failed to delete subscribers", 
-        description: error.message,
-        variant: "destructive" 
-      });
+      console.error("Error deleting subscribers:", error);
+      toast.error("Failed to delete subscribers");
     }
   };
 
@@ -151,15 +133,16 @@ const NewsletterTab = () => {
       : filteredSubscribers;
 
     if (subscribersToExport.length === 0) {
-      toast({ title: "No subscribers to download", variant: "destructive" });
+      toast.error("No subscribers to download");
       return;
     }
 
     // Create CSV content
     const csvHeaders = "Email,Source,Subscribed Date\n";
-    const csvRows = subscribersToExport.map(subscriber =>
-      `"${subscriber.email}","${subscriber.source || 'footer'}","${new Date(subscriber.created_at).toLocaleDateString()}"`
-    ).join("\n");
+    const csvRows = subscribersToExport.map(subscriber => {
+      const subDate = subscriber.createdAt?.toDate?.() || new Date(subscriber.createdAt);
+      return `"${subscriber.email}","${subscriber.source || 'footer'}","${subDate.toLocaleDateString()}"`;
+    }).join("\n");
 
     const csvContent = csvHeaders + csvRows;
 
@@ -175,20 +158,22 @@ const NewsletterTab = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    toast({ 
-      title: "CSV downloaded successfully", 
-      description: `${subscribersToExport.length} subscriber(s) exported` 
-    });
+    toast.success(`${subscribersToExport.length} subscriber(s) exported`);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const formatDate = (firebaseTimestamp: any) => {
+    try {
+      const date = firebaseTimestamp?.toDate?.() || new Date(firebaseTimestamp);
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "N/A";
+    }
   };
 
   if (loading) {
@@ -301,7 +286,7 @@ const NewsletterTab = () => {
                   <div className="flex-1">
                     <p className="font-medium">{subscriber.email}</p>
                     <p className="text-sm text-muted-foreground">
-                      Subscribed on {formatDate(subscriber.created_at)}
+                      Subscribed on {formatDate(subscriber.createdAt)}
                     </p>
                   </div>
                   <Button

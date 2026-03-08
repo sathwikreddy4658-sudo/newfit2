@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { supabase } from "@/integrations/supabase/client";
+import { getBlog } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Calendar, User } from "lucide-react";
@@ -19,18 +19,16 @@ const BlogDetail = () => {
   }, [id]);
 
   const fetchBlog = async () => {
-    const { data, error } = await supabase
-      .from("blogs")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
+    try {
+      const data = await getBlog(id!);
+      if (data) {
+        setBlog(data);
+      }
+    } catch (error) {
       console.error("Error fetching blog:", error);
-    } else {
-      setBlog(data);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const formatDate = (dateString: string) => {

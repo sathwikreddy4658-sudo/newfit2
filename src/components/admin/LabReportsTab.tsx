@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { 
+  getProductLabReports, 
+  createLabReport, 
+  deleteLabReport as deleteLabReportDB,
+  uploadLabReportFile,
+  deleteLabReportFile,
+  getAllProducts,
+} from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Trash2, Upload, Plus, Download, FileText } from "lucide-react";
 import {
   Select,
@@ -17,13 +24,13 @@ import {
 
 interface LabReport {
   id: string;
-  product_id: string;
+  productId: string;
   file_url: string;
   file_name: string;
   file_size?: number;
   test_type?: string;
   test_date?: string;
-  created_at: string;
+  createdAt: any;
   product_name?: string;
 }
 
@@ -51,33 +58,35 @@ const LabReportsTab = () => {
 
   const fetchLabReports = async () => {
     try {
-      const { data, error } = await supabase
-        .from("lab_reports")
-        .select(
-          `
-          id,
-          product_id,
-          file_url,
-          file_name,
-          file_size,
-          test_type,
-          test_date,
-          created_at,
-          products!inner(name)
-          `
-        )
-        .order("created_at", { ascending: false });
+      const allProducts = await getAllProducts();
+      const allReports: LabReport[] = [];
 
-      if (error) {
-        console.error("Error fetching lab reports:", error);
-        toast({ title: "Error fetching lab reports", variant: "destructive" });
-      } else {
-        const formattedData = data?.map((report: any) => ({
-          ...report,
-          product_name: report.products?.name,
-        })) || [];
-        setLabReports(formattedData);
+      // Fetch lab reports from each product
+      for (const product of allProducts) {
+        try {
+          const reports = await getProductLabReports(product.id);
+          const formattedReports = reports.map((report: any) => ({
+            ...report,
+            productId: product.id,
+            product_name: product.name,
+          }));
+          allReports.push(...formattedReports);
+        } catch (err) {
+          console.error(`Error fetching reports for product ${product.id}:`, err);
+        }
       }
+
+      // Sort by creation date descending
+      allReports.sort((a, b) => {
+        const dateA = a.createdAt?.toMillis?.() || 0;
+        const dateB = b.createdAt?.toMillis?.() || 0;
+        return dateB - dateA;
+      });
+
+      setLabReports(allReports);
+    } catch (error) {
+      console.error("Error fetching lab reports:", error);
+      toast.error("Error fetching lab reports");
     } finally {
       setLoading(false);
     }
@@ -85,24 +94,17 @@ const LabReportsTab = () => {
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name")
-        .order("name");
-
-      if (error) {
-        console.error("Error fetching products:", error);
-      } else {
-        setProducts(data || []);
-      }
+      const data = await getAllProducts();
+      setProducts(data);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error fetching products:", error);
+      toast.error("Error fetching products");
     }
   };
 
   const uploadLabReport = async () => {
     if (!selectedFile || !selectedProduct) {
-      toast({ title: "Please select a product and file", variant: "destructive" });
+      toast.error("Please select a product and file");
       return;
     }
 
@@ -110,80 +112,51 @@ const LabReportsTab = () => {
 
     try {
       // Upload file to storage
-      const fileName = `lab-report-${Date.now()}-${selectedFile.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("lab-reports")
-        .upload(fileName, selectedFile);
-
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        toast({ title: "Error uploading file", variant: "destructive" });
-        return;
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("lab-reports")
-        .getPublicUrl(fileName);
+      const fileUrl = await uploadLabReportFile(selectedProduct, selectedFile);
 
       // Save to database
-      const { error: dbError } = await supabase.from("lab_reports").insert({
-        product_id: selectedProduct,
-        file_url: publicUrl,
+      await createLabReport(selectedProduct, {
+        file_url: fileUrl,
         file_name: selectedFile.name,
         file_size: selectedFile.size,
         test_type: testType || null,
         test_date: testDate || null,
       });
 
-      if (dbError) {
-        console.error("Database error:", dbError);
-        toast({ title: "Error saving report details", variant: "destructive" });
-        return;
-      }
-
-      toast({ title: "Lab report uploaded successfully" });
+      toast.success("Lab report uploaded successfully");
       setShowDialog(false);
       resetForm();
       fetchLabReports();
     } catch (error) {
       console.error("Error:", error);
-      toast({ title: "Error uploading lab report", variant: "destructive" });
+      toast.error("Error uploading lab report");
     } finally {
       setUploading(false);
     }
   };
 
-  const deleteLabReport = async (id: string, fileName: string) => {
+  const deleteLabReportFunc = async (productId: string, id: string, fileUrl: string) => {
     if (!confirm("Are you sure you want to delete this lab report?")) return;
 
     try {
-      // Delete from storage
-      const { error: deleteError } = await supabase.storage
-        .from("lab-reports")
-        .remove([fileName.split("/").pop() || fileName]);
-
-      if (deleteError) {
-        console.error("Delete error:", deleteError);
+      // Delete file from storage using the URL - extract path from URL
+      try {
+        // Firebase Storage URL format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?...
+        const urlParts = fileUrl.split('/o/')[1].split('?')[0];
+        const decodedPath = decodeURIComponent(urlParts);
+        await deleteLabReportFile(decodedPath);
+      } catch (storageErr) {
+        console.warn('Could not delete file from storage:', storageErr);
       }
 
       // Delete from database
-      const { error: dbError } = await supabase
-        .from("lab_reports")
-        .delete()
-        .eq("id", id);
+      await deleteLabReportDB(productId, id);
 
-      if (dbError) {
-        console.error("Database error:", dbError);
-        toast({ title: "Error deleting report", variant: "destructive" });
-        return;
-      }
-
-      toast({ title: "Lab report deleted successfully" });
+      toast.success("Lab report deleted successfully");
       fetchLabReports();
     } catch (error) {
       console.error("Error:", error);
-      toast({ title: "Error deleting lab report", variant: "destructive" });
+      toast.error("Error deleting lab report");
     }
   };
 
@@ -197,14 +170,19 @@ const LabReportsTab = () => {
   const filteredReports =
     filterProduct === "all"
       ? labReports
-      : labReports.filter((report) => report.product_id === filterProduct);
+      : labReports.filter((report) => report.productId === filterProduct);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const formatDate = (dateObj: any) => {
+    try {
+      const date = dateObj?.toDate?.() || new Date(dateObj);
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "N/A";
+    }
   };
 
   if (loading) {
@@ -342,7 +320,7 @@ const LabReportsTab = () => {
                       </div>
                     )}
                     <div>
-                      <span className="font-medium">Uploaded:</span> {formatDate(report.created_at)}
+                      <span className="font-medium">Uploaded:</span> {formatDate(report.createdAt)}
                     </div>
                     {report.file_size && (
                       <div>
@@ -366,7 +344,7 @@ const LabReportsTab = () => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => deleteLabReport(report.id, report.file_url)}
+                    onClick={() => deleteLabReportFunc(report.productId, report.id, report.file_url)}
                     className="gap-1 sm:gap-2 flex-1 sm:flex-none text-xs sm:text-sm"
                   >
                     <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Delete</span><span className="sm:hidden">Del</span>

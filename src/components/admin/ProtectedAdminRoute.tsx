@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { auth } from "@/integrations/firebase/client";
+import { getUserRoles } from "@/integrations/firebase/db";
 
 interface ProtectedAdminRouteProps {
   children: React.ReactNode;
@@ -20,30 +21,43 @@ const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
 
     const verifyAdminAccess = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // 1. Check if user is authenticated
+        const user = auth.currentUser;
         
-        if (!session) {
-          navigate("/admin/auth", { replace: true });
+        if (!user) {
+          console.warn('Admin access denied: No authenticated user');
+          if (isMounted) {
+            navigate("/admin/auth", { replace: true });
+          }
           return;
         }
 
-        // Check admin role directly from database
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
+        // 2. Check user's admin role in Firebase
+        const roles = await getUserRoles(user.uid);
 
-        if (!isMounted) return;
-
-        if (roleError || !roleData) {
-          navigate("/", { replace: true });
+        if (!roles || roles.length === 0) {
+          console.warn('Admin access denied: User has no roles');
+          if (isMounted) {
+            navigate("/", { replace: true });
+          }
           return;
         }
 
-        setIsVerified(true);
+        // 3. Verify user has admin role
+        if (!roles.includes('admin')) {
+          console.warn(`Admin access denied: User roles are [${roles.join(', ')}], not 'admin'`);
+          if (isMounted) {
+            navigate("/", { replace: true });
+          }
+          return;
+        }
+
+        // 4. User is verified as admin
+        if (isMounted) {
+          setIsVerified(true);
+        }
       } catch (error) {
+        console.error('Error verifying admin access:', error);
         if (isMounted) {
           navigate("/", { replace: true });
         }
@@ -56,16 +70,9 @@ const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
 
     verifyAdminAccess();
 
-    // Re-verify on auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      setIsVerified(false);
-      setIsLoading(true);
-      verifyAdminAccess();
-    });
-
+    // Cleanup
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
     };
   }, [navigate]);
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/integrations/firebase/client";
+import { collectionGroup, getDocs, collection, query, where, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,32 +48,39 @@ const LabReports = () => {
 
   const fetchLabReports = async () => {
     try {
-      const { data, error } = await supabase
-        .from("lab_reports")
-        .select(
-          `
-          id,
-          product_id,
-          file_url,
-          file_name,
-          file_size,
-          test_type,
-          test_date,
-          created_at,
-          products!inner(name)
-          `
-        )
-        .order("created_at", { ascending: false });
+      // Use collectionGroup to query all lab_reports subcollections across all products
+      const labReportsQuery = collectionGroup(db, "lab_reports");
+      const snapshot = await getDocs(labReportsQuery);
 
-      if (error) {
-        console.error("Error fetching lab reports:", error);
-      } else {
-        const formattedData = data?.map((report: any) => ({
-          ...report,
-          product_name: report.products?.name,
-        })) || [];
-        setLabReports(formattedData);
-      }
+      // Build a map of productId -> productName from fetched products
+      const productsSnapshot = await getDocs(collection(db, "products"));
+      const productMap: Record<string, string> = {};
+      productsSnapshot.docs.forEach((doc) => {
+        productMap[doc.id] = doc.data().name || "Unknown Product";
+      });
+
+      const formattedData: LabReport[] = snapshot.docs
+        .map((doc) => {
+          const data = doc.data();
+          // Parent path: products/{productId}/lab_reports/{reportId}
+          const productId = doc.ref.parent.parent?.id || "";
+          return {
+            id: doc.id,
+            product_id: productId,
+            file_url: data.file_url || "",
+            file_name: data.file_name || "",
+            file_size: data.file_size,
+            test_type: data.test_type,
+            test_date: data.test_date,
+            created_at: data.created_at?.toDate?.()?.toISOString?.() || data.created_at || "",
+            product_name: productMap[productId],
+          };
+        })
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setLabReports(formattedData);
+    } catch (error) {
+      console.error("Error fetching lab reports:", error);
     } finally {
       setLoading(false);
     }
@@ -80,19 +88,14 @@ const LabReports = () => {
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name")
-        .eq("is_hidden", false)
-        .order("name");
-
-      if (error) {
-        console.error("Error fetching products:", error);
-      } else {
-        setProducts(data || []);
-      }
+      const snapshot = await getDocs(collection(db, "products"));
+      const data: Product[] = snapshot.docs
+        .filter((doc) => !doc.data().is_hidden)
+        .map((doc) => ({ id: doc.id, name: doc.data().name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setProducts(data);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error fetching products:", error);
     }
   };
 

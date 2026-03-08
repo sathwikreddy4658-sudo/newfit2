@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllOrders } from "@/integrations/firebase/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Package, 
@@ -29,24 +29,16 @@ const AdminDashboard = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      // Fetch products count
-      const { count: productsCount } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true });
-
-      // Fetch orders
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Fetch orders from Firebase
+      const orders = await getAllOrders();
 
       const totalOrders = orders?.length || 0;
-      const pendingOrders = orders?.filter((o) => o.status === "pending").length || 0;
-      const totalRevenue = orders?.reduce((sum, o) => sum + (parseFloat(o.total_price) || 0), 0) || 0;
+      const pendingOrders = orders?.filter((o: any) => o.status === "pending").length || 0;
+      const totalRevenue = orders?.reduce((sum: number, o: any) => sum + (parseFloat(o.totalPrice) || parseFloat(o.total_price) || 0), 0) || 0;
       const recentOrders = orders?.slice(0, 5) || [];
 
       setStats({
-        totalProducts: productsCount || 0,
+        totalProducts: 0, // Will be populated when ProductsTab is migrated to Firebase
         totalOrders,
         totalRevenue,
         pendingOrders,
@@ -54,6 +46,13 @@ const AdminDashboard = () => {
       });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
+      setStats({
+        totalProducts: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        pendingOrders: 0,
+        recentOrders: [],
+      });
     } finally {
       setLoading(false);
     }

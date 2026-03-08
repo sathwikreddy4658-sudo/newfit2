@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Instagram, Linkedin, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { supabase } from "@/integrations/supabase/client";
+import { subscribeToNewsletter } from "@/integrations/firebase/db";
 import { toast } from "@/hooks/use-toast";
 
 const Footer = () => {
@@ -20,22 +20,15 @@ const Footer = () => {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
-        .from("newsletter_subscribers")
-        .insert([{ email: email.trim() }]);
-
-      if (error) {
-        if (error.code === '23505') { // unique constraint violation
-          toast({ title: "Already subscribed", description: "This email is already subscribed to our newsletter." });
-        } else {
-          toast({ title: "Subscription failed", variant: "destructive" });
-        }
+      await subscribeToNewsletter(email.trim());
+      toast({ title: "Successfully subscribed!", description: "Thank you for subscribing to our newsletter." });
+      setEmail("");
+    } catch (error: any) {
+      if (error.message?.includes('already')) {
+        toast({ title: "Already subscribed", description: "This email is already subscribed to our newsletter." });
       } else {
-        toast({ title: "Successfully subscribed!", description: "Thank you for subscribing to our newsletter." });
-        setEmail("");
+        toast({ title: "Subscription failed", variant: "destructive" });
       }
-    } catch (error) {
-      toast({ title: "Subscription failed", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }

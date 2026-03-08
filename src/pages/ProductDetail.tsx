@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
+import { getProduct, getAllProducts } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -74,9 +75,12 @@ const ProductDetail = () => {
   const accentColor = getProductAccentColor(product?.name);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    // Check Firebase auth state
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      setUser(firebaseUser ?? null);
     });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -122,66 +126,31 @@ const ProductDetail = () => {
 
   const fetchProduct = async () => {
     const productName = decodeURIComponent(name!);
-    console.log(`🔍 Searching for product: "${productName}"`);
     
-    // First, try to get the product - use limit(1) instead of single() to avoid errors with duplicates
-    const { data: products, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("name", productName)
-      .limit(1);
-
-    if (error) {
-      console.error('❌ Product fetch error:', error.message);
-      console.log('Error details:', error);
+    try {
+      // Fetch all products and find the one matching the name
+      const allProducts = await getAllProducts();
+      const foundProduct = allProducts.find(p => p.name === productName);
       
-      // Try to help debug - fetch all products to check if it exists
-      const { data: allProducts } = await supabase
-        .from("products")
-        .select("name, is_hidden")
-        .ilike("name", `%${productName}%`);
-      
-      if (allProducts && allProducts.length > 0) {
-        console.log('⚠️  Product found in database but with different casing:');
-        allProducts.forEach(p => {
-          console.log(`  - "${p.name}" (Hidden: ${p.is_hidden})`);
-        });
-        if (allProducts.length > 1) {
-          console.log('\n🚨 WARNING: Multiple products with same/similar name!');
-          console.log('This is causing the "Product Not Found" error.');
-          console.log('Check browser console for details.');
-        }
+      if (foundProduct) {
+        setProduct(foundProduct);
       } else {
-        console.log('❌ Product not found in database at all');
+        console.error('Product not found:', productName);
       }
-    } else if (products && products.length > 0) {
-      console.log('✅ Product found:', products[0]);
-      setProduct(products[0]);
-      
-      // Warn if duplicates exist
-      if (products.length > 1) {
-        console.warn(`⚠️  WARNING: ${products.length} products found with same name!`);
-        console.warn('Using the first one. Duplicates should be deleted.');
-      }
-    } else {
-      console.log('❌ No data returned for product');
+    } catch (error) {
+      console.error('Product fetch error:', error);
     }
     setLoading(false);
   };
 
   const fetchAllProducts = async () => {
     try {
-      const { data: products, error } = await supabase
-        .from("products")
-        .select("name")
-        .eq("is_hidden", false)
-        .order("name", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching all products:", error);
-      } else if (products) {
-        setAllProducts(products);
-      }
+      const allProducts = await getAllProducts();
+      // Filter out hidden products if they have is_hidden property
+      const visibleProducts = allProducts.filter(p => !p.is_hidden);
+      // Sort by name
+      visibleProducts.sort((a, b) => a.name.localeCompare(b.name));
+      setAllProducts(visibleProducts);
     } catch (error) {
       console.error("Error fetching products:", error);
     }
@@ -299,13 +268,13 @@ const ProductDetail = () => {
       image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
     });
     
-    // Check if user is authenticated
-    const { data: { user } } = await supabase.auth.getUser();
+    // Check if user is authenticated using Firebase
+    const currentUser = await getCurrentUser();
     
     // Navigate directly to checkout with guest flag if not authenticated
     navigate("/checkout", {
       state: {
-        isGuest: !user
+        isGuest: !currentUser
       }
     });
   };

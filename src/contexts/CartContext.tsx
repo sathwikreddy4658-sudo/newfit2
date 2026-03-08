@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser } from "@/integrations/firebase/auth";
+import { getAllProducts, getPromoCode } from "@/integrations/firebase/db";
 import { toast } from "sonner";
 
 export interface CartItem {
@@ -68,18 +69,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const productIds = [...new Set(items.map(item => item.id))];
       
       try {
-        // Fetch current stock and combo discount info for all products in cart
-        const { data: products, error } = await supabase
-          .from('products')
-          .select('id, stock, name, combo_3_discount, combo_6_discount')
-          .in('id', productIds);
+        // Fetch all products from Firebase
+        const allProducts = await getAllProducts();
+        
+        // Filter to only the products in the cart
+        const products = allProducts.filter(p => productIds.includes(p.id));
 
-        if (error) {
-          console.error('[Cart] Error fetching product stock:', error);
-          return;
-        }
-
-        if (!products) return;
+        if (!products || products.length === 0) return;
 
         // Check for out-of-stock items
         const outOfStockIds = products
@@ -166,69 +162,46 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const applyPromoCode = async (code: string): Promise<boolean> => {
     try {
-      const user = (await supabase.auth.getUser()).data.user;
-      const userId = user?.id;
+      const user = await getCurrentUser();
+      
+      // Fetch the promo code details from Firebase
+      const promoCodeData = await getPromoCode(code.toUpperCase());
 
-      // For authenticated users, check usage limits
-      if (userId) {
-        const { data: canUse, error: checkError } = await supabase
-          .from("promo_codes")
-          .select("current_uses, max_uses")
-          .eq("code", code.toUpperCase())
-          .eq("active", true)
-          .single();
-
-        if (checkError || !canUse) {
-          toast.error("Invalid promo code or usage limit exceeded");
-          return false;
-        }
-
-        // Check if usage limit is exceeded
-        if (canUse.max_uses && canUse.current_uses >= canUse.max_uses) {
-          toast.error("Promo code usage limit exceeded");
-          return false;
-        }
-      }
-
-      // Get the promo code details (for both authenticated and guest users)
-      const { data, error } = await supabase
-        .from("promo_codes")
-        .select("code, discount_percentage, free_shipping, min_order_amount, max_discount_amount")
-        .eq("code", code.toUpperCase())
-        .eq("active", true)
-        .single();
-
-      if (error || !data) {
-        console.error('[Cart] Promo code fetch error:', error);
+      if (!promoCodeData) {
         toast.error("Invalid promo code");
         return false;
       }
 
-      console.log('[Cart] Promo code fetched:', {
-        code: data.code,
-        discount_percentage: data.discount_percentage,
-        free_shipping: data.free_shipping,
-        min_order_amount: data.min_order_amount
-      });
-
       // Check minimum order amount
-      if (data.min_order_amount > 0 && totalPrice < data.min_order_amount) {
-        toast.error(`Minimum order amount of ₹${data.min_order_amount} required for this promo code`);
+      if (promoCodeData.min_order_amount && promoCodeData.min_order_amount > 0 && totalPrice < promoCodeData.min_order_amount) {
+        toast.error(`Minimum order amount of ₹${promoCodeData.min_order_amount} required for this promo code`);
         return false;
       }
 
-      setPromoCode(data);
+      // Check if promo code is active
+      if (promoCodeData.active === false) {
+        toast.error('This promo code is no longer active');
+        return false;
+      }
+
+      setPromoCode({
+        code: promoCodeData.code,
+        discount_percentage: promoCodeData.discount_percentage || 0,
+        free_shipping: promoCodeData.free_shipping || false,
+        min_order_amount: promoCodeData.min_order_amount || 0,
+        max_discount_amount: promoCodeData.max_discount_amount || null,
+      });
       
       // Build success message based on promo benefits
       const benefits = [];
-      if (data.free_shipping) {
+      if (promoCodeData.free_shipping) {
         benefits.push('Free Shipping');
       }
-      if (data.discount_percentage > 0) {
-        benefits.push(`${data.discount_percentage}% OFF`);
+      if (promoCodeData.discount_percentage && promoCodeData.discount_percentage > 0) {
+        benefits.push(`${promoCodeData.discount_percentage}% OFF`);
       }
       
-      toast.success(`Promo code ${data.code} applied! ${benefits.join(' + ')}`);
+      toast.success(`Promo code ${promoCodeData.code} applied! ${benefits.join(' + ')}`);
       return true;
     } catch (error) {
       console.error("Error applying promo code:", error);

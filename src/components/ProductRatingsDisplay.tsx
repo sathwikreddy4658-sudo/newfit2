@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
+import { getProductRatings } from "@/integrations/firebase/db";
 import { Card } from "@/components/ui/card";
 import { Star, User, ThumbsUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,19 +37,15 @@ const ProductRatingsDisplay = ({ productId }: ProductRatingsDisplayProps) => {
       const guestVotes = JSON.parse(localStorage.getItem('rating_helpful_votes') || '[]');
       setUserVotes(new Set(guestVotes));
 
-      // For logged-in users, check database
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: userVotesData } = await supabase
-          .from('rating_helpful_votes')
-          .select('rating_id')
-          .eq('user_identifier', session.user.id);
-
-        if (userVotesData) {
-          const userVoteIds = new Set([...guestVotes, ...userVotesData.map(v => v.rating_id)]);
-          setUserVotes(userVoteIds);
-        }
-      }
+      // TODO: For logged-in users, check Firebase database
+      // const currentUser = await getCurrentUser();
+      // if (currentUser) {
+      //   const userVotesRef = collection(db, 'ratingHelpfulVotes');
+      //   const q = query(userVotesRef, where('userId', '==', currentUser.uid));
+      //   const snapshot = await getDocs(q);
+      //   const userVoteIds = new Set([...guestVotes, ...snapshot.docs.map(doc => doc.data().ratingId)]);
+      //   setUserVotes(userVoteIds);
+      // }
     } catch (error) {
       console.error('Error loading user votes:', error);
     }
@@ -56,39 +53,20 @@ const ProductRatingsDisplay = ({ productId }: ProductRatingsDisplayProps) => {
 
   const fetchApprovedRatings = async () => {
     try {
-      const { data, error } = await supabase
-        .from("product_ratings")
-        .select(`
-          id,
-          rating,
-          comment,
-          created_at,
-          helpful_votes,
-          user_id
-        `)
-        .eq("product_id", productId)
-        .eq("approved", true)
-        .order("created_at", { ascending: false });
+      const data = await getProductRatings(productId);
+      
+      // Map Firebase rating data to component's expected format
+      const ratingsForDisplay = data.map((rating: any) => ({
+        id: rating.id,
+        rating: rating.rating,
+        comment: rating.comment,
+        created_at: rating.createdAt?.toDate?.() || new Date(rating.createdAt),
+        helpful_votes: rating.helpful_votes || 0,
+        user_id: rating.userId,
+        profiles: { name: rating.userName || "Anonymous" }
+      }));
 
-      if (error) throw error;
-
-      // Fetch user profiles separately
-      const ratingsWithProfiles = await Promise.all(
-        (data || []).map(async (rating) => {
-          const { data: profile } = await supabase
-            .from("profiles" as any)
-            .select("name")
-            .eq("id", rating.user_id)
-            .single();
-
-          return {
-            ...rating,
-            profiles: profile ? { name: (profile as any).name } : { name: null }
-          };
-        })
-      );
-
-      setRatings(ratingsWithProfiles);
+      setRatings(ratingsForDisplay);
     } catch (error: any) {
       console.error("Error fetching ratings:", error);
     } finally {
@@ -101,18 +79,15 @@ const ProductRatingsDisplay = ({ productId }: ProductRatingsDisplayProps) => {
     const isRemoving = hasVoted;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userIdentifier = session?.user?.id || `guest_${Date.now()}_${Math.random()}`;
+      // TODO: Implement Firebase vote tracking
+      // const currentUser = await getCurrentUser();
+      // const userIdentifier = currentUser?.uid || `guest_${Date.now()}_${Math.random()}`;
+
+      const userIdentifier = `guest_${Date.now()}_${Math.random()}`;
 
       if (isRemoving) {
         // Remove vote
-        const { error } = await supabase
-          .from('rating_helpful_votes')
-          .delete()
-          .eq('rating_id', ratingId)
-          .eq('user_identifier', userIdentifier);
-
-        if (error) throw error;
+        // TODO: Remove from Firebase database
 
         // Update local state
         const newUserVotes = new Set(userVotes);
@@ -132,14 +107,7 @@ const ProductRatingsDisplay = ({ productId }: ProductRatingsDisplayProps) => {
         ));
       } else {
         // Add vote
-        const { error } = await supabase
-          .from('rating_helpful_votes')
-          .insert([{
-            rating_id: ratingId,
-            user_identifier: userIdentifier
-          }]);
-
-        if (error) throw error;
+        // TODO: Add to Firebase database
 
         // Update local state
         const newUserVotes = new Set(userVotes);

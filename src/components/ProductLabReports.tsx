@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getProductLabReports } from "@/integrations/firebase/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, ChevronDown, ChevronUp, Calendar } from "lucide-react";
@@ -31,17 +31,10 @@ const ProductLabReports = ({ productId }: ProductLabReportsProps) => {
 
   const fetchLabReports = async () => {
     try {
-      const { data, error } = await supabase
-        .from("lab_reports")
-        .select("*")
-        .eq("product_id", productId)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching lab reports:", error);
-      } else {
-        setReports(data || []);
-      }
+      const data = await getProductLabReports(productId);
+      setReports((data || []) as LabReport[]);
+    } catch (error) {
+      console.error("Error fetching lab reports:", error);
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,12 @@
-import { supabase } from '@/integrations/supabase/client';
+/**
+ * Static JSON-based Pincode Service
+ * Loads pincode data from /pincodes.json (served from public/) and caches in memory.
+ * Format: { "500100": ["TELANGANA", "HYDERABAD", 1], ... }
+ *   index 0 = state name (uppercase)
+ *   index 1 = district name
+ *   index 2 = cod available (1 = yes, 0 = no)
+ * All entries are deliverable (non-deliverable pincodes are excluded from the file).
+ */
 
 /**
  * State-based shipping rate configuration
@@ -58,108 +66,94 @@ const STATE_SHIPPING_RATES: Record<string, { charge: number; estimatedDays: numb
   'DAMAN & DIU U.T.': { charge: 55, estimatedDays: 2, codAvailable: true },
 };
 
-/**
- * Check if a pincode is serviceable using Shipneer's Delivery column
- * Looks for 'Y' in the Delivery column to determine deliverability
- */
-export async function checkPincodeServiceability(pincode: number) {
-  try {
-    const { data, error } = await (supabase
-      .from('pincodes' as any)
-      .select('*')
-      .eq('pincode', pincode)
-      .single() as any);
+// In-memory cache for the full pincode lookup table.
+// Format: { "500100": ["TELANGANA", "HYDERABAD", 1], ... }
+type PincodeMap = Record<string, [string, string, 0 | 1]>;
+let pincodeCache: PincodeMap | null = null;
+let loadPromise: Promise<PincodeMap> | null = null;
 
-    if (error || !data) {
-      return null;
-    }
+async function loadPincodeData(): Promise<PincodeMap> {
+  if (pincodeCache) return pincodeCache;
+  if (loadPromise) return loadPromise;
 
-    // Check if delivery column has 'Y' (Shipneer format)
-    const isDeliverable = data.delivery === 'Y' || data.delivery_available === true;
+  loadPromise = fetch('/pincodes.json')
+    .then(res => {
+      if (!res.ok) throw new Error(`Failed to load pincodes.json: ${res.status}`);
+      return res.json() as Promise<PincodeMap>;
+    })
+    .then(data => {
+      pincodeCache = data;
+      return data;
+    })
+    .catch(err => {
+      loadPromise = null; // allow retry on next call
+      console.error('Failed to load pincode data:', err);
+      return {} as PincodeMap;
+    });
 
-    if (!isDeliverable) {
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error checking pincode serviceability:', error);
-    return null;
-  }
+  return loadPromise;
 }
 
 /**
- * Get shipping rate for a pincode (STATE-BASED PRICING!)
- * Uses Shipneer's Delivery column ('Y' = deliverable)
- * Uses Shipneer's COD column ('Y' = COD available)
+ * Check if a pincode is serviceable.
+ * Returns a data object compatible with the old Firestore shape, or null.
+ */
+export async function checkPincodeServiceability(pincode: number) {
+  const map = await loadPincodeData();
+  const entry = map[String(pincode)];
+  if (!entry) return null;
+  const [state, district, cod] = entry;
+  return { pincode, state, district, delivery: 'Y', cod: cod ? 'Y' : 'N' };
+}
+
+/**
+ * Get shipping rate for a pincode (STATE-BASED PRICING).
+ * Loads data from /pincodes.json — no Firestore reads needed.
  */
 export async function getShippingRate(pincode: number) {
+  const NOT_SERVICEABLE = {
+    charge: null as number | null,
+    estimatedDays: null as number | null,
+    codAvailable: false,
+    serviceable: false,
+    state: undefined as string | undefined,
+    district: undefined as string | undefined,
+  };
+
   try {
-    const { data, error } = await (supabase
-      .from('pincodes' as any)
-      .select('*')
-      .eq('pincode', pincode)
-      .single() as any);
+    const map = await loadPincodeData();
+    const entry = map[String(pincode)];
 
-    if (error || !data) {
-      return {
-        charge: null,
-        estimatedDays: null,
-        codAvailable: false,
-        serviceable: false,
-      };
-    }
+    if (!entry) return NOT_SERVICEABLE;
 
-    // Check Shipneer's Delivery column for 'Y' (meaning deliverable)
-    const isDeliverable = data.delivery === 'Y' || data.delivery_available === true;
-
-    if (!isDeliverable) {
-      return {
-        charge: null,
-        estimatedDays: null,
-        codAvailable: false,
-        serviceable: false,
-      };
-    }
-
-    // Get state-based rate
-    const stateName = (data.state || '').toUpperCase().trim();
-    const stateRate = STATE_SHIPPING_RATES[stateName];
+    const [stateName, district, codFlag] = entry;
+    const stateRate = STATE_SHIPPING_RATES[stateName.toUpperCase().trim()];
 
     if (!stateRate) {
-      // Fallback to generic rate if state not found
-      const codAvailableInShipneer = data.cod === 'Y' || data.cod_available === true;
       return {
-        charge: 100,
-        estimatedDays: 3,
-        codAvailable: codAvailableInShipneer,
+        charge: 100 as number | null,
+        estimatedDays: 3 as number | null,
+        codAvailable: codFlag === 1,
         serviceable: true,
-        state: data.state,
-        district: data.district,
+        state: stateName || undefined,
+        district: district || undefined,
       };
     }
 
-    // Check Shipneer's COD column for 'Y' (meaning COD available for this pincode)
-    const shipneerCodAvailable = data.cod === 'Y' || data.cod_available === true;
-    // Combine Shipneer's COD flag with state-based rule
-    const codAvailable = shipneerCodAvailable && stateRate.codAvailable;
+    // Combine per-pincode COD flag with state-level COD rule
+    const codAvailable = codFlag === 1 && stateRate.codAvailable;
 
     return {
-      charge: stateRate.charge,
-      estimatedDays: stateRate.estimatedDays,
+      charge: stateRate.charge as number | null,
+      estimatedDays: stateRate.estimatedDays as number | null,
       codAvailable,
       serviceable: true,
-      state: data.state,
-      district: data.district,
+      state: stateName || undefined,
+      district: district || undefined,
     };
   } catch (error) {
     console.error('Error getting shipping rate:', error);
-    return {
-      charge: null,
-      estimatedDays: null,
-      codAvailable: false,
-      serviceable: false,
-    };
+    return NOT_SERVICEABLE;
   }
 }
 
@@ -215,9 +209,7 @@ export async function getCheckoutInfo(pincode: number) {
     state: rate.state,
     district: rate.district,
   };
-}
-
-export default {
+}export default {
   checkPincodeServiceability,
   getShippingRate,
   validatePincodeForCheckout,

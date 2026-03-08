@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { loginUser, registerUser, onUserStateChanged, getCurrentUser } from "@/integrations/firebase/auth";
+import { subscribeToNewsletter } from "@/integrations/firebase/db";
+import { sendPasswordResetEmail, updatePassword } from "firebase/auth";
+import { auth } from "@/integrations/firebase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,78 +42,14 @@ const Auth = () => {
 
     const handleAuth = async () => {
       try {
-        // Handle auth callback from URL hash parameters (Supabase uses hash for tokens)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const token = hashParams.get('token');
-        const type = hashParams.get('type');
-        const error = hashParams.get('error');
-        const errorDescription = hashParams.get('error_description');
-
-        console.log('Auth callback params:', { accessToken: !!accessToken, refreshToken: !!refreshToken, token: !!token, type, error });
-
-        if (error) {
-          console.error('Auth error:', error, errorDescription);
-          toast({
-            title: "Verification Failed",
-            description: errorDescription || error,
-            variant: "destructive",
-          });
-          // Clear URL parameters
-          window.history.replaceState({}, document.title, window.location.pathname);
-          return;
-        }
-
-        if (accessToken && refreshToken) {
-          console.log('Setting session with access_token and refresh_token...');
-          const { data, error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (sessionError) {
-            console.error('Session error:', sessionError);
-            toast({
-              title: "Verification Failed",
-              description: "Email verification failed. Please try again.",
-              variant: "destructive",
-            });
-          } else if (data.session) {
-            console.log('Session set successfully:', data.session.user.email);
-            toast({
-              title: "Success!",
-              description: "Email verified successfully! Welcome to Freelit.",
-            });
-            // Clear URL parameters
-            window.history.replaceState({}, document.title, window.location.pathname);
-            // Check for redirectTo in URL params first, then fall back to location state
-            const urlParams = new URLSearchParams(window.location.search);
-            const returnTo = urlParams.get('redirectTo') || location.state?.returnTo || "/";
-            navigate(returnTo, { replace: true });
-          }
-        } else if (token && type) {
-          console.log('Verifying OTP with token and type...');
-          // For email verification, we need to use the token_hash from the URL
-          // Supabase v2 uses access_token and refresh_token in the hash for email verification
-          // If we have a token and type, it's likely an older format or different flow
-          console.log('Token-based verification detected, but modern Supabase uses access_token/refresh_token');
-          toast({
-            title: "Verification Link Issue",
-            description: "Please use the latest verification link from your email.",
-            variant: "destructive",
-          });
-          window.history.replaceState({}, document.title, window.location.pathname);
-        } else {
-          // Check if user is already authenticated
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session && mounted) {
-            console.log('User already authenticated:', session.user.email);
-            // Check for redirectTo in URL params first, then fall back to location state
-            const urlParams = new URLSearchParams(window.location.search);
-            const returnTo = urlParams.get('redirectTo') || location.state?.returnTo || "/";
-            navigate(returnTo, { replace: true });
-          }
+        // Firebase handles auth state natively
+        const user = await getCurrentUser();
+        
+        if (user && mounted) {
+          // User is already authenticated, redirect to products
+          const urlParams = new URLSearchParams(window.location.search);
+          const returnTo = urlParams.get('redirectTo') || location.state?.returnTo || "/products";
+          navigate(returnTo, { replace: true });
         }
       } catch (err) {
         console.error('Auth handling error:', err);
@@ -124,23 +63,8 @@ const Auth = () => {
 
     handleAuth();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.email);
-
-      if (event === 'SIGNED_IN' && session && mounted) {
-        // Navigation is handled in the handleAuth function above, so we don't need to navigate here
-        // This prevents redirect loops
-        console.log('User signed in via auth state change');
-      } else if (event === 'SIGNED_OUT' && mounted) {
-        // Handle sign out if needed
-        console.log('User signed out');
-      }
-    });
-
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
   }, [navigate, location]);
 
@@ -156,9 +80,7 @@ const Auth = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth?mode=reset`,
-      });
+      const { error } = await sendPasswordResetEmail(auth, email.trim());
 
       if (error) {
         throw error;
@@ -208,9 +130,7 @@ const Auth = () => {
         return;
       }
 
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
+      const { error } = await updatePassword(auth.currentUser, newPassword);
 
       if (error) {
         throw error;
@@ -263,21 +183,14 @@ const Auth = () => {
         }
 
         console.log('Attempting sign in with:', { email: validationResult.data.email });
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: validationResult.data.email,
-          password: validationResult.data.password,
-        });
+        await loginUser(validationResult.data.email, validationResult.data.password);
 
-        if (error) {
-          console.error('Sign in error:', error);
-          throw error;
-        }
-
-        console.log('Sign in successful:', data);
+        console.log('Sign in successful');
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
+
         // Check for redirectTo in URL params first, then fall back to location state
         const urlParams = new URLSearchParams(window.location.search);
         const returnTo = urlParams.get('redirectTo') || location.state?.returnTo || "/";
@@ -306,61 +219,37 @@ const Auth = () => {
           name: validationResult.data.name 
         });
         
-        const { data, error } = await supabase.auth.signUp({
-          email: validationResult.data.email,
-          password: validationResult.data.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              name: validationResult.data.name,
-            },
-          },
-        });
-
-        if (error) {
-          console.error('Sign up error:', error);
-          throw error;
-        }
-
-        console.log('Sign up response:', data);
+        await registerUser(
+          validationResult.data.email, 
+          validationResult.data.password, 
+          validationResult.data.name
+        );
 
         // Subscribe to newsletter if checked
         if (subscribeNewsletter) {
           try {
-            const { error: newsletterError } = await supabase
-              .from("newsletter_subscribers")
-              .insert([{ email: email.trim(), source: 'sign up page' }]);
-
-            if (newsletterError && newsletterError.code !== '23505') {
-              console.error('Newsletter subscription error:', newsletterError);
-            }
-          } catch (newsletterError) {
-            console.error('Newsletter subscription error:', newsletterError);
+            await subscribeToNewsletter(validationResult.data.email);
+          } catch (error) {
+            console.warn('Newsletter signup failed:', error);
+            // Don't show error - not critical
           }
         }
 
-        // Show detailed success message
+        console.log('Sign up successful');
         toast({
-          title: "Account created successfully!",
-          description: "Please check your email and click the verification link before signing in.",
-          duration: 8000,
+          title: "Welcome to Freelit!",
+          description: "Your account has been created successfully.",
         });
 
-        // Clear form and switch to login
-        setEmail("");
-        setPassword("");
-        setName("");
-        setSubscribeNewsletter(false);
-        setIsLogin(true);
+        // Navigate to products page
+        navigate("/products");
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      const errorMessage = sanitizeError(error);
       toast({
-        title: "Authentication Error",
-        description: errorMessage,
+        title: "Authentication Failed",
+        description: sanitizeError(error),
         variant: "destructive",
-        duration: 6000,
       });
     } finally {
       setLoading(false);

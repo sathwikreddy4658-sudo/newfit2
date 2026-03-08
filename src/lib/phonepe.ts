@@ -3,13 +3,26 @@
  * Secure payment processing with comprehensive validation and error handling
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/integrations/firebase/client';
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  Timestamp,
+} from 'firebase/firestore';
 import CryptoJS from 'crypto-js';
 
 // PhonePe API Configuration for Production
 const PHONEPE_MERCHANT_ID = import.meta.env.VITE_PHONEPE_MERCHANT_ID || '';
 const PHONEPE_API_URL = import.meta.env.VITE_PHONEPE_API_URL || 'https://api.phonepe.com/apis/pg';
 const PHONEPE_CALLBACK_URL = import.meta.env.VITE_PHONEPE_CALLBACK_URL || '';
+// PhonePe edge/cloud functions base URL
+const PHONEPE_FUNCTIONS_BASE_URL = import.meta.env.VITE_PHONEPE_FUNCTIONS_URL ||
+  'https://osromibanfzzthdmhyzp.supabase.co/functions/v1';
 
 // Validate configuration
 if (!PHONEPE_MERCHANT_ID || !PHONEPE_API_URL) {
@@ -17,7 +30,7 @@ if (!PHONEPE_MERCHANT_ID || !PHONEPE_API_URL) {
 }
 
 // NOTE: PHONEPE_CLIENT_ID and PHONEPE_CLIENT_SECRET are NEVER exposed to client
-// They are only available in Supabase Edge Function environment variables
+// They are only available in the backend edge/cloud function environment variables
 
 export interface PhonePePaymentOptions {
   amount: number; // Amount in paisa (1 INR = 100 paisa)
@@ -111,17 +124,18 @@ export async function initiatePhonePePayment(
 
       console.log('[PhonePe] Request body being sent:', requestBody);
 
-      // Use Supabase functions.invoke() - it handles authentication automatically
-      // This works for both authenticated users and guest users (uses anon key)
-      const { data, error } = await supabase.functions.invoke('phonepe-initiate', {
-        body: requestBody
+      // Call PhonePe initiate via backend edge/cloud function
+      const response = await fetch(`${PHONEPE_FUNCTIONS_BASE_URL}/phonepe-initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
       });
 
-      console.log('[PhonePe] Response:', { data, error });
+      const data = await response.json();
+      console.log('[PhonePe] Response:', { data, ok: response.ok });
 
-      if (error) {
-        console.error('[PhonePe] Function invocation error:', error);
-        throw new Error(`Edge Function error: ${error.message || JSON.stringify(error)}`);
+      if (!response.ok) {
+        throw new Error(data?.message || `HTTP ${response.status}`);
       }
 
       if (data?.success) {
@@ -184,14 +198,18 @@ export async function checkPaymentStatus(
         merchantTransactionId
       });
 
-      // Call Supabase Edge Function instead of direct API call
-      const { data, error } = await supabase.functions.invoke('phonepe-check-status', {
-        body: { merchantTransactionId }
+      // Call PhonePe check-status via backend edge/cloud function
+      const response = await fetch(`${PHONEPE_FUNCTIONS_BASE_URL}/phonepe-check-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merchantTransactionId }),
       });
 
-      if (error) {
-        throw new Error(`Edge Function error: ${error.message}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
+
+      const data = await response.json();
 
       console.log('[PhonePe] Payment status response:', {
         success: data?.success,
@@ -219,7 +237,7 @@ export async function checkPaymentStatus(
   return null;
 }
 
-// Create payment transaction record
+// Create payment transaction record in Firestore
 export async function createPaymentTransaction(
   orderId: string,
   merchantTransactionId: string,
@@ -227,29 +245,25 @@ export async function createPaymentTransaction(
   metadata?: Record<string, unknown>
 ): Promise<string | null> {
   try {
-    const { data, error } = await (supabase.rpc as unknown as {
-      (name: string, params: Record<string, unknown>): Promise<{ data: string; error: unknown }>;
-    })('create_payment_transaction', {
-      p_order_id: orderId,
-      p_merchant_transaction_id: merchantTransactionId,
-      p_amount: amount,
-      p_metadata: metadata || null
+    const docRef = await addDoc(collection(db, 'payment_transactions'), {
+      order_id: orderId,
+      merchant_transaction_id: merchantTransactionId,
+      amount,
+      status: 'INITIATED',
+      metadata: metadata || null,
+      created_at: Timestamp.now(),
+      updated_at: Timestamp.now(),
     });
 
-    if (error) {
-      console.error('[PhonePe] Failed to create payment transaction:', error);
-      return null;
-    }
-
-    console.log('[PhonePe] Payment transaction created:', data);
-    return data;
+    console.log('[PhonePe] Payment transaction created:', docRef.id);
+    return docRef.id;
   } catch (error) {
     console.error('[PhonePe] Error creating payment transaction:', error);
     return null;
   }
 }
 
-// Update payment transaction status
+// Update payment transaction status in Firestore
 export async function updatePaymentTransaction(
   merchantTransactionId: string,
   status: 'INITIATED' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED' | 'CANCELLED',
@@ -261,95 +275,81 @@ export async function updatePaymentTransaction(
     const responseCode = phonePeResponse?.data?.responseCode;
     const responseMessage = phonePeResponse?.message;
 
-    const { data, error } = await (supabase.rpc as unknown as {
-      (name: string, params: Record<string, unknown>): Promise<{ data: boolean; error: unknown }>;
-    })('update_payment_transaction_status', {
-      p_merchant_transaction_id: merchantTransactionId,
-      p_status: status,
-      p_phonepe_transaction_id: phonepeTransactionId || null,
-      p_payment_method: paymentMethod || null,
-      p_response_code: responseCode || null,
-      p_response_message: responseMessage || null,
-      p_phonepe_response: phonePeResponse || null
-    });
+    // Find the document by merchant_transaction_id
+    const q = query(
+      collection(db, 'payment_transactions'),
+      where('merchant_transaction_id', '==', merchantTransactionId)
+    );
+    const snapshot = await getDocs(q);
 
-    if (error) {
-      console.error('[PhonePe] Failed to update payment transaction:', error);
+    if (snapshot.empty) {
+      console.error('[PhonePe] Payment transaction not found:', merchantTransactionId);
       return false;
     }
 
-    console.log('[PhonePe] Payment transaction updated:', {
-      merchantTransactionId,
+    await updateDoc(snapshot.docs[0].ref, {
       status,
-      success: data
+      phonepe_transaction_id: phonepeTransactionId || null,
+      payment_method: paymentMethod || null,
+      response_code: responseCode || null,
+      response_message: responseMessage || null,
+      phonepe_response: phonePeResponse || null,
+      updated_at: Timestamp.now(),
     });
 
-    return data;
+    console.log('[PhonePe] Payment transaction updated:', { merchantTransactionId, status });
+    return true;
   } catch (error) {
     console.error('[PhonePe] Error updating payment transaction:', error);
     return false;
   }
 }
 
-// Store payment details (legacy function for backward compatibility)
+// Store payment details (updates order document in Firestore)
 export async function storePaymentDetails(orderId: string, paymentData: PaymentTransaction): Promise<void> {
   try {
-    const { error } = await supabase
-      .from('orders')
-      .update({
-        payment_id: paymentData.merchant_transaction_id,
-        status: paymentData.status === 'SUCCESS' ? 'paid' : 'pending'
-      })
-      .eq('id', orderId);
-
-    if (error) {
-      console.error('[PhonePe] Failed to store payment details in orders:', error);
-    } else {
-      console.log('[PhonePe] Payment details stored in orders table');
-    }
+    const { doc: firestoreDoc, updateDoc: firestoreUpdate } = await import('firebase/firestore');
+    const { db: firestoreDb } = await import('@/integrations/firebase/client');
+    await firestoreUpdate(firestoreDoc(firestoreDb, 'orders', orderId), {
+      payment_id: paymentData.merchant_transaction_id,
+      status: paymentData.status === 'SUCCESS' ? 'paid' : 'pending',
+      updatedAt: Timestamp.now(),
+    });
+    console.log('[PhonePe] Payment details stored in orders collection');
   } catch (error) {
-    console.error('[PhonePe] Error storing payment details:', error);
+    console.error('[PhonePe] Failed to store payment details:', error);
   }
 }
 
-// Get payment transaction by merchant transaction ID
+// Get payment transaction by merchant transaction ID from Firestore
 export async function getPaymentTransaction(merchantTransactionId: string): Promise<PaymentTransaction | null> {
   try {
-    const { data, error } = await supabase
-      .from('payment_transactions')
-      .select('*')
-      .eq('merchant_transaction_id', merchantTransactionId)
-      .single();
+    const q = query(
+      collection(db, 'payment_transactions'),
+      where('merchant_transaction_id', '==', merchantTransactionId)
+    );
+    const snapshot = await getDocs(q);
 
-    if (error) {
-      console.error('[PhonePe] Failed to get payment transaction:', error);
-      return null;
-    }
-
-    return data as unknown as PaymentTransaction;
+    if (snapshot.empty) return null;
+    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as unknown as PaymentTransaction;
   } catch (error) {
-    console.error('[PhonePe] Error getting payment transaction:', error);
+    console.error('[PhonePe] Failed to get payment transaction:', error);
     return null;
   }
 }
 
-// Get payment transactions for an order
+// Get payment transactions for an order from Firestore
 export async function getOrderPaymentTransactions(orderId: string): Promise<PaymentTransaction[]> {
   try {
-    const { data, error } = await supabase
-      .from('payment_transactions')
-      .select('*')
-      .eq('order_id', orderId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('[PhonePe] Failed to get order payment transactions:', error);
-      return [];
-    }
-
-    return (data || []) as unknown as PaymentTransaction[];
+    const q = query(
+      collection(db, 'payment_transactions'),
+      where('order_id', '==', orderId),
+      orderBy('created_at', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as PaymentTransaction[];
   } catch (error) {
-    console.error('[PhonePe] Error getting order payment transactions:', error);
+    console.error('[PhonePe] Failed to get order payment transactions:', error);
     return [];
   }
 }

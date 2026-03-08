@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/integrations/firebase/client";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -16,20 +17,21 @@ const Products = () => {
   const categoriesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchProducts();
+    // Firebase real-time listener for products
+    const productsQuery = query(
+      collection(db, "products"),
+      orderBy("createdAt", "desc")
+    );
 
-    const channel = supabase
-      .channel("products-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "products" },
-        () => fetchProducts()
-      )
-      .subscribe();
+    const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+      const data = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((p: any) => !p.is_hidden);
+      setProducts(data);
+      setLoading(false);
+    });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => unsubscribe();
   }, []);
 
   // Re-fetch products when page becomes visible (e.g., when navigating back)
@@ -50,19 +52,6 @@ const Products = () => {
   useEffect(() => {
     filterProducts();
   }, [products, searchQuery, categoryFilter]);
-
-  const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("is_hidden", false)
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setProducts(data);
-    }
-    setLoading(false);
-  };
 
   const filterProducts = () => {
     let filtered = products;

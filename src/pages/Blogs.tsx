@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllBlogs } from "@/integrations/firebase/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,15 +16,11 @@ const Blogs = () => {
   }, []);
 
   const fetchBlogs = async () => {
-    const { data, error } = await supabase
-      .from("blogs")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching blogs:", error);
-    } else {
+    try {
+      const data = await getAllBlogs(20);
       setBlogs(data || []);
+    } catch (error) {
+      console.error("Error fetching blogs:", error);
     }
     setLoading(false);
   };

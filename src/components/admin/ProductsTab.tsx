@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllProducts, createProduct, updateProduct, deleteProduct } from "@/integrations/firebase/db";
+import { uploadProductImage } from "@/integrations/firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,11 +54,13 @@ const ProductsTab = () => {
   }, []);
 
   const fetchProducts = async () => {
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) setProducts(data);
+    try {
+      const data = await getAllProducts(1000); // Get all products for admin
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast({ title: "Error", description: "Failed to fetch products", variant: "destructive" });
+    }
   };
 
   // Auto-save draft on form changes
@@ -126,46 +129,26 @@ const ProductsTab = () => {
     const uploadedUrls: string[] = [];
 
     for (const file of imageFiles) {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${productId}/${Date.now()}-${Math.random()}.${fileExt}`;
-
-      const { error: uploadError, data } = await supabase.storage
-        .from('product-images')
-        .upload(fileName, file);
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        continue;
+      try {
+        const url = await uploadProductImage(productId, file, 'gallery');
+        uploadedUrls.push(url);
+      } catch (error) {
+        console.error('Upload error:', error);
       }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(fileName);
-
-      uploadedUrls.push(publicUrl);
     }
 
     return uploadedUrls;
   };
 
   const uploadSingleImage = async (file: File, productId: string, type: string): Promise<string | null> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${productId}/${type}-${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('product-images')
-      .upload(fileName, file);
-
-    if (uploadError) {
-      console.error(`Upload error for ${type}:`, uploadError);
+    try {
+      const imageType = type === 'products-page' ? 'thumbnail' : type === 'cart' ? 'main' : 'gallery';
+      const url = await uploadProductImage(productId, file, imageType);
+      return url;
+    } catch (error) {
+      console.error(`Upload error for ${type}:`, error);
       return null;
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('product-images')
-      .getPublicUrl(fileName);
-
-    return publicUrl;
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,95 +293,67 @@ const ProductsTab = () => {
           cartImageUrl = await uploadSingleImage(cartImageFile, editingProduct.id, 'cart');
         }
 
-        const { error } = await supabase
-          .from("products")
-          .update({
+        try {
+          await updateProduct(editingProduct.id, {
             ...validatedData,
             images: allImages,
             products_page_image: productsPageImageUrl,
             cart_image: cartImageUrl
-          })
-          .eq("id", editingProduct.id);
-
-        if (error) {
+          });
+          toast({ title: "Product updated successfully" });
+          setShowDialog(false);
+          resetForm();
+          fetchProducts();
+        } catch (error: any) {
           console.error('Product update error:', error);
           toast({
             title: "Update failed",
             description: error.message || "An error occurred while updating the product",
             variant: "destructive"
           });
-        } else {
-          toast({ title: "Product updated successfully" });
-          setShowDialog(false);
-          resetForm();
-          fetchProducts();
         }
       } else {
         // Create product first
-        console.log('Creating product with data:', validatedData);
-        const { data: newProduct, error: insertError } = await supabase
-          .from("products")
-          .insert([validatedData])
-          .select()
-          .single();
+        try {
+          console.log('Creating product with data:', validatedData);
+          const newProductId = await createProduct(validatedData);
 
-        if (insertError) {
-          console.error('Product creation error:', insertError);
-          console.error('Error details:', {
-            message: insertError.message,
-            code: insertError.code || 'UNKNOWN',
-            details: insertError.details
-          });
-          toast({
-            title: "Creation failed",
-            description: insertError.message || "An error occurred while creating the product",
-            variant: "destructive"
-          });
-          setUploadingImages(false);
-          return;
-        }
+          // Upload images if any
+          if (imageFiles.length > 0) {
+            const imageUrls = await uploadImages(newProductId);
 
-        if (!newProduct) {
-          toast({
-            title: "Creation failed",
-            description: "Product was created but no data was returned",
-            variant: "destructive"
-          });
-          setUploadingImages(false);
-          return;
-        }
+            // Upload separate images
+            let productsPageImageUrl = null;
+            let cartImageUrl = null;
 
-        // Upload images if any
-        if (imageFiles.length > 0) {
-          const imageUrls = await uploadImages(newProduct.id);
+            if (productsPageImageFile) {
+              productsPageImageUrl = await uploadSingleImage(productsPageImageFile, newProductId, 'products-page');
+            }
 
-          // Upload separate images
-          let productsPageImageUrl = null;
-          let cartImageUrl = null;
+            if (cartImageFile) {
+              cartImageUrl = await uploadSingleImage(cartImageFile, newProductId, 'cart');
+            }
 
-          if (productsPageImageFile) {
-            productsPageImageUrl = await uploadSingleImage(productsPageImageFile, newProduct.id, 'products-page');
-          }
-
-          if (cartImageFile) {
-            cartImageUrl = await uploadSingleImage(cartImageFile, newProduct.id, 'cart');
-          }
-
-          // Update product with image URLs
-          await supabase
-            .from("products")
-            .update({
+            // Update product with image URLs
+            await updateProduct(newProductId, {
               images: imageUrls,
               products_page_image: productsPageImageUrl,
               cart_image: cartImageUrl
-            })
-            .eq("id", newProduct.id);
-        }
+            });
+          }
 
-        toast({ title: "Product created successfully" });
-        setShowDialog(false);
-        resetForm();
-        fetchProducts();
+          toast({ title: "Product created successfully" });
+          setShowDialog(false);
+          resetForm();
+          fetchProducts();
+        } catch (error: any) {
+          console.error('Product creation error:', error);
+          toast({
+            title: "Creation failed",
+            description: error.message || "An error occurred while creating the product",
+            variant: "destructive"
+          });
+        }
       }
     } finally {
       setUploadingImages(false);
@@ -437,13 +392,13 @@ const ProductsTab = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
 
-    const { error } = await supabase.from("products").delete().eq("id", id);
-
-    if (error) {
-      toast({ title: "Deletion failed", variant: "destructive" });
-    } else {
+    try {
+      await deleteProduct(id);
       toast({ title: "Product deleted successfully" });
       fetchProducts();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({ title: "Deletion failed", variant: "destructive" });
     }
   };
 

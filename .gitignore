@@ -34,3 +34,7 @@ dist-ssr
 
 test_telegram_setup.js
 TELEGRAM_BOT_SETUP.md
+# Firebase Admin Credentials (NEVER commit!)
+scripts/firebase-admin-key.json
+newfit-35320-firebase-adminsdk-*.json
+firebase-service-account.json

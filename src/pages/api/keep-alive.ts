@@ -1,3 +1,8 @@
+// DEPRECATED: This endpoint was for Supabase keep-alive
+// No longer needed - using Firebase instead
+// Original file preserved below but disabled
+
+/*
 import { createClient } from '@supabase/supabase-js';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
@@ -13,6 +18,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
+  return res.status(410).json({ 
+    success: false, 
+    error: 'This endpoint is deprecated. Supabase has been replaced with Firebase.' 
+  });
+}
   // Only allow GET requests
   if (req.method !== 'GET') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -40,8 +50,6 @@ export default async function handler(
         timestamp: new Date().toISOString()
       });
     }
-
-    console.log('[Keep-Alive] Success! Product count:', count);
 
     return res.status(200).json({
       success: true,

@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { getCurrentUser } from '@/integrations/firebase/auth';
+import { getOrder } from '@/integrations/firebase/db';
+import { db } from '@/integrations/firebase/client';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { useCart } from '@/contexts/CartContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
+
+// PhonePe Edge Function URL - configurable via env var
+const PHONEPE_FUNCTIONS_BASE_URL = import.meta.env.VITE_PHONEPE_FUNCTIONS_URL ||
+  'https://osromibanfzzthdmhyzp.supabase.co/functions/v1';
 
 const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
@@ -22,7 +29,7 @@ const PaymentCallback = () => {
         // The Edge Function will handle authentication with PhonePe
         console.log('[PaymentCallback] Calling phonepe-check-status with:', merchantTransactionId);
         
-        const response = await fetch(`https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-check-status`, {
+        const response = await fetch(`${PHONEPE_FUNCTIONS_BASE_URL}/phonepe-check-status`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -110,13 +117,21 @@ const PaymentCallback = () => {
       setOrderId(orderParam);
 
       try {
-        // First check if payment_transactions table has the transaction with SUCCESS status
+        // Helper: get payment transaction doc from Firestore by merchant_transaction_id
+        const getPaymentTx = async (txId: string) => {
+          const q = query(
+            collection(db, 'payment_transactions'),
+            where('merchant_transaction_id', '==', txId)
+          );
+          const snap = await getDocs(q);
+          if (snap.empty) return null;
+          const d = snap.docs[0];
+          return { ref: d.ref, ...d.data() } as any;
+        };
+
+        // First check if payment_transactions collection has the transaction with SUCCESS status
         if (transactionId) {
-          const { data: txData } = await supabase
-            .from('payment_transactions')
-            .select('status, order_id')
-            .eq('merchant_transaction_id', transactionId)
-            .maybeSingle();
+          const txData = await getPaymentTx(transactionId);
 
           console.log('[PaymentCallback] Transaction query result:', { 
             txData, 
@@ -144,11 +159,7 @@ const PaymentCallback = () => {
 
         // Check if order is already marked as paid by webhook
         if (orderParam) {
-          const { data: orderData } = await supabase
-            .from('orders')
-            .select('status')
-            .eq('id', orderParam)
-            .maybeSingle();
+          const orderData = await getOrder(orderParam);
 
           console.log('[PaymentCallback] Order query result:', { 
             orderData,
@@ -169,11 +180,7 @@ const PaymentCallback = () => {
 
         // Check transaction status again after waiting
         if (transactionId) {
-          const { data: txDataAfterWait } = await supabase
-            .from('payment_transactions')
-            .select('status, order_id')
-            .eq('merchant_transaction_id', transactionId)
-            .maybeSingle();
+          const txDataAfterWait = await getPaymentTx(transactionId);
 
           console.log('[PaymentCallback] Transaction status after wait:', {
             status: txDataAfterWait?.status
@@ -195,11 +202,7 @@ const PaymentCallback = () => {
 
         // Check order status again after waiting
         if (orderParam) {
-          const { data: orderDataAfterWait } = await supabase
-            .from('orders')
-            .select('status')
-            .eq('id', orderParam)
-            .maybeSingle();
+          const orderDataAfterWait = await getOrder(orderParam);
 
           console.log('[PaymentCallback] Order status after wait:', {
             status: orderDataAfterWait?.status
@@ -214,7 +217,6 @@ const PaymentCallback = () => {
         }
 
         // If webhook hasn't updated yet, try PhonePe API as last resort
-        // Note: This may fail with "Api Mapping Not Found" but that's OK if webhook already processed
         if (transactionId) {
           console.log('[PaymentCallback] Webhook not updated yet, checking with PhonePe API...');
           
@@ -223,7 +225,6 @@ const PaymentCallback = () => {
             console.log('[PaymentCallback] PhonePe status result:', phonePeStatus);
 
             if (phonePeStatus === 'COMPLETED') {
-              // Payment successful - update our records
               console.log('[PaymentCallback] Payment COMPLETED, updating transaction and order');
               
               toast({
@@ -231,35 +232,23 @@ const PaymentCallback = () => {
                 description: "Payment confirmed with PhonePe. Updating your order...",
               });
               
-              // Update payment transaction status
-              const { error: txUpdateError } = await supabase
-                .from('payment_transactions')
-                .update({
+              // Update payment transaction status in Firestore
+              const txDoc = await getPaymentTx(transactionId);
+              if (txDoc?.ref) {
+                await updateDoc(txDoc.ref, {
                   status: 'SUCCESS',
-                  updated_at: new Date().toISOString()
-                })
-                .eq('merchant_transaction_id', transactionId);
-
-              if (txUpdateError) {
-                console.error('[PaymentCallback] Error updating transaction:', txUpdateError);
+                  updated_at: new Date().toISOString(),
+                });
               }
 
-              // Update order status
+              // Update order status in Firestore
               if (orderParam) {
-                const { error: orderUpdateError } = await supabase
-                  .from('orders')
-                  .update({
-                    status: 'paid',
-                    payment_id: transactionId,
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('id', orderParam);
-
-                if (orderUpdateError) {
-                  console.error('[PaymentCallback] Error updating order:', orderUpdateError);
-                } else {
-                  console.log('[PaymentCallback] Order marked as paid');
-                }
+                await updateDoc(doc(db, 'orders', orderParam), {
+                  status: 'paid',
+                  payment_id: transactionId,
+                  updatedAt: new Date(),
+                });
+                console.log('[PaymentCallback] Order marked as paid');
               }
 
               clearCart();
@@ -268,17 +257,12 @@ const PaymentCallback = () => {
             } else if (phonePeStatus === 'FAILED') {
               console.log('[PaymentCallback] Payment FAILED');
               
-              // Update transaction status
-              const { error: txUpdateError } = await supabase
-                .from('payment_transactions')
-                .update({
+              const txDoc = await getPaymentTx(transactionId);
+              if (txDoc?.ref) {
+                await updateDoc(txDoc.ref, {
                   status: 'FAILED',
-                  updated_at: new Date().toISOString()
-                })
-                .eq('merchant_transaction_id', transactionId);
-
-              if (txUpdateError) {
-                console.error('[PaymentCallback] Error updating failed transaction:', txUpdateError);
+                  updated_at: new Date().toISOString(),
+                });
               }
 
               setStatus('failed');
@@ -288,11 +272,7 @@ const PaymentCallback = () => {
             console.error('[PaymentCallback] PhonePe API call failed (this is OK if webhook processed):', phonepeError);
             
             // One final check - maybe webhook processed while we were trying PhonePe API
-            const { data: finalTxCheck } = await supabase
-              .from('payment_transactions')
-              .select('status')
-              .eq('merchant_transaction_id', transactionId)
-              .maybeSingle();
+            const finalTxCheck = await getPaymentTx(transactionId);
             
             if (finalTxCheck && finalTxCheck.status === 'SUCCESS') {
               console.log('[PaymentCallback] ✅ Final check: Webhook processed successfully!');
@@ -301,20 +281,17 @@ const PaymentCallback = () => {
               return;
             }
             
-            const { data: finalOrderCheck } = await supabase
-              .from('orders')
-              .select('status')
-              .eq('id', orderParam!)
-              .maybeSingle();
+            if (orderParam) {
+              const finalOrderCheck = await getOrder(orderParam);
             
-            if (finalOrderCheck && finalOrderCheck.status === 'paid') {
-              console.log('[PaymentCallback] ✅ Final check: Order is PAID!');
-              clearCart();
-              setStatus('success');
-              return;
+              if (finalOrderCheck && finalOrderCheck.status === 'paid') {
+                console.log('[PaymentCallback] ✅ Final check: Order is PAID!');
+                clearCart();
+                setStatus('success');
+                return;
+              }
             }
             
-            // If still not updated after all checks, assume failed
             console.warn('[PaymentCallback] Payment verification inconclusive after all attempts');
             setStatus('failed');
             return;
@@ -355,34 +332,34 @@ const PaymentCallback = () => {
   const handleContinue = async () => {
     if (status === 'success') {
       // Check if user is authenticated or guest
-      const { data: { user } } = await supabase.auth.getUser();
+      const authUser = await getCurrentUser();
       
       // Get order details
-      let orderEmail = user?.email;
+      let orderEmail = authUser?.email || '';
       let customerName = '';
       
       if (orderId) {
-        const { data: orderData } = await supabase
-          .from('orders')
-          .select('customer_email, customer_name, user_id')
-          .eq('id', orderId)
-          .single();
-        
-        if (orderData) {
-          orderEmail = orderData.customer_email || orderEmail;
-          customerName = orderData.customer_name || '';
+        try {
+          const orderData = await getOrder(orderId);
           
-          // If order has no user_id, it's a guest order
-          if (!orderData.user_id) {
-            navigate('/guest-thank-you', {
-              state: {
-                orderId,
-                email: orderEmail,
-                name: customerName
-              }
-            });
-            return;
+          if (orderData) {
+            orderEmail = orderData.customer_email || orderEmail;
+            customerName = orderData.customer_name || '';
+            
+            // If order has no user_id, it's a guest order
+            if (!orderData.user_id) {
+              navigate('/guest-thank-you', {
+                state: {
+                  orderId,
+                  email: orderEmail,
+                  name: customerName
+                }
+              });
+              return;
+            }
           }
+        } catch (error) {
+          console.error('Error fetching order:', error);
         }
       }
       

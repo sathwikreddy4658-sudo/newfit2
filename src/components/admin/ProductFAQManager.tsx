@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getProductFAQs, createFAQ, updateFAQ, deleteFAQ } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,18 +32,11 @@ const ProductFAQManager = ({ productId }: ProductFAQManagerProps) => {
 
   const fetchFAQs = async () => {
     try {
-      const { data, error } = await supabase
-        .from("product_faqs")
-        .select("*")
-        .eq("product_id", productId)
-        .order("display_order", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching FAQs:", error);
-        toast({ title: "Error fetching FAQs", variant: "destructive" });
-      } else {
-        setFaqs(data || []);
-      }
+      const data = await getProductFAQs(productId);
+      setFaqs(data || []);
+    } catch (error) {
+      console.error("Error fetching FAQs:", error);
+      toast({ title: "Error fetching FAQs", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -58,14 +51,11 @@ const ProductFAQManager = ({ productId }: ProductFAQManagerProps) => {
     try {
       const maxOrder = faqs.length > 0 ? Math.max(...faqs.map(f => f.display_order)) : -1;
       
-      const { error } = await supabase.from("product_faqs").insert({
-        product_id: productId,
+      await createFAQ(productId, {
         question: formData.question.trim(),
         answer: formData.answer.trim(),
         display_order: maxOrder + 1,
       });
-
-      if (error) throw error;
 
       toast({ title: "FAQ added successfully" });
       setFormData({ question: "", answer: "" });
@@ -84,15 +74,10 @@ const ProductFAQManager = ({ productId }: ProductFAQManagerProps) => {
     }
 
     try {
-      const { error } = await supabase
-        .from("product_faqs")
-        .update({
-          question: formData.question.trim(),
-          answer: formData.answer.trim(),
-        })
-        .eq("id", id);
-
-      if (error) throw error;
+      await updateFAQ(productId, id, {
+        question: formData.question.trim(),
+        answer: formData.answer.trim(),
+      });
 
       toast({ title: "FAQ updated successfully" });
       setEditingId(null);
@@ -108,10 +93,7 @@ const ProductFAQManager = ({ productId }: ProductFAQManagerProps) => {
     if (!confirm("Are you sure you want to delete this FAQ?")) return;
 
     try {
-      const { error } = await supabase.from("product_faqs").delete().eq("id", id);
-
-      if (error) throw error;
-
+      await deleteFAQ(productId, id);
       toast({ title: "FAQ deleted successfully" });
       fetchFAQs();
     } catch (error) {
@@ -141,7 +123,7 @@ const ProductFAQManager = ({ productId }: ProductFAQManagerProps) => {
     try {
       await Promise.all(
         newFaqs.map((faq, idx) =>
-          supabase.from("product_faqs").update({ display_order: idx }).eq("id", faq.id)
+          updateFAQ(productId, faq.id, { display_order: idx })
         )
       );
       fetchFAQs();
@@ -160,7 +142,7 @@ const ProductFAQManager = ({ productId }: ProductFAQManagerProps) => {
     try {
       await Promise.all(
         newFaqs.map((faq, idx) =>
-          supabase.from("product_faqs").update({ display_order: idx }).eq("id", faq.id)
+          updateFAQ(productId, faq.id, { display_order: idx })
         )
       );
       fetchFAQs();

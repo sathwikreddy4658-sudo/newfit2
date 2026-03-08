@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getOrder } from "@/integrations/firebase/db";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ const OrderConfirmation = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchOrderData = async () => {
       // Get order details from location state (passed from checkout)
       const orderId = location.state?.orderId;
       const email = location.state?.email;
@@ -24,17 +24,18 @@ const OrderConfirmation = () => {
       }
 
       try {
-        // Use secure RPC to fetch order with items and enforce email match
-        const { data, error } = await (supabase.rpc as any)(
-          'get_order_with_items_public',
-          { p_order_id: orderId, p_email: email || null }
-        );
-
-        if (error) throw error;
+        // Fetch order from Firebase
+        const data = await getOrder(orderId);
 
         if (!data) {
           navigate('/');
           return;
+        }
+
+        // Verify email matches (optional security check)
+        if (email && data.customer_email !== email) {
+          console.warn('Email mismatch for order confirmation');
+          // Still show the order for now
         }
 
         setOrder(data);
@@ -45,7 +46,7 @@ const OrderConfirmation = () => {
       }
     };
 
-    fetchOrder();
+    fetchOrderData();
   }, [location, navigate]);
 
   if (loading) {

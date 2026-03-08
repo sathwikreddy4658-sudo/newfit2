@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/integrations/firebase/client";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,24 +71,39 @@ export const SavedAddresses = ({ userId, onAddressSelect, selectedAddressId }: S
   });
 
   useEffect(() => {
-    fetchAddresses();
+    if (userId) {
+      fetchAddresses();
+    } else {
+      setLoading(false);
+    }
   }, [userId]);
 
   const fetchAddresses = async () => {
     try {
-      const { data, error } = await supabase
-        .from("saved_addresses" as any)
-        .select("*")
-        .eq("user_id", userId)
-        .order("is_default", { ascending: false })
-        .order("created_at", { ascending: false });
+      const addressesRef = collection(db, "saved_addresses");
+      const q = query(
+        addressesRef,
+        where("user_id", "==", userId)
+      );
 
-      if (error) throw error;
-      setAddresses((data as any) || []);
-      
+      const querySnapshot = await getDocs(q);
+      const addressesData = querySnapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() })) as SavedAddress[];
+
+      // Sort client-side: defaults first, then newest first
+      addressesData.sort((a, b) => {
+        if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
+        const aTime = (a as any).created_at?.toMillis?.() ?? 0;
+        const bTime = (b as any).created_at?.toMillis?.() ?? 0;
+        return bTime - aTime;
+      });
+
+      setAddresses(addressesData);
+
       // Auto-select default address if exists and no address is selected
-      if (data && data.length > 0 && !selectedAddressId) {
-        const defaultAddr = (data as any).find((a: SavedAddress) => a.is_default) || data[0];
+      if (addressesData.length > 0 && !selectedAddressId) {
+        const defaultAddr =
+          addressesData.find((a) => a.is_default) || addressesData[0];
         onAddressSelect(defaultAddr);
       }
     } catch (error) {
@@ -91,18 +116,25 @@ export const SavedAddresses = ({ userId, onAddressSelect, selectedAddressId }: S
 
   const handleSave = async () => {
     // Validate required fields
-    if (!formData.label.trim() || !formData.street_address.trim() || !formData.city.trim() || 
-        !formData.state.trim() || !formData.pincode.trim() || !formData.phone.trim()) {
+    if (
+      !formData.label.trim() ||
+      !formData.street_address.trim() ||
+      !formData.city.trim() ||
+      !formData.state.trim() ||
+      !formData.pincode.trim() ||
+      !formData.phone.trim()
+    ) {
       toast({ title: "Please fill all required fields", variant: "destructive" });
       return;
     }
 
     // Check max 6 addresses limit
     if (!editingAddress && addresses.length >= 6) {
-      toast({ 
-        title: "Maximum limit reached", 
-        description: "You can save up to 6 addresses. Please delete an existing address first.",
-        variant: "destructive" 
+      toast({
+        title: "Maximum limit reached",
+        description:
+          "You can save up to 6 addresses. Please delete an existing address first.",
+        variant: "destructive",
       });
       return;
     }
@@ -110,20 +142,22 @@ export const SavedAddresses = ({ userId, onAddressSelect, selectedAddressId }: S
     try {
       if (editingAddress) {
         // Update existing address
-        const { error } = await supabase
-          .from("saved_addresses" as any)
-          .update(formData)
-          .eq("id", editingAddress.id);
-
-        if (error) throw error;
+        const docRef = doc(db, "saved_addresses", editingAddress.id);
+        await updateDoc(docRef, {
+          ...formData,
+          updated_at: new Date(),
+        });
         toast({ title: "Address updated successfully" });
       } else {
-        // Insert new address
-        const { error } = await supabase
-          .from("saved_addresses" as any)
-          .insert([{ ...formData, user_id: userId }]);
-
-        if (error) throw error;
+        // Insert new address - generate ID
+        const newId = `${userId}_${Date.now()}`;
+        const docRef = doc(db, "saved_addresses", newId);
+        await setDoc(docRef, {
+          ...formData,
+          user_id: userId,
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
         toast({ title: "Address saved successfully" });
       }
 
@@ -132,10 +166,10 @@ export const SavedAddresses = ({ userId, onAddressSelect, selectedAddressId }: S
       resetForm();
     } catch (error: any) {
       console.error("Error saving address:", error);
-      toast({ 
-        title: "Error saving address", 
+      toast({
+        title: "Error saving address",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
     }
   };
@@ -144,20 +178,15 @@ export const SavedAddresses = ({ userId, onAddressSelect, selectedAddressId }: S
     if (!confirm("Are you sure you want to delete this address?")) return;
 
     try {
-      const { error } = await supabase
-        .from("saved_addresses" as any)
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      await deleteDoc(doc(db, "saved_addresses", id));
       toast({ title: "Address deleted successfully" });
       fetchAddresses();
     } catch (error: any) {
       console.error("Error deleting address:", error);
-      toast({ 
+      toast({
         title: "Error deleting address",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
     }
   };
@@ -181,27 +210,29 @@ export const SavedAddresses = ({ userId, onAddressSelect, selectedAddressId }: S
 
   const handleSetDefault = async (id: string) => {
     try {
-      // First, unset all defaults
-      await supabase
-        .from("saved_addresses" as any)
-        .update({ is_default: false })
-        .eq("user_id", userId);
+      // First, unset all defaults for this user
+      const addressesRef = collection(db, "saved_addresses");
+      const q = query(addressesRef, where("user_id", "==", userId));
+      const querySnapshot = await getDocs(q);
+
+      for (const doc_snapshot of querySnapshot.docs) {
+        if (doc_snapshot.data().is_default) {
+          await updateDoc(doc_snapshot.ref, { is_default: false });
+        }
+      }
 
       // Then set the selected one as default
-      const { error } = await supabase
-        .from("saved_addresses" as any)
-        .update({ is_default: true })
-        .eq("id", id);
+      const docRef = doc(db, "saved_addresses", id);
+      await updateDoc(docRef, { is_default: true });
 
-      if (error) throw error;
       toast({ title: "Default address updated" });
       fetchAddresses();
     } catch (error: any) {
       console.error("Error setting default:", error);
-      toast({ 
+      toast({
         title: "Error setting default address",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
     }
   };

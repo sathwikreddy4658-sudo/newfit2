@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { loginUser, getCurrentUser } from "@/integrations/firebase/auth";
+import { getUserRoles } from "@/integrations/firebase/db";
+import { auth } from "@/integrations/firebase/client";
+import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { loginSchema } from "@/lib/validation";
-import { z } from "zod";
 
 const AdminAuth = () => {
   const navigate = useNavigate();
@@ -14,69 +15,47 @@ const AdminAuth = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Check if user is already logged in with admin access
   useEffect(() => {
-    checkAdminAccess();
-  }, []);
-
-  const checkAdminAccess = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      // Check admin role directly from database
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', session.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      if (!error && data) {
-        navigate("/admin/dashboard");
+    const checkExistingAdmin = async () => {
+      const user = getCurrentUser();
+      if (user) {
+        // Check admin role from Firebase
+        const roles = await getUserRoles(user.uid);
+        if (roles?.includes('admin')) {
+          navigate("/admin/dashboard");
+        }
       }
-    }
-  };
+    };
+
+    checkExistingAdmin();
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Validate inputs before submitting
     try {
-      loginSchema.parse({ email, password });
-    } catch (validationError) {
-      if (validationError instanceof z.ZodError) {
-        const errorMessage = validationError.errors[0]?.message || "Invalid input";
-        toast({ title: "Validation Error", description: errorMessage, variant: "destructive" });
+      const user = await loginUser(email, password);
+
+      // Check admin role immediately after login
+      const roles = await getUserRoles(user.uid);
+      
+      if (!roles?.includes('admin')) {
+        await signOut(auth);
+        toast({ 
+          title: "Access denied", 
+          description: "Your account does not have admin privileges", 
+          variant: "destructive" 
+        });
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-      return;
-    }
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
+      
+      toast({ title: "Success", description: "Admin login successful" });
+      navigate("/admin/dashboard");
+    } catch (error: any) {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    if (data.user) {
-      // Check admin role directly from database
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      if (roleError || !roleData) {
-        await supabase.auth.signOut();
-        toast({ title: "Access denied", description: "Admin access required", variant: "destructive" });
-      } else {
-        navigate("/admin/dashboard");
-      }
     }
 
     setLoading(false);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllRatingsAcrossProducts, updateRating, deleteRating } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,15 +12,13 @@ import { cn } from "@/lib/utils";
 
 interface Rating {
   id: string;
-  product_id: string;
-  user_id: string;
+  productId: string;
+  productName: string;
+  userId: string;
   rating: number;
   comment: string | null;
-  created_at: string;
+  createdAt: any;
   approved: boolean | null;
-  products: {
-    name: string;
-  };
 }
 
 const CustomerRatingsTab = () => {
@@ -37,27 +35,8 @@ const CustomerRatingsTab = () => {
   const fetchRatings = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from("product_ratings")
-        .select(`
-          *,
-          products!product_ratings_product_id_fkey (
-            name
-          )
-        `)
-        .order("created_at", { ascending: false });
-
-      if (filter === "pending") {
-        query = query.eq("approved", false);
-      } else if (filter === "approved") {
-        query = query.eq("approved", true);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      setRatings(data || []);
+      const data = await getAllRatingsAcrossProducts(filter);
+      setRatings(data as Rating[]);
     } catch (error: any) {
       toast({ title: "Error fetching ratings", variant: "destructive" });
       console.error("Error fetching ratings:", error);
@@ -66,77 +45,20 @@ const CustomerRatingsTab = () => {
     }
   };
 
-  const handleApprove = async (ratingId: string) => {
+  const handleApprove = async (rating: Rating) => {
     try {
-      // Attempt to update the rating
-      const { data, error } = await supabase
-        .from("product_ratings")
-        .update({ approved: true })
-        .eq("id", ratingId)
-        .select();
-
-      // Check for the specific trigger error
-      if (error) {
-        if (error.message?.includes('record "old" has no field "status"') || error.code === '42703') {
-          // This is a database trigger issue - the broken trigger references non-existent 'status' column
-          // Workaround: Disable the trigger temporarily by using raw SQL update
-          console.log("Attempting workaround for broken trigger...");
-          
-          // Try a direct update without the trigger
-          const { error: workaroundError } = await supabase.rpc('update_rating_approved', {
-            p_rating_id: ratingId
-          }).catch(async () => {
-            // If RPC doesn't exist, the database needs the fix applied
-            toast({ 
-              title: "Database needs manual fix", 
-              description: "Run the SQL fix in Supabase → SQL Editor. Check IMMEDIATE_FIX_RATINGS.sql",
-              variant: "destructive",
-              duration: 10000
-            });
-            console.error("Database trigger error - needs manual fix. The broken trigger prevents updates:", error);
-            throw error;
-          });
-
-          if (!workaroundError) {
-            toast({ title: "Rating approved successfully" });
-            fetchRatings();
-            return;
-          }
-        }
-        throw error;
-      }
-
+      await updateRating(rating.productId, rating.id, { approved: true });
       toast({ title: "Rating approved successfully" });
       fetchRatings();
     } catch (error: any) {
-      if (!error.message?.includes('needs manual fix')) {
-        toast({ title: "Error approving rating", variant: "destructive" });
-      }
+      toast({ title: "Error approving rating", variant: "destructive" });
       console.error("Error approving rating:", error);
     }
   };
 
-  const handleReject = async (ratingId: string) => {
+  const handleReject = async (rating: Rating) => {
     try {
-      const { data, error } = await supabase
-        .from("product_ratings")
-        .update({ approved: false })
-        .eq("id", ratingId)
-        .select();
-
-      if (error) {
-        if (error.message?.includes('record "old" has no field "status"')) {
-          toast({ 
-            title: "Database configuration issue", 
-            description: "The database needs to be fixed. Contact support.",
-            variant: "destructive" 
-          });
-          console.error("Database trigger error - needs manual fix:", error);
-          return;
-        }
-        throw error;
-      }
-
+      await updateRating(rating.productId, rating.id, { approved: false });
       toast({ title: "Rating rejected" });
       fetchRatings();
     } catch (error: any) {
@@ -145,17 +67,11 @@ const CustomerRatingsTab = () => {
     }
   };
 
-  const handleDelete = async (ratingId: string) => {
+  const handleDelete = async (rating: Rating) => {
     if (!confirm("Are you sure you want to delete this rating?")) return;
 
     try {
-      const { error } = await supabase
-        .from("product_ratings")
-        .delete()
-        .eq("id", ratingId);
-
-      if (error) throw error;
-
+      await deleteRating(rating.productId, rating.id);
       toast({ title: "Rating deleted successfully" });
       fetchRatings();
     } catch (error: any) {
@@ -173,13 +89,7 @@ const CustomerRatingsTab = () => {
     if (!editingRating) return;
 
     try {
-      const { error } = await supabase
-        .from("product_ratings")
-        .update({ comment: editedComment })
-        .eq("id", editingRating.id);
-
-      if (error) throw error;
-
+      await updateRating(editingRating.productId, editingRating.id, { comment: editedComment });
       toast({ title: "Rating comment updated successfully" });
       setEditingRating(null);
       setEditedComment("");
@@ -254,10 +164,10 @@ const CustomerRatingsTab = () => {
                   <div>
                     <div className="flex justify-between items-start gap-4 flex-wrap">
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg">{rating.products?.name}</CardTitle>
+                        <CardTitle className="text-lg">{rating.productName}</CardTitle>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-sm text-muted-foreground">
-                            By: {rating.user_id}
+                            By: {rating.userId}
                           </span>
                           <Badge variant={rating.approved ? "default" : "secondary"}>
                             {rating.approved ? "Approved" : "Pending"}
@@ -266,7 +176,7 @@ const CustomerRatingsTab = () => {
                         <div className="flex items-center gap-2 mt-1">
                           {renderStars(rating.rating)}
                           <span className="text-sm text-muted-foreground">
-                            {new Date(rating.created_at).toLocaleDateString()}
+                            {new Date(rating.createdAt?.toMillis?.() || rating.createdAt).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
@@ -277,7 +187,7 @@ const CustomerRatingsTab = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleApprove(rating.id)}
+                            onClick={() => handleApprove(rating)}
                             className="text-green-600 hover:text-green-700"
                           >
                             <Check className="h-4 w-4" />
@@ -285,7 +195,7 @@ const CustomerRatingsTab = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleReject(rating.id)}
+                            onClick={() => handleReject(rating)}
                             className="text-orange-600 hover:text-orange-700"
                           >
                             <X className="h-4 w-4" />
@@ -334,7 +244,7 @@ const CustomerRatingsTab = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDelete(rating.id)}
+                        onClick={() => handleDelete(rating)}
                         className="text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />

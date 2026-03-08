@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
+import { getProduct } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Heart, ShoppingCart } from "lucide-react";
@@ -33,21 +34,21 @@ const Favorites = () => {
   }, []);
 
   const checkUserAndFetchFavorites = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const user = await getCurrentUser();
     
-    if (!session?.user) {
+    if (!user) {
       setUser(null);
       setLoading(false);
       return;
     }
 
-    setUser(session.user);
-    await fetchFavorites(session.user.id);
+    setUser(user as any);
+    await fetchFavorites(user.uid);
   };
 
   const fetchFavorites = async (userId: string) => {
     try {
-      // Get user's favorites from local storage as a fallback
+      // Get user's favorites from local storage
       const localFavorites = JSON.parse(localStorage.getItem(`favorites_${userId}`) || '[]');
       
       if (localFavorites.length === 0) {
@@ -56,19 +57,20 @@ const Favorites = () => {
         return;
       }
 
-      // Fetch product details for favorited items
-      const { data: products, error } = await supabase
-        .from("products")
-        .select("*")
-        .in("id", localFavorites)
-        .eq("is_hidden", false);
-
-      if (error) {
-        console.error("Error fetching favorites:", error);
-        toast({ title: "Error loading favorites", variant: "destructive" });
-      } else {
-        setFavorites(products || []);
+      // Fetch product details for favorited items from Firebase
+      const products: FavoriteProduct[] = [];
+      for (const productId of localFavorites) {
+        try {
+          const product = await getProduct(productId);
+          if (product) {
+            products.push(product as FavoriteProduct);
+          }
+        } catch (err) {
+          console.error(`Error fetching product ${productId}:`, err);
+        }
       }
+
+      setFavorites(products);
     } catch (error) {
       console.error("Error fetching favorites:", error);
       toast({ title: "Error loading favorites", variant: "destructive" });

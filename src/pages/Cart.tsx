@@ -1,4 +1,5 @@
 import { useCart } from "@/contexts/CartContext";
+import { getVisiblePromoCodes } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Minus, Plus, Trash2, Tag, X } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
 import { getThumbnailUrl } from "@/utils/imageOptimization";
 
 const Cart = () => {
@@ -25,20 +26,21 @@ const Cart = () => {
   const [promoInput, setPromoInput] = useState("");
   const [applyingPromo, setApplyingPromo] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [visiblePromoCodes, setVisiblePromoCodes] = useState<any[]>([]);
+  const [showOffers, setShowOffers] = useState(false);
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-    };
-
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+    // Set up Firebase auth state listener
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+      setUser(firebaseUser);
     });
 
-    return () => subscription.unsubscribe();
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch visible promo codes on mount
+  useEffect(() => {
+    getVisiblePromoCodes().then(setVisiblePromoCodes).catch(() => {});
   }, []);
 
   const handleApplyPromo = async () => {
@@ -209,23 +211,79 @@ const Cart = () => {
                   </Button>
                 </div>
               ) : (
-                <div className="flex gap-2">
-                  <Input
-                    id="promo-code"
-                    placeholder="Enter promo code"
-                    value={promoInput}
-                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                    className="flex-1"
-                    onKeyPress={(e) => e.key === 'Enter' && handleApplyPromo()}
-                  />
-                  <Button
-                    onClick={handleApplyPromo}
-                    disabled={applyingPromo || !promoInput.trim()}
-                    variant="outline"
-                    className="font-poppins font-bold"
-                  >
-                    {applyingPromo ? "Applying..." : "Apply"}
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      id="promo-code"
+                      placeholder="Enter promo code"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      className="flex-1"
+                      onKeyPress={(e) => e.key === 'Enter' && handleApplyPromo()}
+                    />
+                    <Button
+                      onClick={handleApplyPromo}
+                      disabled={applyingPromo || !promoInput.trim()}
+                      variant="outline"
+                      className="font-poppins font-bold"
+                    >
+                      {applyingPromo ? "Applying..." : "Apply"}
+                    </Button>
+                  </div>
+
+                  {visiblePromoCodes.length > 0 && (
+                    <div className="border-2 border-[#b5edce] rounded-lg bg-gradient-to-r from-[#5e4338] to-[#3b2a20] overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setShowOffers(v => !v)}
+                        className="w-full flex items-center justify-between px-3 py-2 text-sm font-poppins font-bold text-[#b5edce] hover:bg-black/10 transition-colors"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>🎁</span>
+                          <span>{visiblePromoCodes.length} Available Offer{visiblePromoCodes.length > 1 ? 's' : ''}</span>
+                        </span>
+                        <span className="text-[#b5edce] text-xs">{showOffers ? '▲ Hide' : '▼ View'}</span>
+                      </button>
+
+                      {showOffers && (
+                        <div className="px-3 pb-3 space-y-2 border-t border-[#b5edce]/30">
+                          {visiblePromoCodes.map((offer) => (
+                            <div
+                              key={offer.id}
+                              className="flex items-center justify-between p-2 bg-white/10 rounded-md border border-[#b5edce]/40 hover:bg-white/20 transition-colors"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-sm text-white bg-[#b5edce] text-[#3b2a20] px-1.5 py-0.5 rounded">{offer.code}</span>
+                                  <span className="text-xs text-[#b5edce] font-medium">
+                                    {[offer.free_shipping && '🚚 Free Shipping', offer.discount_percentage > 0 && `${offer.discount_percentage}% OFF`].filter(Boolean).join(' + ')}
+                                  </span>
+                                </div>
+                                {(offer.description || offer.min_order_amount > 0) && (
+                                  <p className="text-xs text-[#b5edce]/70 mt-0.5 truncate">
+                                    {offer.description || `Min order: ₹${offer.min_order_amount}`}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setApplyingPromo(true);
+                                  await applyPromoCode(offer.code);
+                                  setShowOffers(false);
+                                  setApplyingPromo(false);
+                                }}
+                                disabled={applyingPromo}
+                                className="ml-2 shrink-0 text-xs font-poppins font-bold text-[#3b2a20] bg-[#b5edce] border border-[#b5edce] rounded px-2 py-1 hover:bg-white hover:text-[#3b2a20] transition-colors disabled:opacity-50"
+                              >
+                                Apply
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

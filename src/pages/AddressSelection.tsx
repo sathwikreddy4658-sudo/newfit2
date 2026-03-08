@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
+import { db } from "@/integrations/firebase/client";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,24 +32,29 @@ const AddressSelection = () => {
 
   useEffect(() => {
     if (!isGuestCheckout) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) {
+      const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+        if (!firebaseUser) {
           navigate("/auth");
           return;
         }
-        setUser(session.user);
-        fetchProfile(session.user.id);
+        setUser(firebaseUser as any);
+        fetchProfile(firebaseUser.uid);
       });
+
+      return () => unsubscribe();
     }
-  }, [isGuestCheckout]);
+  }, [isGuestCheckout, navigate]);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await (supabase
-      .from as any)("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    setProfile(data);
+    try {
+      const userDocRef = doc(db, "users", userId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        setProfile(userDocSnap.data());
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
   };
 
   const handleAddressSubmit = async (address: string, phone?: string) => {
@@ -66,20 +73,13 @@ const AddressSelection = () => {
 
       console.log("Updating profile with:", updateData);
 
-      const { error } = await (supabase
-        .from as any)("profiles")
-        .update(updateData)
-        .eq("id", user.id);
-
-      if (error) {
-        console.error("Update error:", error);
-        throw error;
-      }
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, updateData);
 
       console.log("Address saved successfully!");
       toast.success("Address saved successfully!");
       setShowAddressForm(false);
-      fetchProfile(user.id);
+      fetchProfile(user.uid);
     } catch (error: any) {
       console.error("Error in handleAddressSubmit:", error);
       toast.error("Failed to save address: " + error.message);
@@ -173,7 +173,7 @@ const AddressSelection = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <p className="font-medium">{profile.name}</p>
+                <p className="font-medium">{profile?.full_name || profile?.name}</p>
                 <p className="text-muted-foreground">{profile.email}</p>
                 <p className="mt-2">{profile.address}</p>
               </div>

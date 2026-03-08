@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getProductRatings } from "@/integrations/firebase/db";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,15 +25,7 @@ const ProductRatingSummary = ({ productId }: ProductRatingSummaryProps) => {
 
   const fetchRatingSummary = async () => {
     try {
-      const { data, error } = await supabase
-        .from("product_ratings")
-        .select("rating")
-        .eq("product_id", productId)
-        .eq("approved", true);
-
-      if (error) throw error;
-
-      const ratings = data || [];
+      const ratings = await getProductRatings(productId);
       const total = ratings.length;
       setTotalRatings(total);
 
@@ -43,13 +35,15 @@ const ProductRatingSummary = ({ productId }: ProductRatingSummaryProps) => {
         return;
       }
 
-      const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
+      const sum = ratings.reduce((acc, r) => acc + (r.rating || 0), 0);
       const avg = sum / total;
       setAverageRating(avg);
 
       const distribution: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       ratings.forEach(r => {
-        distribution[r.rating] = (distribution[r.rating] || 0) + 1;
+        if (r.rating) {
+          distribution[r.rating] = (distribution[r.rating] || 0) + 1;
+        }
       });
       setStarDistribution(distribution);
     } catch (error: any) {

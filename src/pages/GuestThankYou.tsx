@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { registerUser } from "@/integrations/firebase/auth";
+import { getOrder } from "@/integrations/firebase/db";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,23 +25,16 @@ const GuestThankYou = () => {
 
   useEffect(() => {
     // Fetch order details
-    const fetchOrder = async () => {
+    const fetchOrderData = async () => {
       if (!orderId) {
         setLoading(false);
         return;
       }
 
       try {
-        const { data, error } = await supabase
-          .from('orders')
-          .select(`
-            *,
-            order_items (*)
-          `)
-          .eq('id', orderId)
-          .single();
+        const data = await getOrder(orderId);
 
-        if (!error && data) {
+        if (data) {
           setOrder(data);
           console.log('[GuestThankYou] Order data:', {
             id: data.id,
@@ -58,7 +52,7 @@ const GuestThankYou = () => {
       }
     };
 
-    fetchOrder();
+    fetchOrderData();
   }, [orderId]);
 
   const handleCreateAccount = async () => {
@@ -83,51 +77,37 @@ const GuestThankYou = () => {
     setIsCreatingAccount(true);
 
     try {
-      // Create the account
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: email!,
-        password: password,
-        options: {
-          data: {
-            full_name: customerName || ''
-          }
-        }
-      });
+      // Create the account using Firebase
+      const authUser = await registerUser(email!, password);
 
-      if (signUpError) throw signUpError;
-
-      if (authData.user) {
-        // Update the user's profile with address from the order
-        if (order?.address) {
-          const { error: profileError } = await (supabase as any)
-            .from('profiles')
-            .update({ address: order.address })
-            .eq('id', authData.user.id);
-
-          if (profileError) {
-            console.error('Error updating profile with address:', profileError);
-          }
-        }
-
-        // Link the guest order to this new user account via secure RPC
-        if (orderId) {
-          const { error: linkError } = await (supabase.rpc as any)(
-            'link_guest_order_to_user',
-            {
-              p_order_id: orderId,
-              p_email: email || null,
-              p_phone: customerPhone || null,
-              p_user_id: authData.user.id
-            }
-          );
-
-          if (linkError) {
-            console.error('Error linking order to account:', linkError);
-            // Don't fail the signup, just log it
-          }
-        }
+      if (authUser) {
+        // TODO: Update user profile with address from order in Firebase
+        // For now, account is created successfully
+        
+        // TODO: Link guest order to user account in Firebase
+        // This would require creating the order linkage in Firestore
 
         toast({
+          title: "Account Created",
+          description: "Your account has been created successfully!",
+        });
+
+        // Redirect to dashboard
+        setTimeout(() => {
+          navigate('/products', { replace: true });
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('Error creating account:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create account. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
           title: "Account Created! 🎉",
           description: "Your account has been created and your order has been linked to it.",
         });

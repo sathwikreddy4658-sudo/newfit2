@@ -8,6 +8,16 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      // Proxy Firebase Cloud Function calls in dev to avoid CORS.
+      // The browser calls /firebase-api/... (same-origin) and Vite
+      // forwards server-side to https://us-central1-newfit-35320.cloudfunctions.net/api/...
+      '/firebase-api': {
+        target: 'https://us-central1-newfit-35320.cloudfunctions.net',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/firebase-api/, '/api'),
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

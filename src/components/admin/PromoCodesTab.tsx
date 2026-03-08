@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getAllPromoCodes,
+  createPromoCode,
+  updatePromoCode,
+  deletePromoCode,
+  togglePromoCodeActive,
+} from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +21,9 @@ interface PromoCode {
   code: string;
   discount_percentage: number;
   active: boolean;
-  created_at: string;
-  updated_at: string;
+  visible_to_users: boolean;
+  createdAt: any;
+  updatedAt: any;
   max_uses: number | null;
   current_uses: number;
   free_shipping: boolean | null;
@@ -35,6 +42,7 @@ const PromoCodesTab = () => {
     discount_percentage: "",
     max_uses: "",
     free_shipping: false,
+    visible_to_users: false,
     min_order_amount: "",
     description: "",
     max_discount_amount: "",
@@ -42,12 +50,8 @@ const PromoCodesTab = () => {
 
   const fetchPromoCodes = async () => {
     try {
-      const { data, error } = await supabase
-        .from("promo_codes")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      setLoading(true);
+      const data = await getAllPromoCodes();
       setPromoCodes(data || []);
     } catch (error) {
       console.error("Error fetching promo codes:", error);
@@ -88,35 +92,35 @@ const PromoCodesTab = () => {
 
     try {
       if (editingCode) {
-        const { error } = await supabase
-          .from("promo_codes")
-          .update({
-            code: formData.code.toUpperCase(),
-            discount_percentage: discount,
-            max_uses: maxUses,
-            free_shipping: formData.free_shipping,
-            min_order_amount: minOrderAmount,
-            description: formData.description || null,
-            max_discount_amount: maxDiscountAmount,
-          })
-          .eq("id", editingCode.id);
-
-        if (error) throw error;
+        await updatePromoCode(editingCode.id, {
+          code: formData.code.toUpperCase(),
+          discount_percentage: discount,
+          max_uses: maxUses,
+          free_shipping: formData.free_shipping,
+          visible_to_users: formData.visible_to_users,
+          min_order_amount: minOrderAmount,
+          description: formData.description || null,
+          max_discount_amount: maxDiscountAmount,
+        });
         toast.success("Promo code updated successfully");
       } else {
-        const { error } = await supabase
-          .from("promo_codes")
-          .insert({
-            code: formData.code.toUpperCase(),
-            discount_percentage: discount,
-            max_uses: maxUses,
-            free_shipping: formData.free_shipping,
-            min_order_amount: minOrderAmount,
-            description: formData.description || null,
-            max_discount_amount: maxDiscountAmount,
-          });
+        // Check if code already exists
+        const existingCode = promoCodes.find(p => p.code.toUpperCase() === formData.code.toUpperCase());
+        if (existingCode) {
+          toast.error("Promo code already exists");
+          return;
+        }
 
-        if (error) throw error;
+        await createPromoCode({
+          code: formData.code.toUpperCase(),
+          discount_percentage: discount,
+          max_uses: maxUses,
+          free_shipping: formData.free_shipping,
+          visible_to_users: formData.visible_to_users,
+          min_order_amount: minOrderAmount,
+          description: formData.description || null,
+          max_discount_amount: maxDiscountAmount,
+        });
         toast.success("Promo code created successfully");
       }
 
@@ -125,6 +129,7 @@ const PromoCodesTab = () => {
         discount_percentage: "", 
         max_uses: "", 
         free_shipping: false,
+        visible_to_users: false,
         min_order_amount: "",
         description: "",
         max_discount_amount: "",
@@ -134,11 +139,7 @@ const PromoCodesTab = () => {
       fetchPromoCodes();
     } catch (error: any) {
       console.error("Error saving promo code:", error);
-      if (error.code === "23505") {
-        toast.error("Promo code already exists");
-      } else {
-        toast.error("Failed to save promo code");
-      }
+      toast.error("Failed to save promo code");
     }
   };
 
@@ -149,6 +150,7 @@ const PromoCodesTab = () => {
       discount_percentage: promoCode.discount_percentage.toString(),
       max_uses: promoCode.max_uses?.toString() || "",
       free_shipping: promoCode.free_shipping || false,
+      visible_to_users: promoCode.visible_to_users || false,
       min_order_amount: promoCode.min_order_amount?.toString() || "",
       description: promoCode.description || "",
       max_discount_amount: promoCode.max_discount_amount?.toString() || "",
@@ -160,12 +162,7 @@ const PromoCodesTab = () => {
     if (!confirm("Are you sure you want to delete this promo code?")) return;
 
     try {
-      const { error } = await supabase
-        .from("promo_codes")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      await deletePromoCode(id);
       toast.success("Promo code deleted successfully");
       fetchPromoCodes();
     } catch (error) {
@@ -176,12 +173,7 @@ const PromoCodesTab = () => {
 
   const toggleActive = async (id: string, active: boolean) => {
     try {
-      const { error } = await supabase
-        .from("promo_codes")
-        .update({ active })
-        .eq("id", id);
-
-      if (error) throw error;
+      await togglePromoCodeActive(id, active);
       toast.success(`Promo code ${active ? "activated" : "deactivated"}`);
       fetchPromoCodes();
     } catch (error) {
@@ -196,6 +188,7 @@ const PromoCodesTab = () => {
       discount_percentage: "", 
       max_uses: "", 
       free_shipping: false,
+      visible_to_users: false,
       min_order_amount: "",
       description: "",
       max_discount_amount: "",
@@ -273,7 +266,7 @@ const PromoCodesTab = () => {
                   )}
                 </div>
               </div>
-              
+
               {formData.free_shipping && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -297,7 +290,6 @@ const PromoCodesTab = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="max_uses">Usage Limit (optional)</Label>
                   <Input
                     id="max_uses"
                     type="number"
@@ -342,6 +334,22 @@ const PromoCodesTab = () => {
                   Admin-only note to remember the purpose of this code
                 </p>
               </div>
+
+              <div className="flex items-center space-x-2 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <Switch
+                  id="visible_to_users"
+                  checked={formData.visible_to_users}
+                  onCheckedChange={(checked) => setFormData({ ...formData, visible_to_users: checked })}
+                />
+                <div>
+                  <Label htmlFor="visible_to_users" className="font-semibold cursor-pointer">
+                    👁️ Show to Customers
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    When enabled, this code will appear as a clickable offer on the checkout page for customers to apply directly.
+                  </p>
+                </div>
+              </div>
               
               <div className="flex gap-2">
                 <Button type="submit" className="font-poppins font-bold">
@@ -366,6 +374,7 @@ const PromoCodesTab = () => {
                 <TableHead>Discount</TableHead>
                 <TableHead>Usage</TableHead>
                 <TableHead>Min Order</TableHead>
+                <TableHead>Visible</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
@@ -402,6 +411,11 @@ const PromoCodesTab = () => {
                     {promoCode.min_order_amount ? `₹${promoCode.min_order_amount}` : "-"}
                   </TableCell>
                   <TableCell>
+                    <Badge variant={promoCode.visible_to_users ? "default" : "secondary"} className={promoCode.visible_to_users ? "bg-yellow-100 text-yellow-800 border-yellow-300" : ""}>
+                      {promoCode.visible_to_users ? "👁️ Visible" : "Hidden"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={promoCode.active}
@@ -414,7 +428,7 @@ const PromoCodesTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
-                      <span className="text-sm">{new Date(promoCode.created_at).toLocaleDateString()}</span>
+                      <span className="text-sm">{new Date(promoCode.createdAt?.toDate?.() || promoCode.createdAt).toLocaleDateString()}</span>
                       {promoCode.description && (
                         <span className="text-xs text-muted-foreground">{promoCode.description}</span>
                       )}

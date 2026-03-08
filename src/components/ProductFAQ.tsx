@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getProductFAQs } from "@/integrations/firebase/db";
 import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 
 interface FAQ {
@@ -24,17 +24,10 @@ const ProductFAQ = ({ productId }: ProductFAQProps) => {
 
   const fetchFAQs = async () => {
     try {
-      const { data, error } = await supabase
-        .from("product_faqs")
-        .select("*")
-        .eq("product_id", productId)
-        .order("display_order", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching FAQs:", error);
-      } else {
-        setFaqs(data || []);
-      }
+      const data = await getProductFAQs(productId);
+      setFaqs((data || []) as FAQ[]);
+    } catch (error) {
+      console.error("Error fetching FAQs:", error);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
+import { createRating, getAllProductRatings } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -22,18 +23,11 @@ const RatingComponent = ({ productId }: RatingComponentProps) => {
   const [hoverRating, setHoverRating] = useState(0);
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-    };
-
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+      setUser(firebaseUser ? { id: firebaseUser.uid, email: firebaseUser.email } : null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -45,17 +39,18 @@ const RatingComponent = ({ productId }: RatingComponentProps) => {
   const fetchExistingRating = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from("product_ratings")
-      .select("*")
-      .eq("product_id", productId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!error && data) {
-      setExistingRating(data);
-      setRating(data.rating);
-      setComment(data.comment || "");
+    // Check if user already has a rating for this product (even if pending)
+    try {
+      const existingRatings = await getAllProductRatings(productId, false); // false = include unapproved
+      const userRating = existingRatings.find((r: any) => r.userId === user.id);
+      
+      if (userRating) {
+        setExistingRating(userRating);
+        setRating(userRating.rating || 0);
+        setComment(userRating.comment || "");
+      }
+    } catch (error) {
+      console.error("Error fetching existing rating:", error);
     }
   };
 
@@ -70,42 +65,49 @@ const RatingComponent = ({ productId }: RatingComponentProps) => {
       return;
     }
 
+    // Validate rating is 1-5
+    if (rating < 1 || rating > 5) {
+      toast({ title: "Invalid rating value", variant: "destructive" });
+      return;
+    }
+
+    // Validate comment length (max 500 characters)
+    const cleanComment = comment.trim();
+    if (cleanComment.length > 500) {
+      toast({ title: "Comment is too long (max 500 characters)", variant: "destructive" });
+      return;
+    }
+
+    // Prevent duplicate ratings - check if user already has a rating for this product
+    if (existingRating && existingRating.id) {
+      toast({ title: "You have already rated this product", description: "You can only submit one rating per product", variant: "destructive" });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const ratingData = {
-        product_id: productId,
-        user_id: user.id,
+        productId: productId,
+        userId: user.id,
         rating,
-        comment: comment.trim() || null,
+        comment: cleanComment || null,
         approved: false, // New ratings need admin approval
       };
 
-      if (existingRating) {
-        // Update existing rating
-        const { error } = await supabase
-          .from("product_ratings")
-          .update(ratingData)
-          .eq("id", existingRating.id);
+      // Create rating in Firebase
+      const ratingId = await createRating(productId, ratingData);
 
-        if (error) throw error;
+      toast({ title: "Rating submitted successfully!" });
 
-        toast({ title: "Rating updated successfully!" });
-      } else {
-        // Insert new rating
-        const { error } = await supabase
-          .from("product_ratings")
-          .insert([ratingData]);
-
-        if (error) throw error;
-
-        toast({ title: "Rating submitted successfully!" });
-      }
+      // Reset form
+      setRating(0);
+      setComment("");
 
       // Refresh existing rating data
       await fetchExistingRating();
     } catch (error: any) {
-      toast({ title: "Error submitting rating", variant: "destructive" });
+      toast({ title: "Error submitting rating", description: error.message, variant: "destructive" });
       console.error("Rating submission error:", error);
     } finally {
       setLoading(false);

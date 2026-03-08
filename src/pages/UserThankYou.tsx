@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getOrder } from "@/integrations/firebase/db";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ShoppingCart, Package, MapPin, CreditCard, Truck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 
 const UserThankYou = () => {
   const location = useLocation();
@@ -22,18 +22,11 @@ const UserThankYou = () => {
     }
 
     // Fetch order details
-    const fetchOrder = async () => {
+    const fetchOrderData = async () => {
       try {
-        const { data, error } = await supabase
-          .from('orders')
-          .select(`
-            *,
-            order_items (*)
-          `)
-          .eq('id', orderId)
-          .single();
+        const data = await getOrder(orderId);
 
-        if (!error && data) {
+        if (data) {
           setOrder(data);
           console.log('[UserThankYou] Order data:', {
             id: data.id,
@@ -51,7 +44,7 @@ const UserThankYou = () => {
       }
     };
 
-    fetchOrder();
+    fetchOrderData();
   }, [orderId, navigate]);
 
   if (loading) {

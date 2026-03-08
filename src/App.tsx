@@ -9,8 +9,9 @@ import BackButton from "@/components/BackButton";
 import ScrollToTop from "@/components/ScrollToTop";
 import Footer from "@/components/Footer";
 import Index from "./pages/Index";
-import Products from "./pages/Products-updated";
+import Products from "./pages/Products";
 import { lazy, Suspense } from "react";
+import "@/integrations/firebase/test"; // Load Firebase test utility
 
 // Lazy load non-critical routes
 const About = lazy(() => import("./pages/About"));

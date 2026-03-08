@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllBlogs, createBlog, updateBlog, deleteBlog } from "@/integrations/firebase/db";
+import { uploadBlogImage } from "@/integrations/firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -130,11 +131,13 @@ const BlogsTab = () => {
   }, [showDialog, editingBlog]);
 
   const fetchBlogs = async () => {
-    const { data } = await supabase
-      .from("blogs")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) setBlogs(data);
+    try {
+      const data = await getAllBlogs();
+      setBlogs(data);
+    } catch (error) {
+      console.error('Error fetching blogs:', error);
+      toast({ title: "Error", description: "Failed to fetch blogs", variant: "destructive" });
+    }
   };
 
   const resetForm = () => {
@@ -152,28 +155,17 @@ const BlogsTab = () => {
     localStorage.removeItem(BLOG_LINKS_DRAFT_KEY);
   };
 
-  const uploadImage = async (file: File): Promise<string | null> => {
+  const uploadImage = async (file: File, blogId?: string): Promise<string | null> => {
     try {
       // Compress image before upload
       const compressedFile = await compressImage(file);
-      const fileExt = compressedFile.name.split('.').pop();
-      const fileName = `blog-${Date.now()}-${Math.random()}.${fileExt}`;
+      
+      // Use a temporary ID if blog is being created
+      const id = blogId || `temp-${Date.now()}`;
+      const url = await uploadBlogImage(id, compressedFile);
 
-      const { error: uploadError } = await supabase.storage
-        .from('blog-images')
-        .upload(fileName, compressedFile);
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        return null;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('blog-images')
-        .getPublicUrl(fileName);
-
-      console.log('Image uploaded successfully:', publicUrl);
-      return publicUrl;
+      console.log('Image uploaded successfully:', url);
+      return url;
     } catch (error) {
       console.error('Error in uploadImage:', error);
       return null;
@@ -300,31 +292,35 @@ const BlogsTab = () => {
       console.log('Saving blog with image_url:', imageUrl);
 
       if (editingBlog) {
-        const { error } = await supabase
-          .from("blogs")
-          .update(blogData)
-          .eq("id", editingBlog.id);
-
-        if (error) {
-          toast({ title: "Update failed", variant: "destructive" });
-        } else {
+        try {
+          await updateBlog(editingBlog.id, blogData);
           toast({ title: "Blog updated successfully" });
           setShowDialog(false);
           resetForm();
           fetchBlogs();
+        } catch (error: any) {
+          console.error('Update error:', error);
+          toast({ title: "Update failed", description: error.message, variant: "destructive" });
         }
       } else {
-        const { error } = await supabase
-          .from("blogs")
-          .insert([blogData]);
-
-        if (error) {
-          toast({ title: "Creation failed", variant: "destructive" });
-        } else {
+        try {
+          const newBlogId = await createBlog(blogData);
+          
+          // If we used a temporary ID, update the image URL with the real blog ID
+          if (imageFile) {
+            const realImageUrl = await uploadImage(imageFile, newBlogId);
+            if (realImageUrl) {
+              await updateBlog(newBlogId, { ...blogData, image_url: realImageUrl });
+            }
+          }
+          
           toast({ title: "Blog created successfully" });
           setShowDialog(false);
           resetForm();
           fetchBlogs();
+        } catch (error: any) {
+          console.error('Creation error:', error);
+          toast({ title: "Creation failed", description: error.message, variant: "destructive" });
         }
       }
     } finally {
@@ -396,13 +392,13 @@ const BlogsTab = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this blog post?")) return;
 
-    const { error } = await supabase.from("blogs").delete().eq("id", id);
-
-    if (error) {
-      toast({ title: "Deletion failed", variant: "destructive" });
-    } else {
+    try {
+      await deleteBlog(id);
       toast({ title: "Blog deleted successfully" });
       fetchBlogs();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({ title: "Deletion failed", variant: "destructive" });
     }
   };
 

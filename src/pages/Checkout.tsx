@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
+import { createOrder, getPromoCode, getAllProducts, getVisiblePromoCodes } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ const Checkout = () => {
   const [profile, setProfile] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [successOrderData, setSuccessOrderData] = useState<{orderId: string, email: string, isGuest: boolean} | null>(null);
+  const [successOrderData, setSuccessOrderData] = useState<{orderId: string, email: string, isGuest: boolean, guestName?: string, guestPhone?: string} | null>(null);
   const [preventCartRedirect, setPreventCartRedirect] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online');
@@ -44,6 +45,8 @@ const Checkout = () => {
   // Promo code state
   const [promoInput, setPromoInput] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
+  const [visiblePromoCodes, setVisiblePromoCodes] = useState<any[]>([]);
+  const [showOffers, setShowOffers] = useState(false);
 
   // Pricing and delivery state
   const [selectedPincode, setSelectedPincode] = useState('');
@@ -57,8 +60,11 @@ const Checkout = () => {
   const [addressSaved, setAddressSaved] = useState(false);
 
   // Calculate shipping discount from promo code
-  const getShippingDiscount = () => {
-    if (!promoCode || !promoCode.free_shipping) return 0;
+  useEffect(() => {
+    getVisiblePromoCodes().then(setVisiblePromoCodes).catch(() => {});
+  }, []);
+
+  const getShippingDiscount = () => {    if (!promoCode || !promoCode.free_shipping) return 0;
     if (!deliveryChecked || !shippingCharge) return 0;
 
     // Free shipping promo gives 100% discount on shipping
@@ -87,16 +93,27 @@ const Checkout = () => {
 
   useEffect(() => {
     if (!isGuestCheckout) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) {
+      // Check Firebase auth state
+      const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+        if (!firebaseUser) {
           navigate("/auth");
           return;
         }
-        setUser(session.user);
-        fetchProfile(session.user.id, session.user);
+        setUser(firebaseUser);
+        // Fetch user profile from Firestore
+        try {
+          const userDoc = await getCurrentUser();
+          if (userDoc) {
+            fetchProfile(firebaseUser.uid, firebaseUser);
+          }
+        } catch (error) {
+          console.error('Error fetching user:', error);
+        }
       });
+
+      return () => unsubscribe();
     }
-  }, [isGuestCheckout]);
+  }, [isGuestCheckout, navigate]);
 
   // Update contact form when profile loads or user changes
   useEffect(() => {
@@ -136,26 +153,40 @@ const Checkout = () => {
   }, [successOrderData, navigate, guestData.name]);
 
   const fetchProfile = async (userId: string, sessionUser?: any) => {
-    const { data, error } = await supabase
-      .from("profiles" as any)
-      .select("*")
-      .eq("id", userId)
-      .single();
-    
-    if (error) {
+    try {
+      // Fetch user profile from Firebase 'users' collection
+      const { doc: docRef, getDoc } = await import('firebase/firestore');
+      const { db } = await import('@/integrations/firebase/client');
+      
+      const userDocRef = docRef(db, 'users', userId);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (userDocSnap.exists()) {
+        const data = userDocSnap.data();
+        setProfile({
+          address: data.address || '',
+          full_name: data.full_name || '',
+          phone: data.phone || ''
+        });
+        
+        // Pre-fill contact form with existing data if available
+        setUserContactData({
+          name: data.full_name || sessionUser?.email?.split('@')[0] || '',
+          email: sessionUser?.email || '',
+          phone: data.phone || ''
+        });
+      } else {
+        console.log('User profile not found, using session data');
+        setProfile({});
+        setUserContactData({
+          name: sessionUser?.email?.split('@')[0] || '',
+          email: sessionUser?.email || '',
+          phone: ''
+        });
+      }
+    } catch (error) {
       console.error('Error fetching profile:', error);
-    }
-    
-    setProfile(data as any);
-    
-    // Pre-fill contact form with existing data if available
-    if (data || sessionUser) {
-      const profileData = data as any;
-      setUserContactData({
-        name: profileData?.full_name || sessionUser?.email?.split('@')[0] || '',
-        email: sessionUser?.email || '',
-        phone: profileData?.phone || ''
-      });
+      setProfile({});
     }
   };
 
@@ -427,22 +458,21 @@ const Checkout = () => {
     // Get authenticated user for payment (optional for guest checkout)
     let authUser = user;
     if (!authUser && isGuestCheckout) {
-      // For guest checkout, check if there's a current session
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      authUser = currentUser;
-      // Guest checkout is allowed - authUser can be null
+      // For guest checkout, authUser can be null - Firebase allows this
+      authUser = null;
     }
 
     // Prepare order items for atomic creation
     const orderItems = items.map(item => ({
-      product_id: item.id,
-      product_name: item.name,
-      product_price: item.price,
+      productId: item.id,
+      name: item.name,
+      price: item.price,
       quantity: item.quantity,
+      image: item.image
     }));
 
     // Calculate items total from the orderItems array (must match database calculation)
-    const itemsTotal = orderItems.reduce((sum, item) => sum + (item.product_price * item.quantity), 0);
+    const itemsTotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
     console.log('[Checkout] Price calculation:', {
       itemsTotal,
@@ -451,10 +481,10 @@ const Checkout = () => {
       discountedTotal,
       orderItems,
       itemBreakdown: orderItems.map(item => ({
-        name: item.product_name,
-        price: item.product_price,
+        name: item.name,
+        price: item.price,
         quantity: item.quantity,
-        subtotal: item.product_price * item.quantity
+        subtotal: item.price * item.quantity
       }))
     });
 
@@ -469,91 +499,71 @@ const Checkout = () => {
     const netShipping = Math.max(0, shippingCharge - shippingDiscount);
     const codCharge = finalPricing.codCharge || 0;
 
-    // Create order params - all pricing + customer details saved atomically via SECURITY DEFINER
-    const orderParams = {
-      p_user_id: authUser?.id || null,
-      p_total_price: itemsSubtotal,       // after-discount items subtotal (for DB validation)
-      p_address: isGuestCheckout ? guestData.address : profile.address,
-      p_payment_id: null,
-      p_items: orderItems,
-      p_discount_amount: appliedDiscount,  // actual promo/coupon discount
-      p_customer_name: customerName || null,
-      p_customer_email: customerEmail || null,
-      p_customer_phone: customerPhone || null,
-      p_shipping_charge: netShipping,      // shipping after any shipping discount
-      p_cod_charge: codCharge,             // COD surcharge (0 for online payments)
-      p_payment_method: paymentMethod      // 'cod' or 'online'
+    // Verify stock before creating order
+    try {
+      const allProducts = await getAllProducts();
+      for (const item of orderItems) {
+        const product = allProducts.find(p => p.id === item.productId);
+        if (!product || product.stock < item.quantity) {
+          toast({
+            title: "Out of stock",
+            description: `${item.name} is no longer available in the requested quantity.`,
+            variant: "destructive"
+          });
+          setProcessing(false);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('[Checkout] Error verifying stock:', error);
+      toast({
+        title: "Error",
+        description: "Failed to verify product availability.",
+        variant: "destructive"
+      });
+      setProcessing(false);
+      return;
+    }
+
+    // Create order using Firebase
+    const orderData: any = {
+      order_number: `ORD-${Date.now()}`,
+      user_id: authUser?.uid || null,
+      customer_name: customerName || null,
+      customer_email: customerEmail || null,
+      customer_phone: customerPhone || null,
+      address: isGuestCheckout ? (guestData.address || null) : (profile?.address || null),
+      items: orderItems,
+      total_amount: itemsSubtotal + netShipping + codCharge - appliedDiscount,
+      status: paymentMethod === 'cod' ? 'confirmed' : 'pending',
+      paid: paymentMethod === 'online' ? false : true,
+      payment_method: paymentMethod,
+      discount_amount: appliedDiscount,
+      shipping_charge: netShipping,
+      cod_charge: codCharge,
+      promo_code: promoCode?.code || null
     };
 
-    console.log('[Checkout] Sending orderParams to database:', orderParams);
-    console.log('[Checkout] p_total_price being sent:', orderParams.p_total_price);
+    console.log('[Checkout] Creating order with Firebase:', orderData);
 
-    // Create order and items atomically using database function
-    const { data, error } = await (supabase.rpc as any)('create_order_with_items', orderParams);
-
-    console.log('[Checkout] Database response:', { data, error, hasData: !!data, dataLength: data?.length });
-
-    if (error || !data || data.length === 0) {
-      console.error('[Checkout] Order creation failed:', { error, data });
+    let orderId: string;
+    try {
+      const createdOrder = await createOrder(orderData);
+      orderId = createdOrder.id;
+      console.log('[Checkout] Order created successfully with ID:', orderId);
+    } catch (error) {
+      console.error('[Checkout] Order creation failed:', error);
       toast({
         title: "Order creation failed",
-        description: sanitizeError(error || new Error("Unknown error")),
+        description: sanitizeError(error || new Error("Failed to create order")),
         variant: "destructive"
       });
       setProcessing(false);
       return;
     }
 
-    const result = data[0];
-    console.log('[Checkout] Order creation result:', { success: result.success, orderId: result.order_id, error: result.error_message });
-
-    if (!result.success) {
-      console.error('[Checkout] Order creation returned failure:', result.error_message);
-      toast({
-        title: "Order failed",
-        description: result.error_message?.includes("Insufficient stock")
-          ? "Some items in your cart are no longer available. Please update your cart."
-          : sanitizeError(new Error(result.error_message || "Order creation failed")),
-        variant: "destructive"
-      });
-      setProcessing(false);
-      return;
-    }
-
-    const orderId = result.order_id;
-    console.log('[Checkout] Order created successfully with ID:', orderId);
-    console.log('[Checkout] Customer details saved with order:', { customerName, customerEmail, customerPhone });
-
-    // Track promo code usage if a promo code was applied (only for authenticated users)
-    if (promoCode && !isGuestCheckout && authUser) {
-      try {
-        // Get promo code id first
-        const { data: promoData, error: promoError } = await supabase
-          .from("promo_codes")
-          .select("id")
-          .eq("code", promoCode.code)
-          .single();
-
-        if (promoError) {
-          console.warn("Error fetching promo code:", promoError);
-        } else if (promoData) {
-          const { error: usageError } = await (supabase
-            .from as any)("promo_code_usage")
-            .insert({
-              promo_code_id: promoData.id,
-              order_id: orderId,
-              user_id: authUser.id,
-            });
-          
-          if (usageError) {
-            console.warn("Error tracking promo code usage:", usageError);
-          }
-        }
-      } catch (error) {
-        // Don't fail the order for promo code tracking issues
-        console.error("Error in promo code tracking:", error);
-      }
-    }
+    // Promo code tracking is handled within the order creation above
+    // No need for separate tracking with Firebase
 
     // Generate unique transaction ID
     const merchantTransactionId = `MT${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
@@ -565,48 +575,9 @@ const Checkout = () => {
     if (paymentMethod === 'cod') {
       console.log('[Checkout] Confirming COD order:', { orderId, codTransactionId });
       
-      // For COD, mark order as confirmed using database function
-      // This bypasses RLS restrictions
-      const { data: confirmData, error: confirmError } = await (supabase.rpc as any)('confirm_cod_order', {
-        p_order_id: orderId,
-        p_payment_id: codTransactionId
-      });
-
-      if (confirmError) {
-        console.error('[Checkout] COD confirmation error:', {
-          code: confirmError.code,
-          message: confirmError.message,
-          details: confirmError.details,
-          hint: confirmError.hint
-        });
-        
-        // If order is already processed or not found, check current status
-        if (confirmError.message?.includes('already processed')) {
-          const { data: orderCheck } = await supabase
-            .from('orders')
-            .select('status')
-            .eq('id', orderId)
-            .single();
-          
-          if (orderCheck && orderCheck.status === 'confirmed') {
-            console.log('[Checkout] Order already confirmed, proceeding...');
-            clearCart();
-            setShowSuccess(true);
-            setProcessing(false);
-            return;
-          }
-        }
-        
-        toast({
-          title: "Error",
-          description: confirmError.message || "Failed to confirm COD order. Please try again.",
-          variant: "destructive"
-        });
-        setProcessing(false);
-        return;
-      }
-
-      console.log('[Checkout] COD order confirmed successfully:', confirmData);
+      // For COD, order is already marked as confirmed during creation
+      // Just store the transaction ID if needed for records
+      console.log('[Checkout] COD order confirmed successfully');
       
       // Prevent cart redirect during success flow
       setPreventCartRedirect(true);
@@ -642,7 +613,7 @@ const Checkout = () => {
     }
 
     // Generate merchant user ID - use actual user ID if authenticated, or generate a guest ID
-    const merchantUserId = authUser?.id || `GUEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const merchantUserId = authUser?.uid || `GUEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Get billing address with proper fallback (PhonePe requires 10-500 chars)
     let billingAddress = '';
@@ -650,7 +621,7 @@ const Checkout = () => {
       billingAddress = guestData.address || '';
     } else {
       // For authenticated users, try multiple sources
-      billingAddress = profile?.address || userContactData?.address || '';
+      billingAddress = profile?.address || '';
     }
 
     // Ensure address meets PhonePe minimum length (10 chars) - CRITICAL FIX
@@ -671,12 +642,18 @@ const Checkout = () => {
     });
 
     // Initiate PhonePe payment
+    // callbackUrl must always be a public HTTPS URL — never a relative/localhost URL
+    const phonePeCallbackUrl = 'https://us-central1-newfit-35320.cloudfunctions.net/api/phonepe-webhook';
+    // redirectUrl must also be a public HTTPS URL (PhonePe rejects localhost)
+    const baseOrigin = window.location.hostname === 'localhost'
+      ? 'https://freelit.in'
+      : window.location.origin;
     const paymentOptions = {
       amount: Math.round(finalPricing.total), // Send final total in rupees - Edge Function converts to paisa
       merchantTransactionId,
       merchantUserId,
-      redirectUrl: `${window.location.origin}/payment/callback?transactionId=${merchantTransactionId}&order=${orderId}`,
-      callbackUrl: `https://osromibanfzzthdmhyzp.supabase.co/functions/v1/phonepe-webhook`,
+      redirectUrl: `${baseOrigin}/payment/callback?transactionId=${merchantTransactionId}&order=${orderId}`,
+      callbackUrl: phonePeCallbackUrl,
       mobileNumber: phoneNumber,
       billingAddress: billingAddress, // Required by PhonePe (10-500 chars)
       deviceContext: {
@@ -900,7 +877,7 @@ const Checkout = () => {
                     
                     {useSavedAddress ? (
                       <SavedAddresses
-                        userId={user.id}
+                        userId={user.uid}
                         onAddressSelect={handleSavedAddressSelect}
                         selectedAddressId={selectedSavedAddress}
                       />
@@ -1062,23 +1039,79 @@ const Checkout = () => {
                   </Button>
                 </div>
               ) : (
-                <div className="flex gap-2">
-                  <Input
-                    id="promo-code"
-                    placeholder="Enter promo code"
-                    value={promoInput}
-                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                    className="flex-1"
-                    onKeyPress={(e) => e.key === 'Enter' && handleApplyPromo()}
-                  />
-                  <Button
-                    onClick={handleApplyPromo}
-                    disabled={applyingPromo || !promoInput.trim()}
-                    variant="outline"
-                    className="font-poppins font-bold"
-                  >
-                    {applyingPromo ? "Applying..." : "Apply"}
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      id="promo-code"
+                      placeholder="Enter promo code"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      className="flex-1"
+                      onKeyPress={(e) => e.key === 'Enter' && handleApplyPromo()}
+                    />
+                    <Button
+                      onClick={handleApplyPromo}
+                      disabled={applyingPromo || !promoInput.trim()}
+                      variant="outline"
+                      className="font-poppins font-bold"
+                    >
+                      {applyingPromo ? "Applying..." : "Apply"}
+                    </Button>
+                  </div>
+
+                  {visiblePromoCodes.length > 0 && (
+                    <div className="border-2 border-[#b5edce] rounded-lg bg-gradient-to-r from-[#5e4338] to-[#3b2a20] overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setShowOffers(v => !v)}
+                        className="w-full flex items-center justify-between px-3 py-2 text-sm font-poppins font-bold text-[#b5edce] hover:bg-black/10 transition-colors"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>🎁</span>
+                          <span>{visiblePromoCodes.length} Available Offer{visiblePromoCodes.length > 1 ? 's' : ''}</span>
+                        </span>
+                        <span className="text-[#b5edce] text-xs">{showOffers ? '▲ Hide' : '▼ View'}</span>
+                      </button>
+
+                      {showOffers && (
+                        <div className="px-3 pb-3 space-y-2 border-t border-[#b5edce]/30">
+                          {visiblePromoCodes.map((offer) => (
+                            <div
+                              key={offer.id}
+                              className="flex items-center justify-between p-2 bg-white/10 rounded-md border border-[#b5edce]/40 hover:bg-white/20 transition-colors"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-sm text-white bg-[#b5edce] text-[#3b2a20] px-1.5 py-0.5 rounded">{offer.code}</span>
+                                  <span className="text-xs text-[#b5edce] font-medium">
+                                    {[offer.free_shipping && '🚚 Free Shipping', offer.discount_percentage > 0 && `${offer.discount_percentage}% OFF`].filter(Boolean).join(' + ')}
+                                  </span>
+                                </div>
+                                {(offer.description || offer.min_order_amount > 0) && (
+                                  <p className="text-xs text-[#b5edce]/70 mt-0.5 truncate">
+                                    {offer.description || `Min order: ₹${offer.min_order_amount}`}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setApplyingPromo(true);
+                                  await applyPromoCode(offer.code);
+                                  setShowOffers(false);
+                                  setApplyingPromo(false);
+                                }}
+                                disabled={applyingPromo}
+                                className="ml-2 shrink-0 text-xs font-poppins font-bold text-[#3b2a20] bg-[#b5edce] border border-[#b5edce] rounded px-2 py-1 hover:bg-white hover:text-[#3b2a20] transition-colors disabled:opacity-50"
+                              >
+                                Apply
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

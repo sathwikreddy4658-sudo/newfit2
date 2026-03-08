@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { listenToNewOrders } from "@/integrations/firebase/db";
 import { Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -20,63 +20,50 @@ const OrderNotifications = () => {
     if (!notificationsEnabled) return;
 
     // Subscribe to new orders in real-time
-    const channel = supabase
-      .channel("orders-notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "orders",
-        },
-        (payload) => {
-          const order = payload.new as any;
-          
-          // Show browser notification
-          if (Notification.permission === "granted") {
-            const notification = new Notification("🎉 New Order Received!", {
-              body: `Order #${order.id.slice(0, 8)} - ₹${order.total_price}\nPayment: ${order.payment_method === 'online' ? 'Online' : 'COD'}`,
-              icon: "/favicon.ico",
-              badge: "/favicon.ico",
-              tag: order.id,
-              requireInteraction: true, // Notification stays until user interacts
-              silent: false,
-            });
+    const unsubscribe = listenToNewOrders((order: any) => {
+      // Show browser notification
+      if (Notification.permission === "granted") {
+        const notification = new Notification("New Order Received!", {
+          body: `Order #${order.id.slice(0, 8)} - ₹${order.total_amount}\nPayment: ${order.payment_method === 'online' ? 'Online' : 'COD'}`,
+          icon: "/favicon.ico",
+          badge: "/favicon.ico",
+          tag: order.id,
+          requireInteraction: true, // Notification stays until user interacts
+          silent: false,
+        });
 
-            // Play notification sound
-            const audio = new Audio("/notification.mp3"); // You can add a sound file
-            audio.play().catch(() => {
-              // Ignore if sound fails
-            });
+        // Play notification sound
+        const audio = new Audio("/notification.mp3");
+        audio.play().catch(() => {
+          // Ignore if sound fails
+        });
 
-            // Click notification to open orders page
-            notification.onclick = () => {
-              window.focus();
-              window.location.href = "/admin/orders";
-              notification.close();
-            };
+        // Click notification to open orders page
+        notification.onclick = () => {
+          window.focus();
+          window.location.href = "/admin/orders";
+          notification.close();
+        };
 
-            // Auto-close after 10 seconds if not clicked
-            setTimeout(() => {
-              notification.close();
-            }, 10000);
-          }
+        // Auto-close after 10 seconds if not clicked
+        setTimeout(() => {
+          notification.close();
+        }, 10000);
+      }
 
-          // Also show in-app toast
-          toast({
-            title: "🎉 New Order Received!",
-            description: `Order #${order.id.slice(0, 8)} for ₹${order.total_price}`,
-            duration: 5000,
-          });
+      // Also show in-app toast
+      toast({
+        title: "New Order Received!",
+        description: `Order #${order.id.slice(0, 8)} for ₹${order.total_amount}`,
+        duration: 5000,
+      });
 
-          console.log("[OrderNotifications] New order:", order);
-        }
-      )
-      .subscribe();
+      console.log("[OrderNotifications] New order:", order);
+    });
 
     // Cleanup subscription
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [notificationsEnabled]);
 

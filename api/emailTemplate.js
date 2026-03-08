@@ -25,6 +25,282 @@ export const emailConfig = {
   fromName: 'Freelit Order Confirmation',
 };
 
+// Shipped Email Template
+export const getShippedEmailTemplate = ({
+  customerName,
+  orderId,
+  trackingNumber,
+  carrierName,
+  estimatedDeliveryDate,
+  address,
+}) => {
+  const { storeName, websiteUrl, colors } = emailConfig;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Order Shipped</title>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; padding: 10px !important; }
+      .header { padding: 20px 15px !important; }
+      .header h1 { font-size: 22px !important; }
+      .body-content { padding: 20px 15px !important; }
+      .section-box { padding: 15px !important; }
+      .section-title { font-size: 16px !important; }
+      .button { padding: 10px 20px !important; font-size: 14px !important; }
+      u + .body { margin: 0; padding: 0; }
+    }
+  </style>
+</head>
+<body style="font-family: 'Poppins', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+    <tr>
+      <td align="center" style="padding: 20px 10px;">
+        <table class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <tr>
+            <td class="header" style="background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%); color: white; padding: 30px; text-align: center;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">🚚 ORDER SHIPPED!</h1>
+              <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your package is on the way</p>
+            </td>
+          </tr>
+          <tr>
+            <td class="body-content" style="padding: 30px;">
+              <p style="font-size: 16px; margin-bottom: 20px;">
+                Hi <strong>${customerName}</strong>,
+              </p>
+
+              <p style="font-size: 15px; margin-bottom: 25px;">
+                Great news! Your order has been shipped and is on its way to you. You can track your package using the information below.
+              </p>
+
+              <!-- Shipping Details -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" class="section-box" style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 2px solid ${colors.accent};">
+                <tr>
+                  <td>
+                    <h2 class="section-title" style="margin: 0 0 15px 0; color: ${colors.primary}; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">📦 SHIPPING DETAILS</h2>
+                    <table width="100%" cellpadding="5" cellspacing="0" border="0">
+                      <tr>
+                        <td style="color: #666; font-weight: 300; padding: 8px 0;">Order ID:</td>
+                        <td align="right" style="padding: 8px 0;">
+                          <span style="font-family: monospace; background: #f0f0f0; padding: 4px 8px; border-radius: 3px;">${orderId.slice(0, 8)}</span>
+                        </td>
+                      </tr>
+                      ${trackingNumber ? `
+                      <tr>
+                        <td style="color: #666; font-weight: 300; padding: 8px 0;">Tracking Number:</td>
+                        <td align="right" style="padding: 8px 0; font-weight: 600;">${trackingNumber}</td>
+                      </tr>
+                      ` : ''}
+                      ${carrierName ? `
+                      <tr>
+                        <td style="color: #666; font-weight: 300; padding: 8px 0;">Carrier:</td>
+                        <td align="right" style="padding: 8px 0;">${carrierName}</td>
+                      </tr>
+                      ` : ''}
+                      ${estimatedDeliveryDate ? `
+                      <tr>
+                        <td style="color: #666; font-weight: 300; padding: 8px 0;">Est. Delivery:</td>
+                        <td align="right" style="padding: 8px 0; font-weight: 600; color: ${colors.primary};">${estimatedDeliveryDate}</td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              ${address ? `
+              <!-- Delivery Address -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" class="section-box" style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid ${colors.accent};">
+                <tr>
+                  <td>
+                    <h2 class="section-title" style="margin: 0 0 10px 0; color: ${colors.primary}; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">📍 DELIVERY ADDRESS</h2>
+                    <p style="margin: 0; line-height: 1.8; color: #555; word-wrap: break-word;">${address}</p>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
+
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+
+              <!-- Call to Action -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding: 20px 0;">
+                    <p style="font-size: 15px; color: #666; margin-bottom: 15px;">
+                      <strong>Track your order</strong><br>
+                      Check back here or contact us for updates
+                    </p>
+                    <a href="${websiteUrl}/orders" class="button" style="display: inline-block; background: ${colors.primary}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">
+                      TRACK ORDER
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size: 14px; color: #666; margin: 20px 0 0 0; text-align: center;">
+                Thank you for choosing ${storeName}!
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding: 20px; background: #f5f5f5;">
+              <p style="margin: 5px 0; color: #999; font-size: 12px;">
+                This is an automated shipment notification. Please do not reply directly.
+              </p>
+              <p style="margin: 5px 0; color: #999; font-size: 12px;">
+                © ${new Date().getFullYear()} ${storeName}. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+};
+
+// Delivered Email Template
+export const getDeliveredEmailTemplate = ({
+  customerName,
+  orderId,
+  address,
+}) => {
+  const { storeName, websiteUrl, colors } = emailConfig;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Order Delivered</title>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; padding: 10px !important; }
+      .header { padding: 20px 15px !important; }
+      .header h1 { font-size: 22px !important; }
+      .body-content { padding: 20px 15px !important; }
+      .section-box { padding: 15px !important; }
+      .section-title { font-size: 16px !important; }
+      .button { padding: 10px 20px !important; font-size: 14px !important; }
+      u + .body { margin: 0; padding: 0; }
+    }
+  </style>
+</head>
+<body style="font-family: 'Poppins', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+    <tr>
+      <td align="center" style="padding: 20px 10px;">
+        <table class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <tr>
+            <td class="header" style="background: linear-gradient(135deg, ${colors.success} 0%, #45a049 100%); color: white; padding: 30px; text-align: center;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">✓ ORDER DELIVERED!</h1>
+              <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">We hope you enjoy your order</p>
+            </td>
+          </tr>
+          <tr>
+            <td class="body-content" style="padding: 30px;">
+              <p style="font-size: 16px; margin-bottom: 20px;">
+                Hi <strong>${customerName}</strong>,
+              </p>
+
+              <p style="font-size: 15px; margin-bottom: 25px;">
+                Your order has been successfully delivered! We hope you're enjoying your purchase. If you have any questions or concerns, please let us know.
+              </p>
+
+              <!-- Order Summary -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" class="section-box" style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 2px solid ${colors.accent};">
+                <tr>
+                  <td>
+                    <h2 class="section-title" style="margin: 0 0 15px 0; color: ${colors.primary}; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">📦 ORDER SUMMARY</h2>
+                    <table width="100%" cellpadding="5" cellspacing="0" border="0">
+                      <tr>
+                        <td style="color: #666; font-weight: 300; padding: 8px 0;">Order ID:</td>
+                        <td align="right" style="padding: 8px 0;">
+                          <span style="font-family: monospace; background: #f0f0f0; padding: 4px 8px; border-radius: 3px;">${orderId.slice(0, 8)}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="color: #666; font-weight: 300; padding: 8px 0;">Delivered to:</td>
+                        <td align="right" style="padding: 8px 0; color: #333;">${address ? 'Confirmed' : 'Completed'}</td>
+                      </tr>
+                      <tr style="border-top: 1px solid #ddd;">
+                        <td style="color: #333; font-weight: 600; padding: 10px 0;">Status:</td>
+                        <td align="right" style="padding: 10px 0; color: ${colors.success}; font-weight: 600;">✓ DELIVERED</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Feedback Section -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" class="section-box" style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #ffc107;">
+                <tr>
+                  <td>
+                    <h3 style="margin: 0 0 10px 0; color: ${colors.primary}; font-size: 16px;">⭐ Share Your Feedback</h3>
+                    <p style="margin: 0 0 15px 0; font-size: 14px; color: #666;">
+                      We'd love to hear what you think about your purchase. Your feedback helps us improve!
+                    </p>
+                    <a href="${websiteUrl}/orders" style="display: inline-block; background: ${colors.primary}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 14px; text-transform: uppercase;">
+                      Leave a Review
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+
+              <!-- Support Section -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding: 20px 0;">
+                    <p style="font-size: 15px; color: #666; margin-bottom: 15px;">
+                      <strong>Need help?</strong><br>
+                      Reply to this email or visit our website
+                    </p>
+                    <a href="${websiteUrl}" class="button" style="display: inline-block; background: ${colors.primary}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">
+                      VISIT STORE
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size: 14px; color: #666; margin: 20px 0 0 0; text-align: center;">
+                Thank you for shopping with ${storeName}!
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding: 20px; background: #f5f5f5;">
+              <p style="margin: 5px 0; color: #999; font-size: 12px;">
+                This is an automated delivery confirmation. Please do not reply directly.
+              </p>
+              <p style="margin: 5px 0; color: #999; font-size: 12px;">
+                © ${new Date().getFullYear()} ${storeName}. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+};
+
 // Email HTML Template Function
 export const getOrderEmailTemplate = ({
   customerName,

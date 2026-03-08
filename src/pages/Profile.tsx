@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUser, auth } from "@/integrations/firebase/auth";
+import { db } from "@/integrations/firebase/client";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,30 +24,34 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (!firebaseUser) {
         navigate("/auth");
         return;
       }
-      setUser(session.user);
-      fetchProfile(session.user.id);
+      setUser(firebaseUser as any);
+      fetchProfile(firebaseUser.uid);
     });
+
+    return () => unsubscribe();
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    try {
+      const userDocRef = doc(db, "users", userId);
+      const userDocSnap = await getDoc(userDocRef);
 
-    if (data) {
-      setProfile(data);
-      setFormData({
-        name: data.name,
-        email: data.email,
-        address: data.address,
-      });
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        setProfile(userData);
+        setFormData({
+          name: userData.full_name || "",
+          email: userData.email || "",
+          address: userData.address || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
     }
   };
 
@@ -57,26 +63,27 @@ const Profile = () => {
       toast({
         title: "Validation failed",
         description: firstError.message,
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(validationResult.data)
-      .eq("id", user.id);
-
-    if (error) {
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, {
+        full_name: validationResult.data.name,
+        email: validationResult.data.email,
+        address: validationResult.data.address,
+      });
+      toast({ title: "Profile updated successfully" });
+      setEditing(false);
+      fetchProfile(user.uid);
+    } catch (error: any) {
       toast({
         title: "Update failed",
         description: sanitizeError(error),
-        variant: "destructive"
+        variant: "destructive",
       });
-    } else {
-      toast({ title: "Profile updated successfully" });
-      setEditing(false);
-      fetchProfile(user.id);
     }
   };
 
@@ -94,7 +101,7 @@ const Profile = () => {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             ) : (
-              <p className="mt-1">{profile?.name}</p>
+              <p className="mt-1">{profile?.full_name}</p>
             )}
           </div>
 
