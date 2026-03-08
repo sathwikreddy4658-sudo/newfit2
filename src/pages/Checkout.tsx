@@ -266,6 +266,7 @@ const Checkout = () => {
 
   // Handle saved address selection
   const handleSavedAddressSelect = async (address: any) => {
+    console.log('[Checkout] Saved address selected:', address);
     setSelectedSavedAddress(address.id);
     setSelectedPincode(address.pincode);
     setSelectedState(address.state);
@@ -283,12 +284,20 @@ const Checkout = () => {
     
     const formattedAddress = addressParts.join(', ');
     
+    console.log('[Checkout] Formatted saved address:', {
+      formattedAddress,
+      addressLength: formattedAddress.length,
+      currentProfile: profile
+    });
+    
     setProfile({ 
       ...profile, 
       address: formattedAddress,
       phone: address.phone 
     });
     setAddressSaved(true);
+    
+    console.log('[Checkout] Profile updated with saved address, addressSaved set to true');
     
     // Auto-trigger delivery check
     setCheckingDelivery(true);
@@ -488,10 +497,11 @@ const Checkout = () => {
       }))
     });
 
-    // Build customer details (for both guest and authenticated users)
-    const customerName = isGuestCheckout ? guestData.name?.trim() : userContactData.name?.trim();
-    const customerEmail = isGuestCheckout ? guestData.email?.trim() : userContactData.email?.trim();
-    const customerPhone = isGuestCheckout ? guestData.phone?.trim() : userContactData.phone?.trim();
+    // Build customer details based on actual authentication state
+    // For logged-in users, use userContactData; for guests, use guestData
+    const customerName = user ? userContactData.name?.trim() : guestData.name?.trim();
+    const customerEmail = user ? userContactData.email?.trim() : guestData.email?.trim();
+    const customerPhone = user ? userContactData.phone?.trim() : guestData.phone?.trim();
 
     // Pricing breakdown
     const itemsSubtotal = discountedTotal !== undefined ? discountedTotal : totalPrice; // after product discount
@@ -525,16 +535,29 @@ const Checkout = () => {
       return;
     }
 
-    // Get the address based on checkout type
-    const orderAddress = isGuestCheckout ? guestData.address : profile?.address;
+    // Get the address based on actual user authentication state (not location.state)
+    // For logged-in users, use profile.address; for guests, use guestData.address
+    const orderAddress = user ? profile?.address : guestData.address;
+    
+    console.log('[Checkout] Address resolution:', {
+      hasUser: !!user,
+      isGuestCheckout,
+      profileAddress: profile?.address,
+      guestDataAddress: guestData.address,
+      resolvedAddress: orderAddress,
+      addressSaved
+    });
     
     // CRITICAL: Validate address is not empty before creating order
     if (!orderAddress || orderAddress.trim().length === 0) {
-      console.error('[Checkout] Address validation failed:', {
+      console.error('[Checkout] Address validation failed - address is empty:', {
+        hasUser: !!user,
         isGuestCheckout,
-        guestDataAddress: guestData.address,
         profileAddress: profile?.address,
-        addressSaved
+        guestDataAddress: guestData.address,
+        addressSaved,
+        useSavedAddress,
+        selectedSavedAddressId: selectedSavedAddress
       });
       toast({
         title: "Address Required",
