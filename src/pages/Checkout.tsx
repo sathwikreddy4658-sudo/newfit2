@@ -174,12 +174,13 @@ const Checkout = () => {
       
       if (userDocSnap.exists()) {
         const data = userDocSnap.data();
+        // DON'T set address here - it will be set by SavedAddresses component
+        // to avoid race condition where fetchProfile overwrites saved address selection
         const profileData = {
-          address: data.address || '',
           full_name: data.full_name || '',
           phone: data.phone || ''
         };
-        console.log('[Checkout] Setting profile from Firestore:', profileData);
+        console.log('[Checkout] Setting profile from Firestore (without address):', profileData);
         setProfile(profileData);
         
         // Pre-fill contact form with existing data if available
