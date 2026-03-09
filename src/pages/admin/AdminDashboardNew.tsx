@@ -34,7 +34,7 @@ const AdminDashboard = () => {
 
       const totalOrders = orders?.length || 0;
       const pendingOrders = orders?.filter((o: any) => o.status === "pending").length || 0;
-      const totalRevenue = orders?.reduce((sum: number, o: any) => sum + (parseFloat(o.totalPrice) || parseFloat(o.total_price) || 0), 0) || 0;
+      const totalRevenue = orders?.reduce((sum: number, o: any) => sum + (parseFloat(o.total_amount) || 0), 0) || 0;
       const recentOrders = orders?.slice(0, 5) || [];
 
       setStats({
@@ -148,17 +148,20 @@ const AdminDashboard = () => {
                       <p className="font-medium">#{order.order_number || order.id?.slice(0, 8)}</p>
                       <p className="text-sm text-gray-600">{order.customer_name || order.customer_email || 'Guest'}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {new Date(order.created_at).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {order.createdAt?.toDate ? 
+                          order.createdAt.toDate().toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                          : 'N/A'
+                        }
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold">₹{(parseFloat(order.total_price) || 0).toLocaleString("en-IN")}</p>
+                      <p className="font-bold">₹{(parseFloat(order.total_amount) || 0).toLocaleString("en-IN")}</p>
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${
                           order.status === "delivered"

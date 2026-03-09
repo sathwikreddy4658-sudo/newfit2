@@ -170,6 +170,8 @@ const ProductsTab = () => {
     e.preventDefault();
     setUploadingImages(true);
 
+    console.log('[ProductsTab] Starting form submission...');
+
     try {
       // Validate numeric fields before parsing
       const price = formData.price ? parseFloat(formData.price) : null;
@@ -294,18 +296,24 @@ const ProductsTab = () => {
         }
 
         try {
+          console.log('[ProductsTab] Updating product:', editingProduct.id);
           await updateProduct(editingProduct.id, {
             ...validatedData,
             images: allImages,
             products_page_image: productsPageImageUrl,
             cart_image: cartImageUrl
           });
+          console.log('[ProductsTab] Product updated successfully');
           toast({ title: "Product updated successfully" });
           setShowDialog(false);
           resetForm();
-          fetchProducts();
+          setUploadingImages(false);
+          console.log('[ProductsTab] Refreshing products list in background...');
+          fetchProducts(); // Don't await - let it run in background
+          console.log('[ProductsTab] Update complete!');
         } catch (error: any) {
-          console.error('Product update error:', error);
+          console.error('[ProductsTab] Product update error:', error);
+          setUploadingImages(false);
           toast({
             title: "Update failed",
             description: error.message || "An error occurred while updating the product",
@@ -315,39 +323,51 @@ const ProductsTab = () => {
       } else {
         // Create product first
         try {
-          console.log('Creating product with data:', validatedData);
+          console.log('[ProductsTab] Creating product with data:', validatedData);
           const newProductId = await createProduct(validatedData);
+          console.log('[ProductsTab] Product created with ID:', newProductId);
 
           // Upload images if any
           if (imageFiles.length > 0) {
+            console.log('[ProductsTab] Uploading', imageFiles.length, 'images...');
             const imageUrls = await uploadImages(newProductId);
+            console.log('[ProductsTab] Images uploaded:', imageUrls);
 
             // Upload separate images
             let productsPageImageUrl = null;
             let cartImageUrl = null;
 
             if (productsPageImageFile) {
+              console.log('[ProductsTab] Uploading products page image...');
               productsPageImageUrl = await uploadSingleImage(productsPageImageFile, newProductId, 'products-page');
             }
 
             if (cartImageFile) {
+              console.log('[ProductsTab] Uploading cart image...');
               cartImageUrl = await uploadSingleImage(cartImageFile, newProductId, 'cart');
             }
 
             // Update product with image URLs
+            console.log('[ProductsTab] Updating product with image URLs...');
             await updateProduct(newProductId, {
               images: imageUrls,
               products_page_image: productsPageImageUrl,
               cart_image: cartImageUrl
             });
+            console.log('[ProductsTab] Product updated with images');
           }
 
+          console.log('[ProductsTab] Showing success message...');
           toast({ title: "Product created successfully" });
           setShowDialog(false);
           resetForm();
-          fetchProducts();
+          setUploadingImages(false);
+          console.log('[ProductsTab] Refreshing products list in background...');
+          fetchProducts(); // Don't await - let it run in background
+          console.log('[ProductsTab] Creation complete!');
         } catch (error: any) {
-          console.error('Product creation error:', error);
+          console.error('[ProductsTab] Product creation error:', error);
+          setUploadingImages(false);
           toast({
             title: "Creation failed",
             description: error.message || "An error occurred while creating the product",
@@ -355,7 +375,15 @@ const ProductsTab = () => {
           });
         }
       }
+    } catch (error: any) {
+      console.error('[ProductsTab] Unexpected error in handleSubmit:', error);
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive"
+      });
     } finally {
+      console.log('[ProductsTab] Setting uploadingImages to false');
       setUploadingImages(false);
     }
   };

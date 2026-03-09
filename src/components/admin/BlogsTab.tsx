@@ -21,11 +21,6 @@ Quill.register(CustomLineBreak);
 const icons = Quill.import('ui/icons');
 icons['linebreak'] = '<svg viewBox="0 0 18 18"><path d="M14,13 L4,13 M14,10 L4,10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M4,13 L4,10" stroke="currentColor" stroke-width="2"/></svg>';
 
-interface ContentSection {
-  type: 'heading' | 'paragraph' | 'linebreak';
-  text: string;
-}
-
 interface BlogLink {
   text: string;
   url: string;
@@ -41,7 +36,7 @@ const BlogsTab = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [contentSections, setContentSections] = useState<ContentSection[]>([]);
+  const [content, setContent] = useState<string>(''); // Single content editor
   const [blogLinks, setBlogLinks] = useState<BlogLink[]>([]);
   const [formData, setFormData] = useState({
     title: "",
@@ -50,7 +45,6 @@ const BlogsTab = () => {
   });
   const [draftSaved, setDraftSaved] = useState(false);
   const saveDraftTimeoutRef = useRef<NodeJS.Timeout>();
-  const quillRefs = useRef<{ [key: number]: any }>({});
 
   // Custom modules configuration with line break handler
   const modules = useMemo(() => ({
@@ -90,14 +84,14 @@ const BlogsTab = () => {
 
   // Auto-save draft on form changes
   useEffect(() => {
-    if (showDialog && (formData.title || contentSections.length > 0)) {
+    if (showDialog && (formData.title || content)) {
       if (saveDraftTimeoutRef.current) {
         clearTimeout(saveDraftTimeoutRef.current);
       }
       
       saveDraftTimeoutRef.current = setTimeout(() => {
         localStorage.setItem(BLOG_DRAFT_KEY, JSON.stringify(formData));
-        localStorage.setItem(BLOG_CONTENT_DRAFT_KEY, JSON.stringify(contentSections));
+        localStorage.setItem(BLOG_CONTENT_DRAFT_KEY, content);
         localStorage.setItem(BLOG_LINKS_DRAFT_KEY, JSON.stringify(blogLinks));
         setDraftSaved(true);
         setTimeout(() => setDraftSaved(false), 2000);
@@ -109,7 +103,7 @@ const BlogsTab = () => {
         clearTimeout(saveDraftTimeoutRef.current);
       }
     };
-  }, [formData, contentSections, blogLinks, showDialog]);
+  }, [formData, content, blogLinks, showDialog]);
 
   // Load draft when dialog opens
   useEffect(() => {
@@ -122,7 +116,7 @@ const BlogsTab = () => {
         setFormData(JSON.parse(savedDraft));
       }
       if (savedContent) {
-        setContentSections(JSON.parse(savedContent));
+        setContent(savedContent);
       }
       if (savedLinks) {
         setBlogLinks(JSON.parse(savedLinks));
@@ -146,7 +140,7 @@ const BlogsTab = () => {
       image_url: "",
       cta_heading: "Learn More",
     });
-    setContentSections([]);
+    setContent('');
     setBlogLinks([]);
     setEditingBlog(null);
     setImageFile(null);
@@ -249,8 +243,8 @@ const BlogsTab = () => {
       return;
     }
     
-    if (contentSections.length === 0) {
-      toast({ title: "Add at least one section (heading or paragraph)", variant: "destructive" });
+    if (!content.trim()) {
+      toast({ title: "Content is required", variant: "destructive" });
       return;
     }
 
@@ -265,25 +259,11 @@ const BlogsTab = () => {
         imageUrl = newImageUrl;
       }
 
-      // Convert sections to content string
-      // React-Quill stores HTML directly, so we combine all sections into one HTML string
-      let contentHtml = '';
-      contentSections.forEach((section) => {
-        if (section.type === 'heading') {
-          contentHtml += `<h2>${section.text}</h2>`;
-        } else if (section.type === 'linebreak') {
-          contentHtml += '<br/><br/>';
-        } else {
-          // Already has <p> tags from Quill
-          contentHtml += section.text;
-        }
-      });
-      
       const linksJson = JSON.stringify(blogLinks);
 
       const blogData = {
         title: formData.title,
-        content: contentHtml,
+        content: content, // Use the single content field directly
         image_url: imageUrl,
         links: linksJson,
         cta_heading: formData.cta_heading || "Learn More",
@@ -336,42 +316,8 @@ const BlogsTab = () => {
       cta_heading: blog.cta_heading || "Learn More",
     });
     
-    // Parse content - handle both HTML and JSON formats
-    try {
-      const content = blog.content;
-      // If it starts with <, it's pure HTML content (new format)
-      if (content.startsWith('<')) {
-        // Split HTML by <h2> tags to separate headings and paragraphs
-        const parts = content.split(/(<h2>.*?<\/h2>)/);
-        const sections: any[] = [];
-        
-        for (const part of parts) {
-          if (part.trim()) {
-            if (part.startsWith('<h2>')) {
-              // Extract heading text
-              const headingText = part.replace(/<\/?h2>/g, '').trim();
-              sections.push({ type: 'heading', text: headingText });
-            } else if (part.startsWith('<p>')) {
-              sections.push({ type: 'paragraph', text: part });
-            } else if (part.trim()) {
-              sections.push({ type: 'paragraph', text: part });
-            }
-          }
-        }
-        setContentSections(sections.length > 0 ? sections : [{ type: 'paragraph', text: content }]);
-      } else {
-        // Try parsing as JSON (old format)
-        const parsed = JSON.parse(content);
-        if (Array.isArray(parsed)) {
-          setContentSections(parsed);
-        } else {
-          setContentSections([{ type: 'paragraph', text: content }]);
-        }
-      }
-    } catch {
-      // Plain text fallback
-      setContentSections([{ type: 'paragraph', text: blog.content }]);
-    }
+    // Set content directly - no parsing needed
+    setContent(blog.content || '');
     
     // Parse links if they exist
     try {
@@ -514,100 +460,21 @@ const BlogsTab = () => {
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-3">
-                  <Label>Content Sections *</Label>
-                  <div className="flex gap-2">
-                    <Button 
-                      type="button" 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setContentSections([...contentSections, { type: 'heading', text: '' }])}
-                    >
-                      <Plus className="h-4 w-4 mr-1" /> Add Heading
-                    </Button>
-                    <Button 
-                      type="button" 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setContentSections([...contentSections, { type: 'paragraph', text: '' }])}
-                    >
-                      <Plus className="h-4 w-4 mr-1" /> Add Paragraph
-                    </Button>
-                    <Button 
-                      type="button" 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setContentSections([...contentSections, { type: 'linebreak', text: '' }])}
-                    >
-                      <Plus className="h-4 w-4 mr-1" /> Add Line Break
-                    </Button>
-                  </div>
+                <Label>Blog Content *</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Use H1 for main headings, H2 for subheadings. Format your text with bold, italic, lists, and more.
+                </p>
+                <div className="border rounded bg-white">
+                  <ReactQuill
+                    value={content}
+                    onChange={setContent}
+                    modules={modules}
+                    formats={formats}
+                    placeholder="Start writing your blog content here... Use the toolbar to format text, add headings, lists, and more."
+                    theme="snow"
+                    style={{ minHeight: '400px' }}
+                  />
                 </div>
-
-                {contentSections.length === 0 ? (
-                  <div className="p-4 border-2 border-dashed rounded-lg text-center text-muted-foreground">
-                    <p>No content sections yet. Click "Add Heading" or "Add Paragraph" to get started.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-96 overflow-y-auto border rounded-lg p-3 bg-slate-50">
-                    {contentSections.map((section, index) => (
-                      <div key={index} className="bg-white p-3 rounded border space-y-2">
-                        <div className="flex justify-between items-center">
-                          <select
-                            value={section.type}
-                            onChange={(e) => {
-                              const updated = [...contentSections];
-                              updated[index].type = e.target.value as 'heading' | 'paragraph' | 'linebreak';
-                              setContentSections(updated);
-                            }}
-                            className="text-sm border rounded px-2 py-1 bg-white"
-                          >
-                            <option value="heading">Heading</option>
-                            <option value="paragraph">Paragraph</option>
-                            <option value="linebreak">Line Break</option>
-                          </select>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              const updated = contentSections.filter((_, i) => i !== index);
-                              setContentSections(updated);
-                            }}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        {section.type === 'linebreak' ? (
-                          <div className="border rounded bg-slate-100 p-4 text-center text-sm text-muted-foreground">
-                            <div className="border-t-2 border-slate-300 my-2"></div>
-                            Line Break (adds spacing between sections)
-                          </div>
-                        ) : (
-                          <div className="border rounded bg-white">
-                            <div className="text-xs text-muted-foreground px-2 py-1 bg-slate-50 border-b">
-                              Tip: Use the ⏎ button for line breaks within paragraphs, or press Shift+Enter
-                            </div>
-                            <ReactQuill
-                              value={section.text}
-                              onChange={(text) => {
-                                const updated = [...contentSections];
-                                updated[index].text = text;
-                                setContentSections(updated);
-                              }}
-                              modules={modules}
-                              formats={formats}
-                              placeholder={section.type === 'heading' ? 'Enter heading...' : 'Enter paragraph text...'}
-                              theme="snow"
-                              style={{ minHeight: section.type === 'heading' ? '120px' : '200px' }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div>

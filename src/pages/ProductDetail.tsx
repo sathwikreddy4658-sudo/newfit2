@@ -5,7 +5,7 @@ import { getCurrentUser, auth } from "@/integrations/firebase/auth";
 import { getProduct, getAllProducts } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import { Heart, ShoppingCart, Minus, Plus, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
@@ -519,6 +519,8 @@ const ProductDetail = () => {
               </div>
             </DialogTrigger>
             <DialogContent className="w-[90vw] max-w-4xl h-[80vh] p-0 md:max-w-[18rem] md:h-[20vh]">
+              <DialogTitle className="sr-only">Product Image Gallery</DialogTitle>
+              <DialogDescription className="sr-only">Enlarged product image view. Use arrow buttons to navigate between images.</DialogDescription>
               <div className="relative w-full h-full flex items-center justify-center bg-black">
                 {product.images && product.images.length > 0 && (
                   <>
@@ -1063,6 +1065,8 @@ const ProductDetail = () => {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
+                  <DialogTitle>Rate This Product</DialogTitle>
+                  <DialogDescription>Share your experience with this product</DialogDescription>
                   <RatingComponent productId={product.id} />
                 </DialogContent>
               </Dialog>

@@ -201,6 +201,90 @@ export async function getAllOrders(): Promise<Order[]> {
   }
 }
 
+// Get user orders without requiring composite index - fetches all orders client-side
+export async function getUserOrdersWithoutIndex(userId: string): Promise<Order[]> {
+  try {
+    console.log('[DB] Fetching all orders and filtering for userId:', userId);
+    // Fetch all orders and filter client-side to avoid composite index requirement
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    
+    // Filter for this user's orders
+    const userOrders = allOrders.filter(order => order.user_id === userId);
+    console.log(`[DB] Found ${userOrders.length} orders for user ${userId}`);
+    return userOrders;
+  } catch (error) {
+    console.error('[DB] Error fetching user orders:', error);
+    throw error;
+  }
+}
+
+// Search for orders by email, phone, or order ID (for guests and tracking)
+export async function searchOrders(searchQuery: string): Promise<Order[]> {
+  try {
+    const query_lower = searchQuery.toLowerCase().trim();
+    console.log('[DB] Searching orders for:', query_lower);
+    
+    // Fetch all orders
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    
+    // Search by order ID, email, or phone
+    const results = allOrders.filter(order => {
+      const orderId = order.order_number?.toLowerCase() || '';
+      const email = order.customer_email?.toLowerCase() || '';
+      const phone = order.customer_phone?.replace(/\D/g, '') || '';
+      const searchClean = query_lower.replace(/\D/g, '');
+      
+      return (
+        orderId.includes(query_lower) ||
+        email.includes(query_lower) ||
+        phone.includes(searchClean)
+      );
+    });
+    
+    console.log(`[DB] Found ${results.length} orders matching "${query_lower}"`);
+    return results;
+  } catch (error) {
+    console.error('[DB] Error searching orders:', error);
+    throw error;
+  }
+}
+
+// Get guest orders by email or phone
+export async function getGuestOrders(email: string, phone?: string): Promise<Order[]> {
+  try {
+    const email_lower = email.toLowerCase().trim();
+    const phone_clean = phone?.replace(/\D/g, '').trim();
+    
+    console.log('[DB] Fetching guest orders for email:', email_lower, 'phone:', phone_clean);
+    
+    // Fetch all orders
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    
+    // Filter for guest orders (no user_id) matching email and/or phone
+    const guestOrders = allOrders.filter(order => {
+      const isGuest = !order.user_id;
+      if (!isGuest) return false;
+      
+      const emailMatch = order.customer_email?.toLowerCase() === email_lower;
+      const phoneMatch = phone_clean && order.customer_phone?.replace(/\D/g, '').trim() === phone_clean;
+      
+      return emailMatch || phoneMatch;
+    });
+    
+    console.log(`[DB] Found ${guestOrders.length} guest orders`);
+    return guestOrders;
+  } catch (error) {
+    console.error('[DB] Error fetching guest orders:', error);
+    throw error;
+  }
+}
+
 export async function createOrder(
   orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Order> {

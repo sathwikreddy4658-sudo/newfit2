@@ -29,7 +29,7 @@ const AnalyticsTab = () => {
 
     setStats({
       totalOrders: completedOrders.length,
-      totalRevenue: completedOrders.reduce((sum: number, o: any) => sum + (o.total_price || o.totalPrice || 0), 0),
+      totalRevenue: completedOrders.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0),
       soldProducts: allItems,
     });
   };

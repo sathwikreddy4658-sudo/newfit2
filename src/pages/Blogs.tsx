@@ -111,7 +111,7 @@ const Blogs = () => {
 
   return (
     <div className="bg-[#b5edce]/50 min-h-screen">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-16 md:pt-20">
         <div className="mb-8">
           <h1 className="font-saira font-black text-6xl text-[#3b2a20] text-left uppercase mb-4">Blog</h1>
           <div className="flex gap-2 justify-end">

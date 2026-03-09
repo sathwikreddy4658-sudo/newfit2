@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { getThumbnailUrl, getLazyLoadingStrategy } from "@/utils/imageOptimization";
 
 const Products = () => {
@@ -78,12 +79,12 @@ const Products = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="container mx-auto px-3 sm:px-4 py-6 md:py-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {[...Array(8)].map((_, i) => (
-            <Card key={i} className="p-4">
-              <Skeleton className="h-48 w-full mb-4" />
-              <Skeleton className="h-6 w-3/4 mb-2" />
+            <Card key={i} className="p-3 sm:p-4">
+              <Skeleton className="h-32 sm:h-40 w-full mb-3 sm:mb-4" />
+              <Skeleton className="h-5 sm:h-6 w-3/4 mb-2" />
               <Skeleton className="h-4 w-1/2" />
             </Card>
           ))}
@@ -94,44 +95,47 @@ const Products = () => {
 
   return (
     <div className="bg-[#b5edce]/50 min-h-screen">
-      <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col gap-4 mb-6">
-        <Input
-          placeholder="Search products..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="md:w-96"
-        />
+      <div className="container mx-auto px-3 sm:px-4 py-6 md:py-8 pt-16 md:pt-20">
+      <div className="flex flex-col gap-3 sm:gap-4 mb-6 md:mb-8 mt-12 sm:mt-16">
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#3b2a20]/50 pointer-events-none" />
+          <Input
+            placeholder=""
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 text-sm border-[#b5edce] focus:border-[#3b2a20] focus:ring-[#3b2a20]"
+          />
+        </div>
 
         <div
           ref={categoriesRef}
-          className="flex gap-2 overflow-x-auto pb-2 md:justify-start md:overflow-x-visible"
+          className="flex gap-1 sm:gap-2 overflow-x-auto pb-2 md:overflow-x-visible md:justify-start scrollbar-hide"
         >
           <Button
             variant={categoryFilter === "all" ? "default" : "outline"}
             onClick={() => handleCategoryClick("all")}
-            className={`whitespace-nowrap rounded-lg font-poppins font-bold bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white ${categoryFilter === "all" ? "bg-[#5e4338] text-white" : ""}`}
+            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-colors ${categoryFilter === "all" ? "bg-[#5e4338] text-white" : ""}`}
           >
             All Categories
           </Button>
           <Button
             variant={categoryFilter === "protein_bars" ? "default" : "outline"}
             onClick={() => handleCategoryClick("protein_bars")}
-            className={`whitespace-nowrap rounded-lg font-poppins font-bold bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white ${categoryFilter === "protein_bars" ? "bg-[#5e4338] text-white" : ""}`}
+            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-colors ${categoryFilter === "protein_bars" ? "bg-[#5e4338] text-white" : ""}`}
           >
             Protein Bars
           </Button>
           <Button
             variant={categoryFilter === "dessert_bars" ? "default" : "outline"}
             onClick={() => handleCategoryClick("dessert_bars")}
-            className={`whitespace-nowrap rounded-lg font-poppins font-bold bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white ${categoryFilter === "dessert_bars" ? "bg-[#5e4338] text-white" : ""}`}
+            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-colors ${categoryFilter === "dessert_bars" ? "bg-[#5e4338] text-white" : ""}`}
           >
             Dessert Bars
           </Button>
           <Button
             variant={categoryFilter === "chocolates" ? "default" : "outline"}
             onClick={() => handleCategoryClick("chocolates")}
-            className={`whitespace-nowrap rounded-lg font-poppins font-bold bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white ${categoryFilter === "chocolates" ? "bg-[#5e4338] text-white" : ""}`}
+            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-colors ${categoryFilter === "chocolates" ? "bg-[#5e4338] text-white" : ""}`}
           >
             Chocolates
           </Button>
@@ -139,18 +143,18 @@ const Products = () => {
       </div>
 
       {filteredProducts.length === 0 ? (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <p className="font-saira font-black text-6xl text-[#3b2a20]/30">NO PRODUCTS HERE YET!</p>
+        <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+          <p className="font-saira font-black text-2xl sm:text-4xl md:text-6xl text-[#3b2a20]/30 text-center px-4">NO PRODUCTS HERE YET!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {filteredProducts.map((product) => (
             <Card
               key={product.id}
-              className="p-4 cursor-pointer product-card hover:shadow-lg transition-shadow"
+              className="p-3 sm:p-4 cursor-pointer product-card hover:shadow-lg transition-shadow"
               onClick={() => navigate(`/product/${encodeURIComponent(product.name)}`)}
             >
-              <div className="w-48 h-48 rounded-lg mb-4 overflow-hidden mx-auto flex items-center justify-center bg-white">
+              <div className="w-full aspect-square rounded-lg mb-3 sm:mb-4 overflow-hidden mx-auto flex items-center justify-center bg-white">
                 {/* Single Image */}
                 {product.products_page_image ? (
                   <img
@@ -172,8 +176,8 @@ const Products = () => {
                   <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600">No Image</div>
                 )}
               </div>
-              <h3 className="font-saira font-black text-lg mb-2 text-[#3b2a20] uppercase">{product.name}</h3>
-              <p className="font-montserrat text-xl font-bold text-primary">
+              <h3 className="font-saira font-black text-xs sm:text-sm md:text-lg mb-2 text-[#3b2a20] uppercase line-clamp-2">{product.name}</h3>
+              <p className="font-montserrat text-sm sm:text-lg md:text-xl font-bold text-primary">
                 {product.price ? `₹${product.price}` : `₹${product.price_15g} - ₹${product.price_20g}`}
               </p>
             </Card>

@@ -23,6 +23,21 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow write: if request.auth != null && isAdmin();
+      
+      // Product ratings subcollection
+      // Public read for approved ratings, anyone can create, admin can manage
+      match /product_ratings/{ratingId} {
+        allow read: if true; // Admin needs to read all for moderation
+        allow create: if true; // Anyone can submit a rating
+        allow update, delete: if request.auth != null && isAdmin();
+      }
+      
+      // Lab reports subcollection
+      // Public read, only admin can write
+      match /lab_reports/{reportId} {
+        allow read: if true; // Public can view lab reports for products
+        allow write: if request.auth != null && isAdmin();
+      }
     }
 
     // ============ BLOGS ============
@@ -91,15 +106,6 @@ service cloud.firestore {
     // Public read, only admin can write
     match /product_faqs/{faqId} {
       allow read: if true;
-      allow write: if request.auth != null && isAdmin();
-    }
-
-    // ============ LAB REPORTS ============
-    // Only authenticated users can read their own lab reports
-    match /lab_reports/{reportId} {
-      allow read: if request.auth != null && 
-                    (resource.data.userId == request.auth.uid || 
-                     isAdmin());
       allow write: if request.auth != null && isAdmin();
     }
 

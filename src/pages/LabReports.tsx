@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { db } from "@/integrations/firebase/client";
-import { collectionGroup, getDocs, collection, query, where, orderBy } from "firebase/firestore";
+import { getDocs, collection, query, where, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,37 +48,43 @@ const LabReports = () => {
 
   const fetchLabReports = async () => {
     try {
-      // Use collectionGroup to query all lab_reports subcollections across all products
-      const labReportsQuery = collectionGroup(db, "lab_reports");
-      const snapshot = await getDocs(labReportsQuery);
-
-      // Build a map of productId -> productName from fetched products
+      // Fetch all products first
       const productsSnapshot = await getDocs(collection(db, "products"));
-      const productMap: Record<string, string> = {};
-      productsSnapshot.docs.forEach((doc) => {
-        productMap[doc.id] = doc.data().name || "Unknown Product";
-      });
+      const allReports: LabReport[] = [];
 
-      const formattedData: LabReport[] = snapshot.docs
-        .map((doc) => {
-          const data = doc.data();
-          // Parent path: products/{productId}/lab_reports/{reportId}
-          const productId = doc.ref.parent.parent?.id || "";
-          return {
-            id: doc.id,
-            product_id: productId,
-            file_url: data.file_url || "",
-            file_name: data.file_name || "",
-            file_size: data.file_size,
-            test_type: data.test_type,
-            test_date: data.test_date,
-            created_at: data.created_at?.toDate?.()?.toISOString?.() || data.created_at || "",
-            product_name: productMap[productId],
-          };
-        })
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // Fetch lab reports for each product
+      for (const productDoc of productsSnapshot.docs) {
+        const productId = productDoc.id;
+        const productName = productDoc.data().name || "Unknown Product";
 
-      setLabReports(formattedData);
+        try {
+          // Query lab_reports subcollection for this product
+          const reportsSnapshot = await getDocs(
+            collection(db, 'products', productId, 'lab_reports')
+          );
+
+          reportsSnapshot.docs.forEach((reportDoc) => {
+            const data = reportDoc.data();
+            allReports.push({
+              id: reportDoc.id,
+              product_id: productId,
+              file_url: data.file_url || "",
+              file_name: data.file_name || "",
+              file_size: data.file_size,
+              test_type: data.test_type,
+              test_date: data.test_date,
+              created_at: data.createdAt?.toDate?.()?.toISOString?.() || data.created_at || "",
+              product_name: productName,
+            });
+          });
+        } catch (err) {
+          console.error(`Error fetching reports for product ${productId}:`, err);
+        }
+      }
+
+      // Sort by creation date descending
+      allReports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setLabReports(allReports);
     } catch (error) {
       console.error("Error fetching lab reports:", error);
     } finally {

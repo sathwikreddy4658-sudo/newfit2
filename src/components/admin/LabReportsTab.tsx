@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Trash2, Upload, Plus, Download, FileText } from "lucide-react";
 import {
@@ -58,13 +58,16 @@ const LabReportsTab = () => {
 
   const fetchLabReports = async () => {
     try {
+      console.log('[LabReportsTab] Fetching lab reports...');
       const allProducts = await getAllProducts();
+      console.log('[LabReportsTab] Found', allProducts.length, 'products');
       const allReports: LabReport[] = [];
 
       // Fetch lab reports from each product
       for (const product of allProducts) {
         try {
           const reports = await getProductLabReports(product.id);
+          console.log(`[LabReportsTab] Product ${product.name} has ${reports.length} reports`);
           const formattedReports = reports.map((report: any) => ({
             ...report,
             productId: product.id,
@@ -76,6 +79,8 @@ const LabReportsTab = () => {
         }
       }
 
+      console.log('[LabReportsTab] Total reports fetched:', allReports.length);
+
       // Sort by creation date descending
       allReports.sort((a, b) => {
         const dateA = a.createdAt?.toMillis?.() || 0;
@@ -84,6 +89,7 @@ const LabReportsTab = () => {
       });
 
       setLabReports(allReports);
+      console.log('[LabReportsTab] Lab reports state updated with', allReports.length, 'reports');
     } catch (error) {
       console.error("Error fetching lab reports:", error);
       toast.error("Error fetching lab reports");
@@ -172,6 +178,8 @@ const LabReportsTab = () => {
       ? labReports
       : labReports.filter((report) => report.productId === filterProduct);
 
+  console.log('[LabReportsTab] Rendering with', labReports.length, 'total reports,', filteredReports.length, 'filtered reports, filter:', filterProduct);
+
   const formatDate = (dateObj: any) => {
     try {
       const date = dateObj?.toDate?.() || new Date(dateObj);
@@ -202,6 +210,7 @@ const LabReportsTab = () => {
           <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-lg sm:text-xl">Upload Lab Report</DialogTitle>
+              <DialogDescription>Upload a lab report for a product. Select the product and file to upload.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
