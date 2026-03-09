@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { getCurrentUser, auth } from "@/integrations/firebase/auth";
-import { createOrder, getPromoCode, getAllProducts, getVisiblePromoCodes, deductStock } from "@/integrations/firebase/db";
+import { createOrder, getPromoCode, getAllProducts, getVisiblePromoCodes, deductStock, verifyStockForItems } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,7 @@ const Checkout = () => {
   
   // Saved address state
   const [selectedSavedAddress, setSelectedSavedAddress] = useState<string | null>(null);
+  const [currentSavedAddress, setCurrentSavedAddress] = useState<any>(null);
   const [useSavedAddress, setUseSavedAddress] = useState(true);
   
   // Promo code state
@@ -124,6 +125,27 @@ const Checkout = () => {
       addressSaved
     });
   }, [profile, addressSaved]);
+
+  // Track when saved address is selected and verify address is in profile
+  useEffect(() => {
+    if (selectedSavedAddress && user && profile?.address) {
+      console.log('[Checkout] Saved address verified in profile state:', {
+        selectedAddressId: selectedSavedAddress,
+        profileAddress: profile.address,
+        addressLength: profile.address.length,
+        addressSaved,
+        profileFull_name: profile.full_name,
+        profilePhone: profile.phone
+      });
+    } else if (selectedSavedAddress && user && !profile?.address) {
+      console.warn('[Checkout] Saved address selected but profile.address is EMPTY:', {
+        selectedAddressId: selectedSavedAddress,
+        profileAddress: profile?.address,
+        addressSaved,
+        profile
+      });
+    }
+  }, [selectedSavedAddress, profile?.address, addressSaved, user]);
 
   // Update contact form when profile loads or user changes
   useEffect(() => {
@@ -281,6 +303,25 @@ const Checkout = () => {
   // Handle saved address selection
   const handleSavedAddressSelect = async (address: any) => {
     console.log('[Checkout] Saved address selected:', address);
+    
+    // Validate that the saved address has all required fields
+    if (!address.street_address || !address.city || !address.state || !address.pincode) {
+      console.error('[Checkout] Saved address missing required fields:', {
+        street_address: !!address.street_address,
+        city: !!address.city,
+        state: !!address.state,
+        pincode: !!address.pincode
+      });
+      toast({
+        title: "Incomplete Address",
+        description: "This saved address is missing required fields. Please update or use a different address.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Store the complete address object for immediate use
+    setCurrentSavedAddress(address);
     setSelectedSavedAddress(address.id);
     setSelectedPincode(address.pincode);
     setSelectedState(address.state);
@@ -298,24 +339,28 @@ const Checkout = () => {
     
     const formattedAddress = addressParts.join(', ');
     
+    if (!formattedAddress || formattedAddress.trim().length === 0) {
+      console.error('[Checkout] Failed to format address - all parts were empty!', { addressParts });
+      toast({
+        title: "Invalid Address",
+        description: "Could not format the selected address. Please check the saved address details.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     console.log('[Checkout] Formatted saved address:', {
       formattedAddress,
-      addressLength: formattedAddress.length,
-      currentProfile: profile
+      addressLength: formattedAddress.length
     });
     
-    // Ensure profile object exists before spreading
-    setProfile({ 
-      ...(profile || {}), 
+    // Update profile with formatted address
+    setProfile(prev => ({
+      ...(prev || {}),
       address: formattedAddress,
-      phone: address.phone 
-    });
+      phone: address.phone || prev?.phone || ''
+    }));
     setAddressSaved(true);
-    
-    console.log('[Checkout] Profile updated with saved address:', {
-      newProfile: { address: formattedAddress, phone: address.phone },
-      addressSaved: true
-    });
     
     // Auto-trigger delivery check
     setCheckingDelivery(true);
@@ -527,20 +572,27 @@ const Checkout = () => {
     const netShipping = Math.max(0, shippingCharge - shippingDiscount);
     const codCharge = finalPricing.codCharge || 0;
 
-    // Verify stock before creating order
+    // Verify stock before creating order - check each product individually
     try {
-      const allProducts = await getAllProducts();
-      for (const item of orderItems) {
-        const product = allProducts.find(p => p.id === item.productId);
-        if (!product || product.stock < item.quantity) {
-          toast({
-            title: "Out of stock",
-            description: `${item.name} is no longer available in the requested quantity.`,
-            variant: "destructive"
-          });
-          setProcessing(false);
-          return;
-        }
+      console.log('[Checkout] Verifying stock for items:', orderItems.map(i => ({
+        productId: i.productId,
+        name: i.name,
+        quantity: i.quantity
+      })));
+      
+      const stockCheck = await verifyStockForItems(orderItems);
+      
+      console.log('[Checkout] Stock verification result:', stockCheck);
+      
+      if (!stockCheck.available && stockCheck.unavailableItem) {
+        console.error('[Checkout] Stock check failed:', stockCheck.unavailableItem);
+        toast({
+          title: "Out of stock",
+          description: `${stockCheck.unavailableItem.name}: ${stockCheck.unavailableItem.message}`,
+          variant: "destructive"
+        });
+        setProcessing(false);
+        return;
       }
     } catch (error) {
       console.error('[Checkout] Error verifying stock:', error);
@@ -554,15 +606,35 @@ const Checkout = () => {
     }
 
     // Get the address based on actual user authentication state (not location.state)
-    // For logged-in users, use profile.address; for guests, use guestData.address
-    const orderAddress = user ? profile?.address : guestData.address;
+    // For logged-in users with saved address, use currentSavedAddress directly (avoid async state race condition)
+    // Otherwise use profile.address or guestData.address
+    let orderAddress: string = '';
+    
+    if (user && useSavedAddress && currentSavedAddress) {
+      // Using a saved address - build it from the saved address object directly
+      const addressParts = [
+        currentSavedAddress.flat_no,
+        currentSavedAddress.building_name,
+        currentSavedAddress.street_address,
+        currentSavedAddress.landmark && `Near ${currentSavedAddress.landmark}`,
+        currentSavedAddress.city,
+        currentSavedAddress.state,
+        currentSavedAddress.pincode
+      ].filter(Boolean);
+      orderAddress = addressParts.join(', ');
+    } else {
+      // Using manually entered address or guest address
+      orderAddress = user ? (profile?.address || '') : (guestData.address || '');
+    }
     
     console.log('[Checkout] Address resolution:', {
       hasUser: !!user,
-      isGuestCheckout,
+      usingSavedAddress: user && useSavedAddress && !!currentSavedAddress,
       profileAddress: profile?.address,
       guestDataAddress: guestData.address,
+      currentSavedAddress: currentSavedAddress ? 'present' : 'null',
       resolvedAddress: orderAddress,
+      addressLength: orderAddress.length,
       addressSaved
     });
     
@@ -571,8 +643,10 @@ const Checkout = () => {
       console.error('[Checkout] Address validation failed - address is empty:', {
         hasUser: !!user,
         isGuestCheckout,
+        usingSavedAddress: user && useSavedAddress && !!currentSavedAddress,
         profileAddress: profile?.address,
         guestDataAddress: guestData.address,
+        currentSavedAddressId: currentSavedAddress?.id,
         addressSaved,
         useSavedAddress,
         selectedSavedAddressId: selectedSavedAddress
@@ -608,7 +682,10 @@ const Checkout = () => {
     console.log('[Checkout] Creating order with Firebase:', {
       ...orderData,
       isGuestCheckout,
-      addressLength: orderAddress.length
+      addressLength: orderAddress.length,
+      addressValue: orderAddress,
+      usingSavedAddress: user && useSavedAddress && !!currentSavedAddress,
+      currentSavedAddressId: currentSavedAddress?.id
     });
 
     let orderId: string;

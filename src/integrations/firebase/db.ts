@@ -36,6 +36,42 @@ export async function getProduct(productId: string): Promise<Product | null> {
   }
 }
 
+export async function verifyStockForItems(
+  items: Array<{ productId: string; name: string; quantity: number }>
+): Promise<{ available: boolean; unavailableItem?: { name: string; message: string } }> {
+  try {
+    for (const item of items) {
+      const product = await getProduct(item.productId);
+      console.log(`[verifyStock] Checking ${item.name} (${item.productId}):`, {
+        exists: !!product,
+        stock: product?.stock,
+        needed: item.quantity
+      });
+      
+      if (!product) {
+        return {
+          available: false,
+          unavailableItem: { name: item.name, message: 'Product not found' }
+        };
+      }
+      
+      if (product.stock < item.quantity) {
+        return {
+          available: false,
+          unavailableItem: {
+            name: item.name,
+            message: `Only ${product.stock} available (need ${item.quantity})`
+          }
+        };
+      }
+    }
+    return { available: true };
+  } catch (error) {
+    console.error('[verifyStock] Error:', error);
+    throw error;
+  }
+}
+
 export async function getAllProducts(limitNum: number = 100): Promise<Product[]> {
   try {
     const q = query(
