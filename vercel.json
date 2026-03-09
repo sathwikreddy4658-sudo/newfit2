@@ -18,7 +18,7 @@
       "destination": "/api/:path*"
     },
     {
-      "source": "/:path*",
+      "source": "/((?!assets/|_next/|public/|.*\\.(?:js|css|json|woff2|woff|ttf|eot|png|jpg|jpeg|gif|svg|ico|webp)$).*)",
       "destination": "/index.html"
     }
   ],
