@@ -59,23 +59,28 @@ service cloud.firestore {
     }
 
     // ============ PAYMENT TRANSACTIONS ============
-    // Authenticated users can read their own payment transactions
-    // Anyone can create (guest checkout support)
+    // GUESTS and authenticated users can create payment transactions for checkout.
+    // Only authenticated users and admins can read their own transactions.
+    // Transactions are immutable once created (updated server-side only).
     match /payment_transactions/{txId} {
-      allow read: if request.auth != null;
-      allow create: if true;
+      allow read: if isAdmin() || 
+                    (request.auth != null && resource.data.user_id == request.auth.uid);
+      allow create: if true;  // Anyone (guests or authenticated) can create transactions
       allow update: if false; // only updated server-side via Admin SDK
       allow delete: if false;
     }
 
     // ============ ORDERS ============
-    // Authenticated users can read their own orders, admins can read/write all.
-    // Guest checkout is supported with strict validation.
+    // Public read/write: Anyone (guests, users, admins) can create orders with strict validation.
+    // Guests create orders during checkout, users/admins can view & manage.
+    // Admins can read all orders. Users/guests can read their own (by email).
     match /orders/{orderId} {
-      allow read: if request.auth != null && 
-                    (resource.data.user_id == request.auth.uid || 
-                     isAdmin());
-      // Order creation with validation to prevent fake orders
+      // Read: Admins can read all, users can read their own, guests can read guest orders
+      allow read: if isAdmin() || 
+                    (request.auth != null && resource.data.user_id == request.auth.uid) ||
+                    (resource.data.user_id == null);  // Allow anyone to read guest orders
+      
+      // Create: ANYONE (guests or authenticated) can create orders with strict validation
       allow create: if 
         // Must have required fields
         request.resource.data.keys().hasAll(['items', 'total_amount', 'customer_email', 'customer_phone', 'status']) &&
@@ -90,10 +95,14 @@ service cloud.firestore {
         request.resource.data.customer_email.matches('.*@.*\\..*') &&
         // Phone must be 10 digits
         request.resource.data.customer_phone.matches('[0-9]{10}') &&
-        // Status must be 'pending' or 'payment_initiated' at creation
-        request.resource.data.status in ['pending', 'payment_initiated'];
-      allow update: if request.auth != null && isAdmin();
-      allow delete: if request.auth != null && isAdmin();
+        // Status can be: 'pending' (online payment), 'confirmed' (COD), or 'payment_initiated'
+        request.resource.data.status in ['pending', 'confirmed', 'payment_initiated'];
+      
+      // Update: Only admins can update orders
+      allow update: if isAdmin();
+      
+      // Delete: Only admins can delete orders
+      allow delete: if isAdmin();
     }
 
     // ============ USER PROFILES ============

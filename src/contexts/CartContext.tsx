@@ -12,8 +12,10 @@ export interface CartItem {
   image?: string;
   protein: string;
   weight?: number; // Weight in grams
+  min_order_quantity?: number; // Minimum quantity required for this product
   combo_3_discount?: number; // 3-pack discount percentage
   combo_6_discount?: number; // 6-pack discount percentage
+  combo_12_discount?: number; // 12-pack discount percentage
 }
 
 interface PromoCode {
@@ -109,7 +111,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
               ...item, 
               stock: product.stock,
               combo_3_discount: product.combo_3_discount || item.combo_3_discount || 0,
-              combo_6_discount: product.combo_6_discount || item.combo_6_discount || 0
+              combo_6_discount: product.combo_6_discount || item.combo_6_discount || 0,
+              combo_12_discount: product.combo_12_discount || item.combo_12_discount || 0,
+              min_order_quantity: product.min_order_quantity || item.min_order_quantity || 1
             } : item;
           })
         );
@@ -135,7 +139,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                 ...i, 
                 quantity: Math.min(i.quantity + (item.quantity || 1), item.stock),
                 combo_3_discount: item.combo_3_discount || i.combo_3_discount,
-                combo_6_discount: item.combo_6_discount || i.combo_6_discount
+                combo_6_discount: item.combo_6_discount || i.combo_6_discount,
+                combo_12_discount: item.combo_12_discount || i.combo_12_discount,
+                min_order_quantity: item.min_order_quantity || i.min_order_quantity
               }
             : i
         );
@@ -151,7 +157,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateQuantity = (id: string, protein: string, quantity: number) => {
     setItems((prev) =>
-      prev.map((i) => (i.id === id && i.protein === protein ? { ...i, quantity: Math.min(Math.max(1, quantity), i.stock) } : i))
+      prev.map((i) => {
+        if (i.id === id && i.protein === protein) {
+          const minQty = i.min_order_quantity || 1;
+          const newQty = Math.min(Math.max(minQty, quantity), i.stock);
+          return { ...i, quantity: newQty };
+        }
+        return i;
+      })
     );
   };
 
@@ -223,7 +236,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     let discount = 0;
     
     // Apply combo pack discount based on quantity
-    if (item.quantity >= 6 && item.combo_6_discount) {
+    // 12-pack applies to 12+ items
+    // 6-pack applies to 6-11 items
+    // 3-pack applies to 3-5 items
+    if (item.quantity >= 12 && item.combo_12_discount) {
+      discount = (subtotal * item.combo_12_discount) / 100;
+    } else if (item.quantity >= 6 && item.combo_6_discount) {
       discount = (subtotal * item.combo_6_discount) / 100;
     } else if (item.quantity >= 3 && item.combo_3_discount) {
       discount = (subtotal * item.combo_3_discount) / 100;

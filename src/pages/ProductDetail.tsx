@@ -95,6 +95,16 @@ const ProductDetail = () => {
 
   useEffect(() => {
     if (product && animationSectionRef.current) {
+      // Log product data to check for original prices
+      console.log('[ProductDetail] Product loaded:', {
+        name: product.name,
+        price_15g: product.price_15g,
+        price_20g: product.price_20g,
+        original_price: product.original_price,
+        original_price_15g: product.original_price_15g,
+        original_price_20g: product.original_price_20g
+      });
+      
       // Only scroll to animation section if navigation came from animation
       if (location.state?.from === 'animation') {
         animationSectionRef.current?.scrollIntoView({ behavior: "auto", block: "center" });
@@ -240,8 +250,10 @@ const ProductDetail = () => {
       quantity: selectedQuantity,
       protein: selectedProtein,
       image: product.cart_image || (product.images && product.images.length > 0 ? product.images[0] : null),
+      min_order_quantity: product.min_order_quantity || 1,
       combo_3_discount: product.combo_3_discount || 0,
       combo_6_discount: product.combo_6_discount || 0,
+      combo_12_discount: product.combo_12_discount || 0,
     });
     setCartQuantity(prev => prev + selectedQuantity);
     // Toast notification is handled in CartContext
@@ -262,6 +274,8 @@ const ProductDetail = () => {
       price: price,
       combo_3_discount: product.combo_3_discount || 0,
       combo_6_discount: product.combo_6_discount || 0,
+      combo_12_discount: product.combo_12_discount || 0,
+      min_order_quantity: product.min_order_quantity || 1,
       stock: product.stock,
       quantity: selectedQuantity,
       protein: selectedProtein,
@@ -649,6 +663,19 @@ const ProductDetail = () => {
           <div className="flex items-center gap-4 mb-5">
           {(() => {
             const basePrice = selectedProtein === "15g" ? product.price_15g : product.price_20g;
+            const originalPrice = selectedProtein === "15g" ? product.original_price_15g : product.original_price_20g;
+            
+            // Debug logging
+            if (!originalPrice) {
+              console.log('[ProductDetail] Price render - No original price found:', {
+                selectedProtein,
+                originalPrice,
+                product_original_price_15g: product.original_price_15g,
+                product_original_price_20g: product.original_price_20g,
+                basePrice
+              });
+            }
+            
             const subtotal = basePrice * selectedQuantity;
             let finalPrice = subtotal;
             let discount = 0;
@@ -656,8 +683,13 @@ const ProductDetail = () => {
             
             // Apply combo pack discount
             // 3-pack discount applies to 3, 4, 5 bars
-            // 6-pack discount applies to 6+ bars
-            if (selectedQuantity >= 6 && product.combo_6_discount) {
+            // 6-pack discount applies to 6, 7, 8, 9, 10, 11 bars
+            // 12-pack discount applies to 12+ bars
+            if (selectedQuantity >= 12 && product.combo_12_discount) {
+              discount = (subtotal * product.combo_12_discount) / 100;
+              finalPrice = subtotal - discount;
+              appliedDiscountPercent = product.combo_12_discount;
+            } else if (selectedQuantity >= 6 && product.combo_6_discount) {
               discount = (subtotal * product.combo_6_discount) / 100;
               finalPrice = subtotal - discount;
               appliedDiscountPercent = product.combo_6_discount;
@@ -669,12 +701,26 @@ const ProductDetail = () => {
             
             return (
               <div>
-                <p className="font-montserrat text-2xl md:text-4xl font-black text-black">
-                  ₹{finalPrice.toFixed(2)}
-                </p>
-                {discount > 0 && (
-                  <p className="text-xs md:text-sm text-green-600 font-bold">
-                    Save ₹{discount.toFixed(2)} ({appliedDiscountPercent}%)
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="font-montserrat text-2xl md:text-4xl font-black text-black">
+                    ₹{finalPrice.toFixed(2)}
+                  </p>
+                  {originalPrice && originalPrice > 0 && basePrice && originalPrice > basePrice && (
+                    <p className="font-montserrat text-lg md:text-2xl" style={{ 
+                      color: '#999', 
+                      textDecoration: 'line-through',
+                      textDecorationThickness: '2px',
+                      textDecorationColor: 'currentColor'
+                    }}>
+                      ₹{(originalPrice * selectedQuantity).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+                {(discount > 0 || (originalPrice && originalPrice > 0 && originalPrice > basePrice)) && (
+                  <p className="text-xs md:text-sm text-green-600 font-bold mt-2">
+                    {discount > 0 && `Save ₹${discount.toFixed(2)} (${appliedDiscountPercent}%)`}
+                    {discount > 0 && originalPrice && originalPrice > 0 && originalPrice > basePrice && ' • '}
+                    {originalPrice && originalPrice > 0 && originalPrice > basePrice && `Special Price Below MRP`}
                   </p>
                 )}
               </div>
@@ -708,8 +754,8 @@ const ProductDetail = () => {
           </div>
 
           <div className="mb-8">
-            <div className="flex gap-2">
-              <div className="flex-1 flex flex-col items-center">
+            <div className="flex gap-2 flex-wrap">
+              <div className="flex-1 min-w-[100px] flex flex-col items-center">
                 <Button
                   variant="outline"
                   onClick={() => setSelectedQuantity(3)}
@@ -724,7 +770,7 @@ const ProductDetail = () => {
                   <span className="text-xs text-green-600 font-bold mt-1">{product.combo_3_discount}% OFF</span>
                 )}
               </div>
-              <div className="flex-1 flex flex-col items-center">
+              <div className="flex-1 min-w-[100px] flex flex-col items-center">
                 <Button
                   variant="outline"
                   onClick={() => setSelectedQuantity(6)}
@@ -737,6 +783,21 @@ const ProductDetail = () => {
                 </Button>
                 {product.combo_6_discount > 0 && (
                   <span className="text-xs text-green-600 font-bold mt-1">{product.combo_6_discount}% OFF</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-[100px] flex flex-col items-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedQuantity(12)}
+                  className={cn(
+                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-2 md:px-8 py-2 md:py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
+                    selectedQuantity === 12 && "bg-white text-black border-2 border-black"
+                  )}
+                >
+                  <span className="font-poppins font-black text-sm md:text-lg">12-PACK</span>
+                </Button>
+                {product.combo_12_discount > 0 && (
+                  <span className="text-xs text-green-600 font-bold mt-1">{product.combo_12_discount}% OFF</span>
                 )}
               </div>
             </div>

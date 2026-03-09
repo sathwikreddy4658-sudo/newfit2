@@ -17,7 +17,7 @@ import { initiatePhonePePayment, createPaymentTransaction } from "@/lib/phonepe"
 import AddressForm from "@/components/AddressForm";
 import SavedAddresses from "@/components/SavedAddresses";
 import { getThumbnailUrl } from "@/utils/imageOptimization";
-import { Loader2, CheckCircle2, AlertCircle, Truck, Tag, X } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Truck, Tag, X, Plus, Minus } from "lucide-react";
 import { calculateOrderPrice, validatePaymentMethod } from "@/lib/pricingEngine";
 import { getShippingRate } from "@/lib/pincodeService";
 import {
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 
 const Checkout = () => {
-  const { items, totalPrice, clearCart, discountedTotal, discountAmount, promoCode, totalWeight, applyPromoCode, removePromoCode } = useCart();
+  const { items, totalPrice, clearCart, discountedTotal, discountAmount, promoCode, totalWeight, applyPromoCode, removePromoCode, updateQuantity } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<any>(null);
@@ -546,13 +546,32 @@ const Checkout = () => {
             throw new Error(`Product ${item.name} not found`);
           }
           const productData = productDoc.data();
-          const serverPrice = productData.price || 0;
           
-          // Use server price, not cart price
+          // Determine which variant price to use based on protein (15g or 20g)
+          let serverPrice = 0;
+          if (item.protein === '15g' && productData.price_15g) {
+            serverPrice = productData.price_15g;
+          } else if (item.protein === '20g' && productData.price_20g) {
+            serverPrice = productData.price_20g;
+          } else if (productData.price) {
+            // Fallback to main price if variant not found
+            serverPrice = productData.price;
+          }
+          
+          // If still no valid price, use the cart item price as fallback
+          // This prevents orders from being created with ₹0 prices when product data is incomplete
+          if (!serverPrice || serverPrice <= 0) {
+            console.warn(`[Checkout] Product ${item.name} (${item.protein}) has invalid price (${serverPrice}), using cart price: ${item.price}`);
+            serverPrice = item.price;
+          }
+          
+          console.log(`[Checkout] Price validation: ${item.name} (${item.protein}) - Server: ₹${serverPrice}`);
+          
+          // Use server price, not cart price (unless server price is invalid)
           return {
             productId: item.id,
             name: item.name,
-            price: serverPrice,  // ← Server-validated price
+            price: serverPrice,  // ← Server-validated price (with correct variant)
             quantity: item.quantity,
             image: item.image
           };
@@ -1158,7 +1177,7 @@ const Checkout = () => {
             <h2 className="text-xl font-bold mb-4">Order Items</h2>
             <div className="space-y-3">
               {items.map((item) => (
-                <div key={`${item.id}-${item.protein}`} className="flex items-center gap-3 p-3 border rounded-lg">
+                <div key={`${item.id}-${item.protein}`} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                   {item.image && (
                     <img
                       src={getThumbnailUrl(item.image)}
@@ -1170,11 +1189,33 @@ const Checkout = () => {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm">{item.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {item.protein} × {item.quantity}
+                      {item.protein}
                     </div>
                   </div>
+                  
+                  {/* Quantity Controls */}
+                  <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-2 py-1">
+                    <button
+                      onClick={() => updateQuantity(item.id, item.protein, Math.max(item.min_order_quantity || 1, item.quantity - 1))}
+                      disabled={item.quantity <= (item.min_order_quantity || 1)}
+                      className="p-1 hover:bg-gray-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={item.quantity <= (item.min_order_quantity || 1) ? `Minimum quantity is ${item.min_order_quantity}` : "Decrease quantity"}
+                    >
+                      <Minus className="w-4 h-4 text-gray-600" />
+                    </button>
+                    <span className="font-medium text-sm min-w-[2rem] text-center">{item.quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(item.id, item.protein, item.quantity + 1)}
+                      disabled={item.quantity >= item.stock}
+                      className="p-1 hover:bg-gray-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={item.quantity >= item.stock ? "Maximum stock reached" : "Increase quantity"}
+                    >
+                      <Plus className="w-4 h-4 text-gray-600" />
+                    </button>
+                  </div>
+                  
                   <div className="text-right">
-                    <div className="font-medium">₹{item.price * item.quantity}</div>
+                    <div className="font-medium text-sm">₹{(item.price * item.quantity).toFixed(2)}</div>
                   </div>
                 </div>
               ))}
@@ -1364,10 +1405,10 @@ const Checkout = () => {
                     </div>
                   )}
 
-                  {paymentMethod === 'online' && (
+                  {paymentMethod === 'online' && (discountedTotal !== undefined ? discountedTotal : totalPrice) > 800 && (
                     <div className="flex justify-between text-sm text-green-600">
-                      <span>Prepaid Discount (5%)</span>
-                      <span>-₹{((discountedTotal !== undefined ? discountedTotal : totalPrice) * 0.05).toFixed(2)}</span>
+                      <span>Prepaid Discount (4%)</span>
+                      <span>-₹{((discountedTotal !== undefined ? discountedTotal : totalPrice) * 0.04).toFixed(2)}</span>
                     </div>
                   )}
                 </>
@@ -1438,9 +1479,6 @@ const Checkout = () => {
                   }`}
                 >
                   Online Payment
-                  {paymentMethod === 'online' && (
-                    <div className="text-xs mt-1 text-white/90">Get 5% discount</div>
-                  )}
                   {!deliveryChecked && (
                     <div className="text-xs mt-1 text-gray-500">Check delivery availability first</div>
                   )}

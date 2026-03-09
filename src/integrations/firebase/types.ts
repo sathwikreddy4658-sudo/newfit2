@@ -29,6 +29,11 @@ export interface Product {
   price_15g?: number;
   price_20g?: number;
   
+  // Original prices for display (strikethrough) - shows discount
+  original_price?: number;
+  original_price_15g?: number;
+  original_price_20g?: number;
+  
   nutrition?: {
     calories?: string;
     protein?: string;
@@ -49,6 +54,7 @@ export interface Product {
   is_hidden?: boolean;
   combo_3_discount?: number;
   combo_6_discount?: number;
+  combo_12_discount?: number;
   
   shelf_life?: string;
   createdAt: Timestamp;

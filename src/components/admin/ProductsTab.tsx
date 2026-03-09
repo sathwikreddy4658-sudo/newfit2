@@ -30,6 +30,9 @@ const ProductsTab = () => {
     price: "",
     price_15g: "",
     price_20g: "",
+    original_price: "",
+    original_price_15g: "",
+    original_price_20g: "",
     stock: "",
     stock_status_15g: "true",
     stock_status_20g: "true",
@@ -44,6 +47,7 @@ const ProductsTab = () => {
     min_order_quantity: "",
     combo_3_discount: "5",
     combo_6_discount: "7",
+    combo_12_discount: "10",
     is_hidden: false,
   });
   const [productsPageImageFile, setProductsPageImageFile] = useState<File | null>(null);
@@ -101,6 +105,9 @@ const ProductsTab = () => {
       price: "",
       price_15g: "",
       price_20g: "",
+      original_price: "",
+      original_price_15g: "",
+      original_price_20g: "",
       stock: "",
       stock_status_15g: "true",
       stock_status_20g: "true",
@@ -115,6 +122,7 @@ const ProductsTab = () => {
       min_order_quantity: "",
       combo_3_discount: "5",
       combo_6_discount: "7",
+      combo_12_discount: "10",
       is_hidden: false,
     });
     setEditingProduct(null);
@@ -177,12 +185,16 @@ const ProductsTab = () => {
       const price = formData.price ? parseFloat(formData.price) : null;
       const price15g = parseFloat(formData.price_15g);
       const price20g = parseFloat(formData.price_20g);
+      const originalPrice = formData.original_price ? parseFloat(formData.original_price) : null;
+      const originalPrice15g = formData.original_price_15g ? parseFloat(formData.original_price_15g) : null;
+      const originalPrice20g = formData.original_price_20g ? parseFloat(formData.original_price_20g) : null;
       const stock = parseInt(formData.stock);
       const minOrderQuantity = formData.min_order_quantity ? parseInt(formData.min_order_quantity) : null;
       const stockStatus15g = formData.stock_status_15g === "true";
       const stockStatus20g = formData.stock_status_20g === "true";
       const combo3Discount = formData.combo_3_discount ? parseFloat(formData.combo_3_discount) : 5;
       const combo6Discount = formData.combo_6_discount ? parseFloat(formData.combo_6_discount) : 7;
+      const combo12Discount = formData.combo_12_discount ? parseFloat(formData.combo_12_discount) : 10;
 
       // Debug logging
       console.log('Form data:', {
@@ -190,6 +202,8 @@ const ProductsTab = () => {
         price_20g: formData.price_20g,
         parsed_price_15g: price15g,
         parsed_price_20g: price20g,
+        original_price_15g: originalPrice15g,
+        original_price_20g: originalPrice20g,
       });
 
       // Check for NaN values with detailed error messages
@@ -249,12 +263,16 @@ const ProductsTab = () => {
         price,
         price_15g: price15g,
         price_20g: price20g,
+        original_price: originalPrice,
+        original_price_15g: originalPrice15g,
+        original_price_20g: originalPrice20g,
         stock,
         stock_status_15g: stockStatus15g,
         stock_status_20g: stockStatus20g,
         min_order_quantity: minOrderQuantity,
         combo_3_discount: combo3Discount,
         combo_6_discount: combo6Discount,
+        combo_12_discount: combo12Discount,
       };
 
       // Validate product data before submitting
@@ -396,6 +414,9 @@ const ProductsTab = () => {
       price: product.price?.toString() || "",
       price_15g: product.price_15g?.toString() || "",
       price_20g: product.price_20g?.toString() || "",
+      original_price: product.original_price?.toString() || "",
+      original_price_15g: product.original_price_15g?.toString() || "",
+      original_price_20g: product.original_price_20g?.toString() || "",
       stock: product.stock.toString(),
       stock_status_15g: product.stock_status_15g !== undefined ? product.stock_status_15g.toString() : "true",
       stock_status_20g: product.stock_status_20g !== undefined ? product.stock_status_20g.toString() : "true",
@@ -410,6 +431,7 @@ const ProductsTab = () => {
       min_order_quantity: product.min_order_quantity?.toString() || "",
       combo_3_discount: product.combo_3_discount?.toString() || "5",
       combo_6_discount: product.combo_6_discount?.toString() || "7",
+      combo_12_discount: product.combo_12_discount?.toString() || "10",
       is_hidden: product.is_hidden || false,
     });
     setExistingImages(product.images || []);
@@ -498,6 +520,36 @@ const ProductsTab = () => {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Original Prices - For Display/Discount (Optional) */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm font-semibold text-blue-900 mb-3">Original Prices (Display Only - Shows Discount)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Original Price 15g (₹)</Label>
+                    <Input
+                      type="number"
+                      value={formData.original_price_15g}
+                      onChange={(e) => setFormData({ ...formData, original_price_15g: e.target.value })}
+                      placeholder="Leave empty if no discount"
+                    />
+                    <p className="text-xs text-blue-700 mt-1">Will show struck-through on product page</p>
+                  </div>
+                  <div>
+                    <Label>Original Price 20g (₹)</Label>
+                    <Input
+                      type="number"
+                      value={formData.original_price_20g}
+                      onChange={(e) => setFormData({ ...formData, original_price_20g: e.target.value })}
+                      placeholder="Leave empty if no discount"
+                    />
+                    <p className="text-xs text-blue-700 mt-1">Will show struck-through on product page</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Total Stock *</Label>
                   <Input
@@ -564,6 +616,17 @@ const ProductsTab = () => {
                     value={formData.combo_6_discount}
                     onChange={(e) => setFormData({ ...formData, combo_6_discount: e.target.value })}
                     placeholder="Default: 7"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+                <div>
+                  <Label>12-Pack Discount (%)</Label>
+                  <Input
+                    type="number"
+                    value={formData.combo_12_discount}
+                    onChange={(e) => setFormData({ ...formData, combo_12_discount: e.target.value })}
+                    placeholder="Default: 10"
                     min="0"
                     max="100"
                   />

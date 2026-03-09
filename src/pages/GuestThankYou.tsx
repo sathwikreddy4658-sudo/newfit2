@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, Mail, Lock, Sparkles, TrendingUp, MapPin, CreditCard } from "lucide-react";
+import { CheckCircle, Mail, Lock, Sparkles, TrendingUp, MapPin, CreditCard, Package, ArrowRight, Home } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const GuestThankYou = () => {
@@ -116,8 +116,13 @@ const GuestThankYou = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-cyan-50">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-white shadow-lg mb-4" style={{ borderColor: '#c9f4dd', borderWidth: '2px' }}>
+            <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200" style={{ borderTopColor: '#3b2a20' }}></div>
+          </div>
+          <p className="text-slate-600 font-medium">Preparing your confirmation...</p>
+        </div>
       </div>
     );
   }
@@ -126,174 +131,227 @@ const GuestThankYou = () => {
   const paymentMethod = isCOD ? 'Cash on Delivery' : 'Online Payment';
 
   return (
-    <div className="container mx-auto px-4 py-4 md:py-8">
-      <div className="max-w-2xl mx-auto">
-        {/* Success Header */}
-        <Card className="p-4 md:p-8 text-center mb-4 md:mb-6 border-[#3b2a20]" style={{ backgroundColor: '#3b2a20' }}>
-          <CheckCircle className="h-12 w-12 md:h-20 md:w-20 mx-auto mb-3 md:mb-4 animate-bounce" style={{ color: '#b5edce' }} />
-          <h1 className="text-2xl md:text-4xl font-saira font-black mb-2 md:mb-3 uppercase text-white">
-            Thank You For Your Order
+    <div className="min-h-screen bg-gradient-to-b from-white via-white to-white">
+      {/* Elegant Header with Brand Accent */}
+      <div className="absolute top-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(to right, #3b2a20, #3b2a20 50%, #c9f4dd 50%, #c9f4dd)' }}></div>
+
+      <div className="container mx-auto px-4 py-8 md:py-12 max-w-3xl">
+        {/* Success Section */}
+        <div className="text-center mb-12 md:mb-16">
+          {/* Circular Success Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full blur-xl opacity-20" style={{ backgroundColor: '#c9f4dd' }}></div>
+              <div className="relative bg-white rounded-full p-4 shadow-lg border-2" style={{ borderColor: '#c9f4dd' }}>
+                <CheckCircle className="h-16 w-16 md:h-20 md:w-20 animate-pulse" style={{ color: '#3b2a20' }} strokeWidth={1.5} />
+              </div>
+            </div>
+          </div>
+
+          {/* Main Heading */}
+          <h1 className="text-3xl md:text-5xl font-bold mb-2 md:mb-4 tracking-tight" style={{ color: '#3b2a20' }}>
+            Order Confirmed
           </h1>
-          <p className="text-sm md:text-lg mb-2" style={{ color: '#b5edce' }}>
-            You will receive a confirmation email shortly at:
+          <p className="text-lg md:text-xl mb-6 md:mb-8 font-light" style={{ color: '#3b2a20' }}>
+            Thank you for choosing NewFit
           </p>
-          <p className="font-semibold text-sm md:text-lg break-all" style={{ color: '#b5edce' }}>
-            {email}
-          </p>
+
+          {/* Order ID Card - Premium Style */}
           {orderId && (
-            <div className="mt-3 md:mt-4 p-2 md:p-3 rounded-lg inline-block" style={{ backgroundColor: 'rgba(181, 237, 206, 0.2)' }}>
-              <p className="text-xs md:text-sm" style={{ color: '#b5edce' }}>Order ID</p>
-              <p className="text-lg md:text-xl font-mono font-bold" style={{ color: '#b5edce' }}>
-                {orderId.slice(0, 8)}
+            <div className="inline-block bg-white rounded-xl shadow-md border-2 px-6 md:px-8 py-4 md:py-5 mb-6" style={{ borderColor: '#c9f4dd' }}>
+              <p className="text-xs md:text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Order Number</p>
+              <p className="text-2xl md:text-3xl font-mono font-bold" style={{ color: '#3b2a20' }}>
+                {orderId.slice(0, 12)}
               </p>
             </div>
           )}
-        </Card>
 
-        {/* Order Summary */}
+          {/* Confirmation Email */}
+          <p className="text-gray-600 mb-2">Confirmation sent to</p>
+          <p className="text-base md:text-lg font-semibold break-all" style={{ color: '#3b2a20' }}>
+            {email}
+          </p>
+        </div>
+
+        {/* Order Details Section */}
         {order && (
-          <Card className="p-4 md:p-6 mb-4 md:mb-6 border-2" style={{ borderColor: '#b5edce', backgroundColor: 'rgba(181, 237, 206, 0.05)' }}>
-            <h2 className="text-lg md:text-2xl font-bold mb-4" style={{ color: '#3b2a20' }}>Order Summary</h2>
-            
-            {/* Order Items */}
-            <div className="mb-6">
-              <h3 className="font-semibold mb-3" style={{ color: '#3b2a20' }}>Items Ordered</h3>
-              <div className="space-y-2">
+          <div className="mb-12 md:mb-14">
+            {/* Order Items - Minimal Design */}
+            <div className="bg-white rounded-xl shadow-sm border overflow-hidden mb-6" style={{ borderColor: '#c9f4dd' }}>
+              <div className="px-6 md:px-8 py-6 md:py-7 border-b" style={{ borderColor: '#c9f4dd', backgroundColor: 'rgba(201, 244, 221, 0.3)' }}>
+                <div className="flex items-center gap-3 mb-0">
+                  <Package className="h-5 w-5" style={{ color: '#3b2a20' }} />
+                  <h2 className="text-xl md:text-2xl font-bold" style={{ color: '#3b2a20' }}>Order Items</h2>
+                </div>
+              </div>
+
+              <div className="divide-y" style={{ divideColor: '#c9f4dd' }}>
                 {order.items?.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between items-center p-3 rounded" style={{ backgroundColor: 'rgba(181, 237, 206, 0.15)' }}>
-                    <span className="text-sm md:text-base" style={{ color: '#3b2a20' }}>{item.name}</span>
-                    <span className="text-sm md:text-base font-semibold" style={{ color: '#3b2a20' }}>
-                      {item.quantity}x ₹{item.price}
-                    </span>
+                  <div key={idx} className="px-6 md:px-8 py-5 md:py-6 flex justify-between items-center hover:bg-white transition-colors" style={{ backgroundColor: 'rgba(201, 244, 221, 0.05)' }}>
+                    <div className="flex-1">
+                      <p className="font-medium text-base md:text-lg" style={{ color: '#3b2a20' }}>{item.name}</p>
+                      <p className="text-sm mt-1" style={{ color: '#666' }}>Quantity: {item.quantity}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg" style={{ color: '#3b2a20' }}>₹{(item.price * item.quantity).toFixed(2)}</p>
+                      <div className="flex items-center justify-end gap-2 mt-1">
+                        <p className="text-xs" style={{ color: '#999' }}>@₹{item.price.toFixed(2)}</p>
+                        {item.original_price && item.original_price > item.price && (
+                          <p className="text-xs line-through" style={{ color: '#ccc' }}>₹{item.original_price.toFixed(2)}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Price Breakdown */}
-            <div className="pt-4 mb-6" style={{ borderTop: '2px solid #b5edce' }}>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: '#3b2a20' }}>Items Total</span>
+            {/* Price Breakdown - Clean Table */}
+            <div className="bg-white rounded-xl shadow-sm border px-6 md:px-8 py-6 md:py-8" style={{ borderColor: '#c9f4dd' }}>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span style={{ color: '#666' }}>Items Subtotal</span>
                   <span className="font-medium" style={{ color: '#3b2a20' }}>
                     ₹{order.items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0).toFixed(2)}
                   </span>
                 </div>
-                
+
                 {order.discount_amount > 0 && (
-                  <div className="flex justify-between text-sm" style={{ color: '#16a34a' }}>
-                    <span>Discount Applied</span>
-                    <span className="font-medium">-₹{parseFloat(order.discount_amount).toFixed(2)}</span>
+                  <div className="flex justify-between items-center">
+                    <span style={{ color: '#666' }}>Discount Applied</span>
+                    <span className="font-semibold" style={{ color: '#16a34a' }}>
+                      -₹{parseFloat(order.discount_amount).toFixed(2)}
+                    </span>
                   </div>
                 )}
-                
-                {order.shipping_charge !== undefined && order.shipping_charge !== null && (
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: '#3b2a20' }}>Shipping Charge</span>
+
+                {order.shipping_charge !== undefined && order.shipping_charge !== null && order.shipping_charge > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span style={{ color: '#666' }}>Shipping</span>
                     <span className="font-medium" style={{ color: '#3b2a20' }}>₹{parseFloat(order.shipping_charge).toFixed(2)}</span>
                   </div>
                 )}
-                
+
                 {order.cod_charge > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: '#3b2a20' }}>COD Charge</span>
+                  <div className="flex justify-between items-center">
+                    <span style={{ color: '#666' }}>COD Service Fee</span>
                     <span className="font-medium" style={{ color: '#3b2a20' }}>₹{parseFloat(order.cod_charge).toFixed(2)}</span>
                   </div>
                 )}
-                
-                <div className="flex justify-between items-center pt-3" style={{ borderTop: '2px solid #b5edce' }}>
-                  <span className="text-lg font-bold" style={{ color: '#3b2a20' }}>Total Amount</span>
-                  <span className="text-xl md:text-2xl font-bold" style={{ color: '#3b2a20' }}>₹{parseFloat(order.total_amount).toFixed(2)}</span>
+
+                {/* Total */}
+                <div className="pt-4 flex justify-between items-center" style={{ borderTop: '2px solid #c9f4dd' }}>
+                  <span className="font-bold text-lg" style={{ color: '#3b2a20' }}>Total Amount</span>
+                  <span className="text-2xl md:text-3xl font-bold" style={{ color: '#3b2a20' }}>
+                    ₹{parseFloat(order.total_amount).toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
-
-            {/* Billing and Shipping Address */}
-            {order.address && (
-              <div className="mb-6 p-4 rounded-lg border-2" style={{ backgroundColor: 'rgba(181, 237, 206, 0.15)', borderColor: '#b5edce' }}>
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 mt-1 flex-shrink-0" style={{ color: '#3b2a20' }} />
-                  <div>
-                    <h4 className="font-semibold mb-1" style={{ color: '#3b2a20' }}>Billing and Shipping Address</h4>
-                    <p className="text-sm" style={{ color: '#3b2a20' }}>{order.address}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Payment Method */}
-            <div className="p-4 rounded-lg border-2" style={{ backgroundColor: 'rgba(181, 237, 206, 0.15)', borderColor: '#b5edce' }}>
-              <div className="flex items-start gap-3">
-                <CreditCard className="h-5 w-5 mt-1 flex-shrink-0" style={{ color: '#3b2a20' }} />
-                <div>
-                  <h4 className="font-semibold mb-1" style={{ color: '#3b2a20' }}>Payment Method</h4>
-                  <p className="text-sm" style={{ color: '#3b2a20' }}>{paymentMethod}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
+          </div>
         )}
 
-        {/* Sign Up Incentive */}
-        <Card className="p-4 md:p-6 mb-4 md:mb-6 border-[#b5edce]" style={{ backgroundColor: 'rgba(181, 237, 206, 0.3)' }}>
-          <div className="flex flex-col md:flex-row items-start gap-3 md:gap-4">
-            <Sparkles className="h-6 w-6 md:h-8 md:w-8 flex-shrink-0 mt-1" style={{ color: '#3b2a20' }} />
-            <div className="flex-1">
-              <h2 className="text-xl md:text-2xl font-saira font-black mb-2 md:mb-3 uppercase" style={{ color: '#3b2a20' }}>
-                Create Your Account Now
-              </h2>
-              <div className="space-y-2 mb-3 md:mb-4">
-                <div className="flex items-center gap-2" style={{ color: '#3b2a20' }}>
-                  <TrendingUp className="h-4 w-4 md:h-5 md:w-5" />
-                  <p className="text-sm md:text-base font-semibold">Track this order and all future orders</p>
+        {/* Delivery Info Section */}
+        <div className="grid md:grid-cols-2 gap-6 mb-12 md:mb-14">
+          {/* Address */}
+          {order?.address && (
+            <div className="bg-white rounded-xl shadow-sm border p-6 md:p-7 hover:shadow-md transition-shadow" style={{ borderColor: '#c9f4dd' }}>
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg p-3 flex-shrink-0" style={{ backgroundColor: 'rgba(201, 244, 221, 0.5)' }}>
+                  <MapPin className="h-5 w-5" style={{ color: '#3b2a20' }} />
                 </div>
-                <div className="flex items-center gap-2" style={{ color: '#3b2a20' }}>
-                  <Mail className="h-4 w-4 md:h-5 md:w-5" />
-                  <p className="text-sm md:text-base font-semibold">Receive exclusive promotions and offers</p>
-                </div>
-                <div className="flex items-center gap-2" style={{ color: '#3b2a20' }}>
-                  <CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
-                  <p className="text-sm md:text-base font-semibold">Faster checkout for future purchases</p>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold mb-2" style={{ color: '#3b2a20' }}>Delivery Address</h4>
+                  <p className="text-sm leading-relaxed break-words" style={{ color: '#666' }}>{order.address}</p>
                 </div>
               </div>
-              
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 md:p-3 mb-3 md:mb-4">
-                <p className="text-sm text-yellow-900">
-                  <strong> Important:</strong> Guest orders are <strong>NOT</strong> visible later if you sign up separately. 
-                  Create your account now to link this order to your profile!
-                </p>
-              </div>
+            </div>
+          )}
 
-              {/* Quick Sign Up Form */}
-              <div className="space-y-2 md:space-y-3 bg-white p-3 md:p-4 rounded-lg border">
+          {/* Payment Method */}
+          <div className="bg-white rounded-xl shadow-sm border p-6 md:p-7 hover:shadow-md transition-shadow" style={{ borderColor: '#c9f4dd' }}>
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg p-3 flex-shrink-0" style={{ backgroundColor: 'rgba(201, 244, 221, 0.5)' }}>
+                <CreditCard className="h-5 w-5" style={{ color: '#3b2a20' }} />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold mb-2" style={{ color: '#3b2a20' }}>Payment Method</h4>
+                <p className="text-sm" style={{ color: '#666' }}>
+                  {isCOD ? '💵 Pay at Doorstep' : '🔐 Online Payment'}
+                </p>
+                <p className="text-xs mt-1" style={{ color: '#999' }}>{paymentMethod}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA Section - Brand Themed Card */}
+        <div className="rounded-xl shadow-lg p-8 md:p-10 mb-8 border relative overflow-hidden" style={{ backgroundColor: '#3b2a20', borderColor: '#c9f4dd', borderWidth: '2px' }}>
+          {/* Background accent */}
+          <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-10" style={{ backgroundColor: '#c9f4dd' }}></div>
+          
+          <div className="relative z-10">
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Create Your Account</h2>
+            <p className="text-gray-200 text-base md:text-lg mb-6 max-w-lg">
+              Link this order to your account, track your purchases, and enjoy exclusive member benefits.
+            </p>
+
+            {/* Benefits List */}
+            <div className="space-y-3 mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#c9f4dd' }}></div>
+                <p className="text-gray-200 text-sm md:text-base">Track all your orders in one place</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#c9f4dd' }}></div>
+                <p className="text-gray-200 text-sm md:text-base">Get early access to exclusive sales</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#c9f4dd' }}></div>
+                <p className="text-gray-200 text-sm md:text-base">Personalized recommendations</p>
+              </div>
+            </div>
+
+            {/* Sign Up Form */}
+            <div className="rounded-lg p-6 border mb-6" style={{ backgroundColor: 'rgba(201, 244, 221, 0.15)', borderColor: 'rgba(201, 244, 221, 0.3)' }}>
+              <div className="space-y-4">
                 <div>
-                  <Label htmlFor="email" className="text-sm">Email (Already Saved)</Label>
+                  <Label htmlFor="email-static" className="text-white text-sm font-medium block mb-2">
+                    Email Address
+                  </Label>
                   <Input
-                    id="email"
+                    id="email-static"
                     type="email"
                     value={email || ''}
                     disabled
-                    className="bg-gray-50"
+                    className="bg-white/20 border text-white placeholder:text-white/50 disabled:opacity-80"
+                    style={{ borderColor: 'rgba(201, 244, 221, 0.5)' }}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="password" className="text-sm">Create Password</Label>
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-gray-400" />
+                  <Label htmlFor="password" className="text-white text-sm font-medium block mb-2">
+                    Create Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
                     <Input
                       id="password"
                       type="password"
-                      placeholder="Minimum 6 characters"
+                      placeholder="Min. 6 characters"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={isCreatingAccount}
+                      className="bg-white/20 border text-white placeholder:text-white/50 pl-10 disabled:opacity-70"
+                      style={{ borderColor: 'rgba(201, 244, 221, 0.5)' }}
                     />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="confirmPassword" className="text-sm">Confirm Password</Label>
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-gray-400" />
+                  <Label htmlFor="confirmPassword" className="text-white text-sm font-medium block mb-2">
+                    Confirm Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
                     <Input
                       id="confirmPassword"
                       type="password"
@@ -302,49 +360,62 @@ const GuestThankYou = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       disabled={isCreatingAccount}
                       onKeyPress={(e) => e.key === 'Enter' && handleCreateAccount()}
+                      className="bg-white/20 border text-white placeholder:text-white/50 pl-10 disabled:opacity-70"
+                      style={{ borderColor: 'rgba(201, 244, 221, 0.5)' }}
                     />
                   </div>
                 </div>
-                <Button 
-                  onClick={handleCreateAccount} 
-                  disabled={isCreatingAccount}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold"
-                >
-                  {isCreatingAccount ? (
-                    <>
-                      <span className="animate-spin mr-2">⏳</span>
-                      Creating Your Account...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Create Account & Link This Order
-                    </>
-                  )}
-                </Button>
               </div>
             </div>
-          </div>
-        </Card>
 
-        {/* Exit Option */}
-        <div className="text-center">
+            <Button 
+              onClick={handleCreateAccount} 
+              disabled={isCreatingAccount}
+              className="w-full text-white font-bold py-3 rounded-lg transition-all shadow-lg hover:shadow-xl text-base md:text-lg"
+              style={{ backgroundColor: '#c9f4dd', color: '#3b2a20' }}
+            >
+              {isCreatingAccount ? (
+                <>
+                  <span className="animate-spin mr-2 inline-block">⏳</span>
+                  Creating Your Account...
+                </>
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight className="ml-2 h-5 w-5 inline" />
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Bottom Actions */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button 
             onClick={handleExit}
-            variant="ghost"
-            className="text-gray-600 hover:text-gray-800"
+            className="border-2 font-medium py-6 flex items-center justify-center gap-2"
+            style={{ borderColor: '#c9f4dd', color: '#3b2a20', backgroundColor: 'rgba(201, 244, 221, 0.1)' }}
           >
-            No Thanks, Exit to Home
+            <Home className="h-4 w-4" />
+            Continue Shopping
+          </Button>
+          <Button 
+            onClick={handleExit}
+            className="border-2 font-medium py-6 flex items-center justify-center gap-2"
+            style={{ borderColor: '#3b2a20', color: '#3b2a20', backgroundColor: '#ffffff' }}
+          >
+            Back to Home
           </Button>
         </div>
 
-        {/* Additional Info */}
-        <Card className="p-3 md:p-4 mt-4 md:mt-6 bg-blue-50 border-blue-200">
-          <p className="text-xs md:text-sm text-blue-900">
-            💡 <strong></strong> Registered users get early access to sales, 
-            personalized product recommendations, and can easily track all their orders in one place!
+        {/* Footer Info */}
+        <div className="mt-12 md:mt-16 pt-8 md:pt-10" style={{ borderTop: '2px solid #c9f4dd' }}>
+          <p className="text-center text-sm md:text-base leading-relaxed" style={{ color: '#666' }}>
+            A confirmation email with your order details and tracking information has been sent to <span className="font-semibold" style={{ color: '#3b2a20' }}>{email}</span>. 
+            <br className="hidden md:inline" />
+            <span className="block md:inline md:ml-1">You can always check your order status after creating an account.</span>
           </p>
-        </Card>
+        </div>
       </div>
     </div>
   );

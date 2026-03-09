@@ -82,7 +82,8 @@ export const PRICING_RULES = {
   COD_MAX_ORDER_VALUE: 1300, // COD only available for orders < ₹1300
   COD_CHARGE_MAX_ORDER: 600, // COD charges apply only for orders <= ₹600
   COD_CHARGE_AMOUNT: 30, // ₹30 COD charge
-  PREPAID_DISCOUNT: 0.05, // 5% discount for online/prepaid payment
+  PREPAID_DISCOUNT: 0.04, // 4% discount for online/prepaid payment
+  MIN_PREPAID_DISCOUNT_ORDER: 800, // Prepaid discount applies only for orders > ₹800
 };
 
 /**
@@ -148,8 +149,8 @@ export function calculateOrderPrice(
     response.codCharge = 35;
   }
 
-  // Apply prepaid discount (5% off)
-  if (paymentMethod === 'prepaid') {
+  // Apply prepaid discount (4% off for orders > ₹800)
+  if (paymentMethod === 'prepaid' && cartTotal > PRICING_RULES.MIN_PREPAID_DISCOUNT_ORDER) {
     response.prepaidDiscount = cartTotal * PRICING_RULES.PREPAID_DISCOUNT;
   }
 

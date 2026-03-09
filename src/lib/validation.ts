@@ -126,6 +126,21 @@ export const productSchema = z.object({
   price_20g: z.number()
     .positive('20g price must be positive')
     .max(100000, '20g price must be less than ₹100,000'),
+  original_price: z.number()
+    .min(0, 'Original price must be 0 or greater')
+    .max(100000, 'Original price must be less than ₹100,000')
+    .nullable()
+    .optional(),
+  original_price_15g: z.number()
+    .min(0, 'Original 15g price must be 0 or greater')
+    .max(100000, 'Original 15g price must be less than ₹100,000')
+    .nullable()
+    .optional(),
+  original_price_20g: z.number()
+    .min(0, 'Original 20g price must be 0 or greater')
+    .max(100000, 'Original 20g price must be less than ₹100,000')
+    .nullable()
+    .optional(),
   stock: z.number()
     .int('Stock must be a whole number')
     .min(0, 'Stock cannot be negative')
@@ -142,6 +157,10 @@ export const productSchema = z.object({
     .min(0, 'Discount must be 0 or greater')
     .max(100, 'Discount cannot exceed 100%')
     .default(7),
+  combo_12_discount: z.number()
+    .min(0, 'Discount must be 0 or greater')
+    .max(100, 'Discount cannot exceed 100%')
+    .default(10),
   nutrition: z.string()
     .trim()
     .min(1, 'Nutrition info is required')
