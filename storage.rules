@@ -1,84 +1,32 @@
 rules_version = '2';
 
-// Firebase Storage Security Rules for NewFit
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Helper function to check if user is admin
-    function isAdmin() {
-      return request.auth != null && 
-             firestore.get(/databases/(default)/documents/user_roles/$(request.auth.uid)).data.roles.hasAny(['admin']);
-    }
-    
-    // Helper function to check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    // ============================================
-    // PRODUCT IMAGES
-    // ============================================
-    match /products/{productId}/{fileName} {
-      // Public read access for all product images
+    // Allow public read for all files
+    match /{allPaths=**} {
       allow read: if true;
-      
-      // Only admins can write/delete product images
-      // Validate path doesn't contain traversal attempts
-      allow write, delete: if isAdmin() && 
-                              !fileName.matches('.*\\.\\..*') &&  // No ".." in path
-                              fileName.size() < 200 &&             // Reasonable filename length
-                              fileName.matches('[a-zA-Z0-9._-]+'); // Alphanumeric + safe chars only
     }
     
-    // ============================================
-    // BLOG IMAGES
-    // ============================================
-    match /blogs/{blogId}/{fileName} {
-      // Public read access for all blog images
-      allow read: if true;
-      
-      // Only admins can write/delete blog images
-      // Validate path doesn't contain traversal attempts
-      allow write, delete: if isAdmin() && 
-                              !fileName.matches('.*\\.\\..*') &&  // No ".." in path
-                              fileName.size() < 200 &&             // Reasonable filename length
-                              fileName.matches('[a-zA-Z0-9._-]+'); // Alphanumeric + safe chars only
+    // Allow authenticated users to write/delete to product folders
+    match /products/{allPaths=**} {
+      allow write, delete: if request.auth != null;
     }
     
-    // ============================================
-    // LAB REPORTS
-    // ============================================
-    match /lab-reports/{reportId}/{fileName} {
-      // Public read access for all lab reports
-      allow read: if true;
-      
-      // Only admins can write/delete lab reports
-      // Validate path doesn't contain traversal attempts
-      allow write, delete: if isAdmin() && 
-                              !fileName.matches('.*\\.\\..*') &&  // No ".." in path
-                              fileName.size() < 200 &&             // Reasonable filename length
-                              fileName.matches('[a-zA-Z0-9._-]+'); // Alphanumeric + safe chars only
+    match /blogs/{allPaths=**} {
+      allow write, delete: if request.auth != null;
     }
     
-    // ============================================
-    // USER UPLOADS (if needed in future)
-    // ============================================
-    match /users/{userId}/{fileName} {
-      // Users can read their own files
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-      
-      // Users can write their own files with validation
-      allow write: if isAuthenticated() && 
-                      request.auth.uid == userId &&
-                      !fileName.matches('.*\\.\\..*') &&  // No ".." in path
-                      fileName.size() < 200 &&             // Reasonable filename length
-                      request.resource.size < 5 * 1024 * 1024;  // Max 5MB per file
-      
-      // Users can delete their own files
-      allow delete: if isAuthenticated() && request.auth.uid == userId;
-      
-      // Admins can do everything
-      allow read, write, delete: if isAdmin();
+    match /lab-reports/{allPaths=**} {
+      allow write, delete: if request.auth != null;
+    }
+    
+    match /assets/{allPaths=**} {
+      allow write, delete: if request.auth != null;
+    }
+    
+    match /users/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write, delete: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

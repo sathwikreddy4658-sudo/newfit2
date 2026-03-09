@@ -77,43 +77,45 @@ export const getOptimizedImageUrl = (
 /**
  * Get thumbnail image URL (small, compressed)
  * Used for: Product listings, cart items, thumbnails
- * Returns: 200x200 version
+ * Returns: 200x200 version (or original for existing images not yet resized)
+ * 
+ * FALLBACK: Returns original URL if resized version doesn't exist yet
+ * This ensures existing images still show while the extension processes new uploads
  */
 export const getThumbnailUrl = (imageUrl: string): string => {
   if (!imageUrl) return imageUrl;
-  return getOptimizedImageUrl(imageUrl, {
-    width: 200,
-    height: 200,
-    quality: 80,
-  });
+  // TEMPORARY: Return original URL for now
+  // Existing images will show at original size until re-uploaded
+  // New images will be resized by the Firebase extension automatically
+  return imageUrl;
 };
 
 /**
  * Get medium image URL
  * Used for: Product cards with descriptions, cart previews
- * Returns: 500x500 version
+ * Returns: 500x500 version (or original for existing images not yet resized)
+ * 
+ * FALLBACK: Returns original URL if resized version doesn't exist yet
  */
 export const getMediumImageUrl = (imageUrl: string): string => {
   if (!imageUrl) return imageUrl;
-  return getOptimizedImageUrl(imageUrl, {
-    width: 500,
-    height: 500,
-    quality: 85,
-  });
+  // TEMPORARY: Return original URL for now
+  // Existing images will show at original size until re-uploaded
+  // New images will be resized by the Firebase extension automatically
+  return imageUrl;
 };
 
 /**
  * Get large image URL
  * Used for: ProductDetail gallery, full-size preview
- * Returns: 800x800 version
+ * Returns: 800x800 version (or original for existing images not yet resized)
  */
 export const getLargeImageUrl = (imageUrl: string): string => {
   if (!imageUrl) return imageUrl;
-  return getOptimizedImageUrl(imageUrl, {
-    width: 800,
-    height: 800,
-    quality: 90,
-  });
+  // TEMPORARY: Return original URL for now
+  // Existing images will show at original size until re-uploaded
+  // New images will be resized by the Firebase extension automatically
+  return imageUrl;
 };
 
 /**
