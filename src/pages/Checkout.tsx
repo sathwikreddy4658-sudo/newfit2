@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { getCurrentUser, auth } from "@/integrations/firebase/auth";
 import { createOrder, getPromoCode, getAllProducts, getVisiblePromoCodes, deductStock, verifyStockForItems } from "@/integrations/firebase/db";
+import { db } from "@/integrations/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -534,16 +536,37 @@ const Checkout = () => {
       authUser = null;
     }
 
-    // Prepare order items for atomic creation
-    const orderItems = items.map(item => ({
-      productId: item.id,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      image: item.image
-    }));
+    // SECURITY: Validate prices from server to prevent manipulation
+    // Re-fetch current prices from Firestore instead of trusting localStorage cart
+    const validatedItems = await Promise.all(
+      items.map(async (item) => {
+        try {
+          const productDoc = await getDoc(doc(db, 'products', item.id));
+          if (!productDoc.exists()) {
+            throw new Error(`Product ${item.name} not found`);
+          }
+          const productData = productDoc.data();
+          const serverPrice = productData.price || 0;
+          
+          // Use server price, not cart price
+          return {
+            productId: item.id,
+            name: item.name,
+            price: serverPrice,  // ← Server-validated price
+            quantity: item.quantity,
+            image: item.image
+          };
+        } catch (error) {
+          console.error('[Checkout] Error fetching product price:', error);
+          throw new Error(`Failed to validate price for ${item.name}`);
+        }
+      })
+    );
 
-    // Calculate items total from the orderItems array (must match database calculation)
+    // Prepare order items with validated prices
+    const orderItems = validatedItems;
+
+    // Calculate items total from the orderItems array with server prices
     const itemsTotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
     console.log('[Checkout] Price calculation:', {

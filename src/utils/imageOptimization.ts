@@ -1,6 +1,9 @@
 /**
  * Image Optimization Utilities
  * Handles Firebase Storage image URLs and lazy loading strategy
+ * 
+ * IMPORTANT: Requires Firebase "Resize Images" extension to be installed
+ * Extension creates resized versions: 200x200, 500x500, 800x800
  */
 
 interface ImageTransformOptions {
@@ -10,41 +13,106 @@ interface ImageTransformOptions {
 }
 
 /**
- * Get optimized image URL
- * Firebase Storage doesn't have built-in image transformation.
- * Images are returned as-is. For advanced transformations, consider
- * using the Firebase Extensions "Resize Images" or a CDN like Cloudflare.
+ * Get resized image URL from Firebase Storage
+ * Assumes Firebase "Resize Images" extension is installed
+ * Extension creates: /thumbs/{filename}_200x200, _500x500, _800x800
  */
 export const getOptimizedImageUrl = (
   imageUrl: string,
-  _options: ImageTransformOptions = {}
+  options: ImageTransformOptions = {}
 ): string => {
   if (!imageUrl) return imageUrl;
-  // Return the URL as-is (Firebase Storage serves images without transformation params)
-  return imageUrl;
+  
+  // Determine which size to use based on requested width
+  const targetWidth = options.width || 500;
+  let size = '500x500'; // Default to medium
+  
+  if (targetWidth <= 200) {
+    size = '200x200'; // thumbnail
+  } else if (targetWidth <= 500) {
+    size = '500x500'; // medium
+  } else {
+    size = '800x800'; // large
+  }
+  
+  // Parse Firebase Storage URL
+  // Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media...
+  try {
+    const url = new URL(imageUrl);
+    const pathMatch = imageUrl.match(/\/o\/(.+?)\?/);
+    
+    if (!pathMatch) return imageUrl; // Not a Firebase Storage URL
+    
+    const originalPath = decodeURIComponent(pathMatch[1]);
+    
+    // Check if already a resized image
+    if (originalPath.includes('thumbs/')) {
+      return imageUrl; // Already resized
+    }
+    
+    // Extract filename
+    const filename = originalPath.split('/').pop();
+    if (!filename) return imageUrl;
+    
+    // Get filename without extension
+    const lastDotIndex = filename.lastIndexOf('.');
+    const nameWithoutExt = lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
+    const ext = lastDotIndex > 0 ? filename.substring(lastDotIndex) : '.jpg';
+    
+    // Build resized path: thumbs/{filename}_{size}
+    const resizedFilename = `${nameWithoutExt}_${size}${ext}`;
+    const resizedPath = originalPath.includes('/') 
+      ? originalPath.replace(filename, `thumbs/${resizedFilename}`)
+      : `thumbs/${resizedFilename}`;
+    
+    // Rebuild URL with resized path
+    const encodedPath = encodeURIComponent(resizedPath);
+    return imageUrl.replace(pathMatch[1], encodedPath);
+  } catch (error) {
+    console.warn('Image optimization failed, returning original:', error);
+    return imageUrl;
+  }
 };
 
 /**
- * Get thumbnail image URL (smaller, compressed)
+ * Get thumbnail image URL (small, compressed)
  * Used for: Product listings, cart items, thumbnails
+ * Returns: 200x200 version
  */
 export const getThumbnailUrl = (imageUrl: string): string => {
+  if (!imageUrl) return imageUrl;
   return getOptimizedImageUrl(imageUrl, {
-    width: 300,
-    height: 300,
+    width: 200,
+    height: 200,
     quality: 80,
   });
 };
 
 /**
  * Get medium image URL
- * Used for: Product cards with descriptions
+ * Used for: Product cards with descriptions, cart previews
+ * Returns: 500x500 version
  */
 export const getMediumImageUrl = (imageUrl: string): string => {
+  if (!imageUrl) return imageUrl;
   return getOptimizedImageUrl(imageUrl, {
     width: 500,
     height: 500,
     quality: 85,
+  });
+};
+
+/**
+ * Get large image URL
+ * Used for: ProductDetail gallery, full-size preview
+ * Returns: 800x800 version
+ */
+export const getLargeImageUrl = (imageUrl: string): string => {
+  if (!imageUrl) return imageUrl;
+  return getOptimizedImageUrl(imageUrl, {
+    width: 800,
+    height: 800,
+    quality: 90,
   });
 };
 

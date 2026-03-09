@@ -107,8 +107,16 @@ const BlogDetail = () => {
       unescapedHtml = unescapedHtml.replace(/Choco Nut/gi, '<a href="https://www.freelit.in/product/CHOCO%20NUT" class="text-blue-600 hover:underline">Choco Nut</a>');
     }
     
-    // Sanitize with DOMPurify
-    const cleanHtml = DOMPurify.sanitize(unescapedHtml, { ALLOWED_TAGS: ['p', 'a', 'strong', 'em', 'u', 's', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'span'] });
+    // Sanitize with DOMPurify - strict security settings
+    const cleanHtml = DOMPurify.sanitize(unescapedHtml, { 
+      ALLOWED_TAGS: ['p', 'a', 'strong', 'em', 'u', 's', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'span'],
+      ALLOWED_ATTR: ['class', 'href', 'target', 'rel'],  // Only safe attributes
+      ALLOW_DATA_ATTR: false,    // No data-* attributes
+      ALLOW_UNKNOWN_PROTOCOLS: false,  // Block javascript: and other protocols
+      ALLOWED_URI_REGEXP: /^(?:https?|mailto):/i,  // Only http/https/mailto links
+      FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed', 'form', 'input'],
+      FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover', 'style']
+    });
     return (
       <div 
         className="prose prose-sm max-w-none break-words"
