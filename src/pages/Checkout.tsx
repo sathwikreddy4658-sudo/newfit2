@@ -40,23 +40,13 @@ async function sendOrderConfirmationEmail(
   try {
     console.log('[Email] Sending order confirmation email...');
     
-    // Use the local Vercel endpoint which has fallback to Firebase Cloud Functions
-    // This avoids CORS issues since both frontend and API are on same domain
-    const emailEndpoints = [];
-    
-    // Always try local endpoint first (same-domain, no CORS issues)
-    emailEndpoints.push('/api/send-email');
-    
-    // For development, also try the Firebase emulator
-    if (typeof window !== 'undefined' && 
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      emailEndpoints.push('http://localhost:5001/newfit-35320/us-central1/api/send-email');
-    }
-    
-    // Production Firebase endpoint as last resort
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-      emailEndpoints.push('https://us-central1-newfit-35320.cloudfunctions.net/api/send-email');
-    }
+    // Email endpoints in order of preference:
+    // 1. Local Vercel endpoint (same-domain, no CORS issues)
+    // 2. Firebase Cloud Functions (fallback if Vercel unavailable)
+    const emailEndpoints = [
+      '/api/send-email',  // Vercel API (local to frontend domain)
+      'https://us-central1-newfit-35320.cloudfunctions.net/api/send-email', // Firebase fallback
+    ];
     
     let lastError: any = null;
     
@@ -83,24 +73,25 @@ async function sendOrderConfirmationEmail(
 
         if (response.ok) {
           const data = await response.json();
-          console.log('[Email] Order confirmation email sent successfully', data);
+          console.log('[Email] ✓ Confirmation email sent successfully', data);
           return true;
         } else {
           console.warn(`[Email] Endpoint returned status ${response.status}: ${endpoint}`);
           lastError = new Error(`HTTP ${response.status}`);
+          continue;
         }
       } catch (err) {
         lastError = err;
-        console.log(`[Email] Failed to send via ${endpoint}:`, err);
-        continue; // Try next endpoint
+        console.warn(`[Email] Endpoint failed (trying next): ${endpoint}`, err);
+        continue;
       }
     }
     
     // All endpoints failed - log warning but don't fail the order
-    console.warn('[Email] Could not send confirmation email via any endpoint (non-critical):', lastError);
+    console.warn('[Email] ⚠ Email delivery failed (non-critical - order still confirmed):', lastError);
     return false;
   } catch (error) {
-    console.error('[Email] Email sending error (non-critical):', error);
+    console.error('[Email] Error in email sending logic:', error);
     // Non-fatal error - don't prevent order completion
     return false;
   }
