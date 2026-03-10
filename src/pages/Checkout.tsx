@@ -38,61 +38,49 @@ async function sendOrderConfirmationEmail(
   paymentMethod: 'online' | 'cod'
 ) {
   try {
-    console.log('[Email] Sending order confirmation email...');
+    console.log('[Email] Sending order confirmation email via Firebase Cloud Functions...');
     
-    // Email endpoints in order of preference:
-    // 1. Local Vercel endpoint (same-domain, no CORS issues)
-    // 2. Firebase Cloud Functions (fallback if Vercel unavailable)
-    const emailEndpoints = [
-      '/api/send-email',  // Vercel API (local to frontend domain)
-      'https://us-central1-newfit-35320.cloudfunctions.net/api/send-email', // Firebase fallback
-    ];
+    // Use Firebase Cloud Functions endpoint directly
+    // This has proper CORS configuration and no domain redirect issues
+    const FIREBASE_EMAIL_ENDPOINT = 'https://us-central1-newfit-35320.cloudfunctions.net/api/send-email';
     
-    let lastError: any = null;
-    
-    for (const endpoint of emailEndpoints) {
-      try {
-        console.log(`[Email] Attempting to send via: ${endpoint}`);
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId,
-            customerEmail,
-            customerName,
-            totalPrice,
-            orderItems,
-            address,
-            paymentMethod,
-            emailType: 'confirmation',
-            createdAt: new Date().toISOString(),
-          }),
-        });
+    try {
+      console.log(`[Email] POST ${FIREBASE_EMAIL_ENDPOINT}`);
+      const response = await fetch(FIREBASE_EMAIL_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
+          customerEmail,
+          customerName,
+          totalPrice,
+          orderItems,
+          address,
+          paymentMethod,
+          emailType: 'confirmation',
+          createdAt: new Date().toISOString(),
+        }),
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[Email] ✓ Confirmation email sent successfully', data);
-          return true;
-        } else {
-          console.warn(`[Email] Endpoint returned status ${response.status}: ${endpoint}`);
-          lastError = new Error(`HTTP ${response.status}`);
-          continue;
-        }
-      } catch (err) {
-        lastError = err;
-        console.warn(`[Email] Endpoint failed (trying next): ${endpoint}`, err);
-        continue;
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Email] ✓ Confirmation email sent successfully', data);
+        return true;
+      } else {
+        const errorText = await response.text();
+        console.error(`[Email] Server returned ${response.status}:`, errorText);
+        console.warn('[Email] ⚠ Email delivery failed but order is confirmed');
+        return false;
       }
+    } catch (err) {
+      console.error('[Email] ✗ Failed to send email:', err);
+      console.warn('[Email] ⚠ Email delivery failed but order is confirmed');
+      return false;
     }
-    
-    // All endpoints failed - log warning but don't fail the order
-    console.warn('[Email] ⚠ Email delivery failed (non-critical - order still confirmed):', lastError);
-    return false;
   } catch (error) {
-    console.error('[Email] Error in email sending logic:', error);
-    // Non-fatal error - don't prevent order completion
+    console.error('[Email] Error in email sending:', error);
     return false;
   }
 }

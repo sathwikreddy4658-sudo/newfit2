@@ -21,24 +21,6 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // ─── Environment variables ─────────────────────────────────────────────────────
-// Read from process.env (modern approach) or functions.config() (legacy, deprecated)
-
-// Helper to get config values from both sources
-const getConfig = (envVar: string, configPath: string, defaultVal: string = ""): string => {
-  if (process.env[envVar]) return process.env[envVar];
-  try {
-    const config = functions.config();
-    const keys = configPath.split(".");
-    let obj: any = config;
-    for (const key of keys) {
-      obj = obj[key];
-      if (obj === undefined) return defaultVal;
-    }
-    return obj || defaultVal;
-  } catch {
-    return defaultVal;
-  }
-};
 
 const PHONEPE_MERCHANT_ID =
   process.env.PHONEPE_MERCHANT_ID || "";
@@ -55,10 +37,11 @@ const PHONEPE_WEBHOOK_USERNAME = process.env.PHONEPE_WEBHOOK_USERNAME || "";
 const PHONEPE_WEBHOOK_PASSWORD = process.env.PHONEPE_WEBHOOK_PASSWORD || "";
 
 // SMTP Configuration for email notifications
-const SMTP_HOST = getConfig("SMTP_HOST", "smtp.host", "smtp.hostinger.com");
-const SMTP_PORT = parseInt(getConfig("SMTP_PORT", "smtp.port", "465"), 10);
-const SMTP_USER = getConfig("SMTP_USER", "smtp.user", "");
-const SMTP_PASS = getConfig("SMTP_PASS", "smtp.pass", "");
+// Use hardcoded values as fallback if environment variables not set
+const SMTP_HOST = process.env.SMTP_HOST || "smtp.hostinger.com";
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465", 10);
+const SMTP_USER = process.env.SMTP_USER || "care@freelit.in";
+const SMTP_PASS = process.env.SMTP_PASS || "NewFit@2025secure";
 
 // Telegram
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
