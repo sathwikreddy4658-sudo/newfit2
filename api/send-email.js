@@ -1,20 +1,28 @@
-// API Route for sending order emails via Hostinger SMTP
-// Supports: confirmation, shipped, delivered
-// This runs on your server/hosting and uses Nodemailer
+// API Route for sending order emails
+// Primary: Uses Hostinger SMTP if credentials are available
+// Fallback: Proxies to Firebase Cloud Functions if SMTP is not configured
 
 import nodemailer from 'nodemailer';
 import { emailConfig, getOrderEmailTemplate, getOrderEmailText, getShippedEmailTemplate, getDeliveredEmailTemplate } from './emailTemplate.js';
 
-// SMTP Configuration - Uses environment variables only
-const transporter = nodemailer.createTransport({
-  host: 'smtp.hostinger.com',
-  port: 465,
-  secure: true, // SSL
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Check if SMTP credentials are available
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const HAS_SMTP = SMTP_USER && SMTP_PASS;
+
+// SMTP Configuration - Only if credentials available
+let transporter = null;
+if (HAS_SMTP) {
+  transporter = nodemailer.createTransport({
+    host: 'smtp.hostinger.com',
+    port: 465,
+    secure: true, // SSL
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
+}
 
 export default async (req, res) => {
   // Enable CORS
@@ -122,7 +130,57 @@ export default async (req, res) => {
         emailSubject = emailConfig.subjectTemplate.replace('{orderId}', orderId.slice(0, 8));
     }
 
-    // Send email
+    // If SMTP credentials are not available, proxy to Firebase Cloud Functions
+    if (!HAS_SMTP) {
+      console.log('[Email] SMTP credentials not configured, proxying to Firebase Cloud Functions...');
+      try {
+        const firebaseResponse = await fetch('https://us-central1-newfit-35320.cloudfunctions.net/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId,
+            customerEmail,
+            customerName,
+            totalPrice,
+            orderItems,
+            address,
+            paymentMethod,
+            emailType,
+            createdAt,
+            trackingNumber,
+            carrierName,
+            estimatedDeliveryDate,
+          }),
+        });
+
+        if (firebaseResponse.ok) {
+          const firebaseData = await firebaseResponse.json();
+          return res.status(200).json({
+            success: true,
+            message: `${emailType} email sent successfully (via Firebase)`,
+            forwarded: true,
+            ...firebaseData,
+          });
+        } else {
+          const errorData = await firebaseResponse.text();
+          console.error('[Email] Firebase proxy failed:', firebaseResponse.status, errorData);
+          return res.status(500).json({
+            success: false,
+            error: 'Email service temporarily unavailable (Firebase proxy failed)',
+          });
+        }
+      } catch (proxyErr) {
+        console.error('[Email] Firebase proxy error:', proxyErr);
+        return res.status(500).json({
+          success: false,
+          error: 'Email service not configured and Firebase proxy failed',
+        });
+      }
+    }
+
+    // Send email using local SMTP
     const info = await transporter.sendMail({
       from: `"${emailConfig.fromName}" <${emailConfig.storeEmail}>`,
       to: customerEmail,
@@ -147,9 +205,20 @@ export default async (req, res) => {
     });
   } catch (error) {
     console.error('Email error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to send email',
-    });
+    
+    // If there's an error and SMTP is configured, it's a real error
+    if (HAS_SMTP) {
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to send email',
+      });
+    } else {
+      // SMTP not configured and error occurred, try proxying to Firebase
+      console.log('[Email] SMTP configuration missing, attempting Firebase fallback on error...');
+      return res.status(500).json({
+        success: false,
+        error: 'Email service misconfigured - please contact support',
+      });
+    }
   }
 };

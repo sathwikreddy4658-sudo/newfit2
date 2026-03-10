@@ -57,7 +57,26 @@ const nodemailer = __importStar(require("nodemailer"));
 admin.initializeApp();
 const db = admin.firestore();
 // ─── Environment variables ─────────────────────────────────────────────────────
-// Read from process.env — set via functions/.env (local) or Firebase environment config
+// Read from process.env (modern approach) or functions.config() (legacy, deprecated)
+// Helper to get config values from both sources
+const getConfig = (envVar, configPath, defaultVal = "") => {
+    if (process.env[envVar])
+        return process.env[envVar];
+    try {
+        const config = functions.config();
+        const keys = configPath.split(".");
+        let obj = config;
+        for (const key of keys) {
+            obj = obj[key];
+            if (obj === undefined)
+                return defaultVal;
+        }
+        return obj || defaultVal;
+    }
+    catch (_a) {
+        return defaultVal;
+    }
+};
 const PHONEPE_MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID || "";
 const PHONEPE_CLIENT_ID = process.env.PHONEPE_CLIENT_ID || "";
 const PHONEPE_CLIENT_SECRET = process.env.PHONEPE_CLIENT_SECRET || "";
@@ -67,10 +86,10 @@ const PHONEPE_API_URL = process.env.PHONEPE_API_URL || "https://api.phonepe.com/
 const PHONEPE_WEBHOOK_USERNAME = process.env.PHONEPE_WEBHOOK_USERNAME || "";
 const PHONEPE_WEBHOOK_PASSWORD = process.env.PHONEPE_WEBHOOK_PASSWORD || "";
 // SMTP Configuration for email notifications
-const SMTP_HOST = process.env.SMTP_HOST || "smtp.hostinger.com";
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465", 10);
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = process.env.SMTP_PASS || "";
+const SMTP_HOST = getConfig("SMTP_HOST", "smtp.host", "smtp.hostinger.com");
+const SMTP_PORT = parseInt(getConfig("SMTP_PORT", "smtp.port", "465"), 10);
+const SMTP_USER = getConfig("SMTP_USER", "smtp.user", "");
+const SMTP_PASS = getConfig("SMTP_PASS", "smtp.pass", "");
 // Telegram
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
@@ -467,6 +486,13 @@ app.post("/send-email", async (req, res) => {
             });
             return;
         }
+        // Log SMTP configuration for debugging
+        console.log("[Email] SMTP Config:", {
+            host: SMTP_HOST,
+            port: SMTP_PORT,
+            user: SMTP_USER ? `${SMTP_USER.substring(0, 5)}***` : "MISSING",
+            pass: SMTP_PASS ? "***" : "MISSING",
+        });
         // Create nodemailer transporter
         const transporter = nodemailer.createTransport({
             host: SMTP_HOST,

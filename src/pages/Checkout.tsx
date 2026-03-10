@@ -40,14 +40,20 @@ async function sendOrderConfirmationEmail(
   try {
     console.log('[Email] Sending order confirmation email...');
     
-    // Try calling via a backend proxy or direct endpoint
-    // In production, this endpoint should be proxied by your hosting provider
-    const emailEndpoints = [
-      'https://freelit.in/api/send-email',  // Production endpoint
-      '/api/send-email',                     // Proxy endpoint (if configured)
-    ];
+    // Use the local Vercel endpoint which has fallback to Firebase Cloud Functions
+    // This avoids CORS issues since both frontend and API are on same domain
+    const emailEndpoints = [];
     
-    // Also try Firebase Functions endpoint if available
+    // Always try local endpoint first (same-domain, no CORS issues)
+    emailEndpoints.push('/api/send-email');
+    
+    // For development, also try the Firebase emulator
+    if (typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      emailEndpoints.push('http://localhost:5001/newfit-35320/us-central1/api/send-email');
+    }
+    
+    // Production Firebase endpoint as last resort
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
       emailEndpoints.push('https://us-central1-newfit-35320.cloudfunctions.net/api/send-email');
     }
@@ -56,6 +62,7 @@ async function sendOrderConfirmationEmail(
     
     for (const endpoint of emailEndpoints) {
       try {
+        console.log(`[Email] Attempting to send via: ${endpoint}`);
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
@@ -72,12 +79,15 @@ async function sendOrderConfirmationEmail(
             emailType: 'confirmation',
             createdAt: new Date().toISOString(),
           }),
-          timeout: 10000,
         });
 
         if (response.ok) {
-          console.log('[Email] Order confirmation email sent successfully');
+          const data = await response.json();
+          console.log('[Email] Order confirmation email sent successfully', data);
           return true;
+        } else {
+          console.warn(`[Email] Endpoint returned status ${response.status}: ${endpoint}`);
+          lastError = new Error(`HTTP ${response.status}`);
         }
       } catch (err) {
         lastError = err;
@@ -87,7 +97,7 @@ async function sendOrderConfirmationEmail(
     }
     
     // All endpoints failed - log warning but don't fail the order
-    console.warn('[Email] Could not send confirmation email (non-critical):', lastError);
+    console.warn('[Email] Could not send confirmation email via any endpoint (non-critical):', lastError);
     return false;
   } catch (error) {
     console.error('[Email] Email sending error (non-critical):', error);
