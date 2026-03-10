@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, unstable_HistoryRouter as HistoryRouter } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import Header from "@/components/Header";
 import BackButton from "@/components/BackButton";
@@ -10,7 +10,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import Footer from "@/components/Footer";
 import Index from "./pages/Index";
 import Products from "./pages/Products";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import "@/integrations/firebase/test"; // Load Firebase test utility
 
 // Lazy load non-critical routes
@@ -44,6 +44,7 @@ const AdminPromoCodes = lazy(() => import("./pages/admin/AdminPromoCodes"));
 const AdminRatings = lazy(() => import("./pages/admin/AdminRatings"));
 const AdminNewsletter = lazy(() => import("./pages/admin/AdminNewsletter"));
 const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
+const AdminProductsPanel = lazy(() => import("./pages/AdminProductsPanel"));
 const Blogs = lazy(() => import("./pages/Blogs"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
 const LabReports = lazy(() => import("./pages/LabReports"));
@@ -68,13 +69,13 @@ const App = () => (
       <CartProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <ScrollToTop />
           <div className="min-h-screen flex flex-col">
             <Header />
             <BackButton />
             <main className="flex-1">
-              <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>}>
+              <Suspense fallback={<div className="flex items-center justify-center min-h-screen" style={{minHeight: '400px'}}><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>}>
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/about" element={<About />} />
@@ -113,6 +114,8 @@ const App = () => (
                   <Route path="/admin/ratings" element={<AdminRatings />} />
                   <Route path="/admin/newsletter" element={<AdminNewsletter />} />
                   <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                  <Route path="/admin/product-editor" element={<AdminProductsPanel />} />
+                  <Route path="/admin/products/edit" element={<AdminProductsPanel />} />
                   <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

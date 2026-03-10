@@ -8,7 +8,8 @@
  *   telegram notification → Firestore onCreate trigger on orders/{orderId}
  */
 
-import * as functions from "firebase-functions";
+import { onRequest } from "firebase-functions/v2/https";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import express, { Request, Response } from "express";
 import cors from "cors";
@@ -596,19 +597,30 @@ ${address}
 // ─────────────────────────────────────────────────────────────────────────────
 //  Export the Express app as a single HTTP function  → /api/*
 // ─────────────────────────────────────────────────────────────────────────────
-// Gen 1 HTTP function
-export const api = functions
-  .runWith({ timeoutSeconds: 60, memory: "256MB" })
-  .https.onRequest(app);
+// Gen 2 HTTP function with configuration
+export const api = onRequest(
+  {
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    maxInstances: 10,
+  },
+  app
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Firestore trigger: when a new order document is created → send Telegram
 // ─────────────────────────────────────────────────────────────────────────────
-export const onNewOrder = functions.firestore
-  .document("orders/{orderId}")
-  .onCreate(async (snap) => {
+export const onNewOrder = onDocumentCreated(
+  "orders/{orderId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.log("No data associated with the event");
+      return;
+    }
     const orderData = snap.data() as Record<string, unknown>;
     // Inject the document ID as `id` so the helper can use it
     orderData.id = snap.id;
     await sendTelegramNotification(orderData);
-  });
+  }
+);

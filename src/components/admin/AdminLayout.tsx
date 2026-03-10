@@ -15,7 +15,8 @@ import {
   BarChart3, 
   LogOut,
   Menu,
-  X
+  X,
+  Edit3
 } from "lucide-react";
 import { useState } from "react";
 import OrderNotifications from "@/components/OrderNotifications";
@@ -38,6 +39,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
     { icon: Package, label: "Products", path: "/admin/products" },
+    { icon: Edit3, label: "Edit Product Details", path: "/admin/products/edit" },
     { icon: FileText, label: "Blogs", path: "/admin/blogs" },
     { icon: FlaskConical, label: "Lab Reports", path: "/admin/lab-reports" },
     { icon: ShoppingCart, label: "Orders", path: "/admin/orders" },

@@ -544,15 +544,21 @@ ${address}
 // ─────────────────────────────────────────────────────────────────────────────
 //  Export the Express app as a single HTTP function  → /api/*
 // ─────────────────────────────────────────────────────────────────────────────
-// Gen 2 HTTP function — invoker:"public" allows unauthenticated calls
-exports.api = (0, https_1.onRequest)({ invoker: "public", timeoutSeconds: 60, memory: "256MiB", cors: true }, app);
+// Gen 2 HTTP function with configuration
+exports.api = (0, https_1.onRequest)({
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    maxInstances: 10,
+}, app);
 // ─────────────────────────────────────────────────────────────────────────────
 //  Firestore trigger: when a new order document is created → send Telegram
 // ─────────────────────────────────────────────────────────────────────────────
 exports.onNewOrder = (0, firestore_1.onDocumentCreated)("orders/{orderId}", async (event) => {
     const snap = event.data;
-    if (!snap)
+    if (!snap) {
+        console.log("No data associated with the event");
         return;
+    }
     const orderData = snap.data();
     // Inject the document ID as `id` so the helper can use it
     orderData.id = snap.id;

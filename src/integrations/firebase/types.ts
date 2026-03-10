@@ -34,13 +34,87 @@ export interface Product {
   original_price_15g?: number;
   original_price_20g?: number;
   
+  ingredients?: string[];
+  
   nutrition?: {
+    // Serving sizes (customizable)
+    serving_size_1_g?: number;  // First serving size (e.g., 49g, 55g, 60g)
+    serving_size_2_g?: number;  // Second serving size (e.g., 100g)
+    
+    // Per serving 1 (customizable serving size)
+    energy_serving_1?: number;
+    protein_serving_1?: number;
+    carbs_serving_1?: number;
+    sugars_serving_1?: number;
+    added_sugars_serving_1?: number;
+    fat_serving_1?: number;
+    sat_fat_serving_1?: number;
+    trans_fat_serving_1?: number;
+    sodium_serving_1?: number;  // mg
+    cholesterol_serving_1?: number;  // mg
+    
+    // Per serving 2 (customizable serving size)
+    energy_serving_2?: number;
+    protein_serving_2?: number;
+    carbs_serving_2?: number;
+    sugars_serving_2?: number;
+    added_sugars_serving_2?: number;
+    fat_serving_2?: number;
+    sat_fat_serving_2?: number;
+    trans_fat_serving_2?: number;
+    sodium_serving_2?: number;  // mg
+    cholesterol_serving_2?: number;  // mg
+    
+    // Legacy field names for backward compatibility
+    energy_60g?: number;
+    protein_60g?: number;
+    carbs_60g?: number;
+    sugars_60g?: number;
+    added_sugars_60g?: number;
+    fat_60g?: number;
+    sat_fat_60g?: number;
+    trans_fat_60g?: number;
+    
+    energy_100g?: number;
+    protein_100g?: number;
+    carbs_100g?: number;
+    sugars_100g?: number;
+    added_sugars_100g?: number;
+    fat_100g?: number;
+    sat_fat_100g?: number;
+    trans_fat_100g?: number;
+    
+    // Legacy fields
     calories?: string;
     protein?: string;
     sugar?: string;
     allergens?: string;
     weight?: string;
   };
+  
+  // Flattened nutrition fields (saved directly on product for easier updates)
+  serving_size_1_g?: number;
+  serving_size_2_g?: number;
+  energy_serving_1?: number;
+  protein_serving_1?: number;
+  carbs_serving_1?: number;
+  sugars_serving_1?: number;
+  added_sugars_serving_1?: number;
+  fat_serving_1?: number;
+  sat_fat_serving_1?: number;
+  trans_fat_serving_1?: number;
+  sodium_serving_1?: number;
+  cholesterol_serving_1?: number;
+  energy_serving_2?: number;
+  protein_serving_2?: number;
+  carbs_serving_2?: number;
+  sugars_serving_2?: number;
+  added_sugars_serving_2?: number;
+  fat_serving_2?: number;
+  sat_fat_serving_2?: number;
+  trans_fat_serving_2?: number;
+  sodium_serving_2?: number;
+  cholesterol_serving_2?: number;
   
   images?: string[];
   products_page_image?: string;

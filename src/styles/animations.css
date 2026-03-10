@@ -71,7 +71,7 @@
 .spaceship-float {
   animation: spaceshipFloat 6s ease-in-out infinite, spaceshipGlow 4s ease-in-out infinite;
   transform-origin: center;
-  will-change: transform, filter;
+  /* Removed will-change for better performance - browser will optimize automatically */
 }
 
 /* ===== PRODUCT CARD ANIMATIONS ===== */
@@ -161,16 +161,17 @@
 
 .product-card {
   animation: cardScaleIn 0.5s ease-out;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 
 .product-card:hover {
-  animation: cardHover 0.4s ease-out forwards;
-  box-shadow: 0 20px 40px rgba(59, 42, 32, 0.15);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 24px rgba(59, 42, 32, 0.12);
 }
 
 .product-card:hover img {
-  animation: imageZoom 0.4s ease-out forwards;
+  transform: scale(1.05);
+  transition: transform 0.3s ease-out;
 }
 
 /* ===== SCROLL REVEAL ANIMATIONS ===== */

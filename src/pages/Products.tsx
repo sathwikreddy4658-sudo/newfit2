@@ -114,28 +114,28 @@ const Products = () => {
           <Button
             variant={categoryFilter === "all" ? "default" : "outline"}
             onClick={() => handleCategoryClick("all")}
-            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-colors ${categoryFilter === "all" ? "bg-[#5e4338] text-white" : ""}`}
+            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-all duration-75 active:scale-[0.97] touch-action-manipulation ${categoryFilter === "all" ? "bg-[#5e4338] text-white" : ""}`}
           >
             All Categories
           </Button>
           <Button
             variant={categoryFilter === "protein_bars" ? "default" : "outline"}
             onClick={() => handleCategoryClick("protein_bars")}
-            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-colors ${categoryFilter === "protein_bars" ? "bg-[#5e4338] text-white" : ""}`}
+            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-all duration-75 active:scale-[0.97] touch-action-manipulation ${categoryFilter === "protein_bars" ? "bg-[#5e4338] text-white" : ""}`}
           >
             Protein Bars
           </Button>
           <Button
             variant={categoryFilter === "dessert_bars" ? "default" : "outline"}
             onClick={() => handleCategoryClick("dessert_bars")}
-            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-colors ${categoryFilter === "dessert_bars" ? "bg-[#5e4338] text-white" : ""}`}
+            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-all duration-75 active:scale-[0.97] touch-action-manipulation ${categoryFilter === "dessert_bars" ? "bg-[#5e4338] text-white" : ""}`}
           >
             Dessert Bars
           </Button>
           <Button
             variant={categoryFilter === "chocolates" ? "default" : "outline"}
             onClick={() => handleCategoryClick("chocolates")}
-            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-colors ${categoryFilter === "chocolates" ? "bg-[#5e4338] text-white" : ""}`}
+            className={`whitespace-nowrap rounded-lg font-poppins font-bold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 flex-shrink-0 bg-white text-[#3b2a20] border-white hover:bg-[#5e4338] hover:text-white transition-all duration-75 active:scale-[0.97] touch-action-manipulation ${categoryFilter === "chocolates" ? "bg-[#5e4338] text-white" : ""}`}
           >
             Chocolates
           </Button>

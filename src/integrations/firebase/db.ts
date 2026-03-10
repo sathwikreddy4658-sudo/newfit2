@@ -8,6 +8,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   orderBy,
@@ -29,7 +30,7 @@ export async function getProduct(productId: string): Promise<Product | null> {
   try {
     const docRef = doc(db, 'products', productId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? (docSnap.data() as Product) : null;
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Product : null;
   } catch (error) {
     console.error('Error fetching product:', error);
     throw error;
@@ -138,9 +139,34 @@ export async function updateProduct(
   updates: Partial<Product>
 ): Promise<void> {
   try {
+    // Validate productId
+    if (!productId || typeof productId !== 'string') {
+      console.error('Invalid productId:', productId);
+      throw new Error(`Invalid product ID: ${productId}`);
+    }
+    
+    // Sanitize the updates object - remove undefined/null values and ensure all values are valid
+    const sanitizedUpdates: any = {};
+    
+    for (const [key, value] of Object.entries(updates)) {
+      // Skip undefined and null values
+      if (value === undefined || value === null) {
+        continue;
+      }
+      
+      // For arrays, ensure they contain valid values
+      if (Array.isArray(value)) {
+        sanitizedUpdates[key] = value.filter(item => item !== undefined && item !== null);
+        continue;
+      }
+      
+      // Keep all other values (including 0, false, empty strings)
+      sanitizedUpdates[key] = value;
+    }
+    
     const docRef = doc(db, 'products', productId);
     await updateDoc(docRef, {
-      ...updates,
+      ...sanitizedUpdates,
       updatedAt: Timestamp.now(),
     });
   } catch (error) {
@@ -155,6 +181,66 @@ export async function deleteProduct(productId: string): Promise<void> {
   } catch (error) {
     console.error('Error deleting product:', error);
     throw error;
+  }
+}
+
+// ============================================
+// FAVORITES
+// ============================================
+export async function addToFavorites(userId: string, productId: string): Promise<void> {
+  try {
+    const favRef = doc(db, 'favorites', userId);
+    await setDoc(
+      favRef,
+      {
+        [productId]: true,
+        updatedAt: Timestamp.now(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    console.error('Error adding to favorites:', error);
+    throw error;
+  }
+}
+
+export async function removeFromFavorites(userId: string, productId: string): Promise<void> {
+  try {
+    const favRef = doc(db, 'favorites', userId);
+    await updateDoc(favRef, {
+      [productId]: deleteField(),
+      updatedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error removing from favorites:', error);
+    throw error;
+  }
+}
+
+export async function getUserFavorites(userId: string): Promise<string[]> {
+  try {
+    const favRef = doc(db, 'favorites', userId);
+    const favSnap = await getDoc(favRef);
+    if (favSnap.exists()) {
+      const data = favSnap.data();
+      // Filter out metadata fields
+      return Object.keys(data).filter(key => key !== 'updatedAt' && data[key] === true);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching user favorites:', error);
+    return [];
+  }
+}
+
+export async function isFavoritedByUser(userId: string, productId: string): Promise<boolean> {
+  try {
+    const favRef = doc(db, 'favorites', userId);
+    const favSnap = await getDoc(favRef);
+    return favSnap.exists() && favSnap.data()[productId] === true;
+  } catch (error) {
+    console.error('Error checking if favorited:', error);
+    return false;
   }
 }
 

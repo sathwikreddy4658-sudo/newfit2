@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { getCurrentUser, auth } from "@/integrations/firebase/auth";
-import { getProduct, getAllProducts } from "@/integrations/firebase/db";
+import { getProduct, getAllProducts, addToFavorites, removeFromFavorites } from "@/integrations/firebase/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -203,16 +203,31 @@ const ProductDetail = () => {
     if (tapTimeout) clearTimeout(tapTimeout);
     
     // Delay the toggle to allow for double-tap detection
-    const newTimeout = setTimeout(() => {
+    const newTimeout = setTimeout(async () => {
       // Single tap confirmed - toggle favorite status
       try {
-        const localFavorites = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || '[]');
-        let updatedFavorites;
+        let localFavorites: string[] = [];
+        try {
+          const stored = localStorage.getItem(`favorites_${user.id}`);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            localFavorites = Array.isArray(parsed) ? parsed : [];
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse favorites from localStorage:', parseError);
+          localFavorites = [];
+        }
+        
+        let updatedFavorites: string[];
         
         if (isFavorite) {
           // Remove from favorites
           updatedFavorites = localFavorites.filter((id: string) => id !== product.id);
           setIsFavorite(false);
+          
+          // Remove from Firestore
+          await removeFromFavorites(user.id, product.id);
+          
           toast({ title: "Removed from favorites" });
         } else {
           // Add to favorites
@@ -222,6 +237,10 @@ const ProductDetail = () => {
             updatedFavorites = localFavorites;
           }
           setIsFavorite(true);
+          
+          // Add to Firestore
+          await addToFavorites(user.id, product.id);
+          
           toast({ title: "Added to favorites", description: "Double-tap heart icon to view all favorites" });
         }
         
@@ -630,8 +649,8 @@ const ProductDetail = () => {
               onClick={() => setSelectedProtein("15g")}
               disabled={product.stock_status_15g === false}
               className={cn(
-                "flex-1 px-3 md:px-6 py-2 md:py-3 font-poppins font-bold text-xs md:text-sm uppercase border-0 relative",
-                selectedProtein === "15g" ? "bg-[#b5edce] text-black" : "bg-white text-black",
+                "flex-1 px-3 md:px-6 py-2 md:py-3 font-poppins font-bold text-xs md:text-sm uppercase border-0 relative transition-all duration-200 hover:scale-105 active:scale-95",
+                selectedProtein === "15g" ? "bg-[#b5edce] text-black shadow-lg" : "bg-white text-black hover:shadow-md",
                 product.stock_status_15g === false && "opacity-50 cursor-not-allowed"
               )}
             >
@@ -647,8 +666,8 @@ const ProductDetail = () => {
               onClick={() => setSelectedProtein("20g")}
               disabled={product.stock_status_20g === false}
               className={cn(
-                "flex-1 px-3 md:px-6 py-2 md:py-3 font-poppins font-bold text-xs md:text-sm uppercase border-0 relative",
-                selectedProtein === "20g" ? "bg-[#b5edce] text-black" : "bg-white text-black",
+                "flex-1 px-3 md:px-6 py-2 md:py-3 font-poppins font-bold text-xs md:text-sm uppercase border-0 relative transition-all duration-200 hover:scale-105 active:scale-95",
+                selectedProtein === "20g" ? "bg-[#b5edce] text-black shadow-lg" : "bg-white text-black hover:shadow-md",
                 product.stock_status_20g === false && "opacity-50 cursor-not-allowed"
               )}
             >
@@ -731,7 +750,7 @@ const ProductDetail = () => {
                 variant="outline"
                 size="sm"
                 onClick={decreaseQuantity}
-                className="h-8 w-8 rounded-full p-0 active:scale-105 active:shadow-xl transition-all duration-150"
+                className="h-8 w-8 rounded-full p-0 transition-all duration-200 hover:scale-110 active:scale-75 touch-action-manipulation"
                 disabled={selectedQuantity <= minOrderQuantity}
               >
                 <Minus className="h-4 w-4" />
@@ -741,7 +760,7 @@ const ProductDetail = () => {
                 variant="outline"
                 size="sm"
                 onClick={increaseQuantity}
-                className="h-8 w-8 rounded-full p-0 active:scale-105 active:shadow-xl transition-all duration-150"
+                className="h-8 w-8 rounded-full p-0 transition-all duration-200 hover:scale-110 active:scale-75 touch-action-manipulation"
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -775,7 +794,7 @@ const ProductDetail = () => {
                   variant="outline"
                   onClick={() => setSelectedQuantity(6)}
                   className={cn(
-                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-2 md:px-8 py-2 md:py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
+                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-2 md:px-8 py-2 md:py-3 active:scale-[0.97] transition-all duration-75 uppercase touch-action-manipulation",
                     selectedQuantity === 6 && "bg-white text-black border-2 border-black"
                   )}
                 >
@@ -790,7 +809,7 @@ const ProductDetail = () => {
                   variant="outline"
                   onClick={() => setSelectedQuantity(12)}
                   className={cn(
-                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-2 md:px-8 py-2 md:py-3 active:scale-105 active:shadow-xl transition-all duration-150 uppercase",
+                    "w-full rounded-lg bg-white text-black border-0 hover:bg-black hover:text-white px-2 md:px-8 py-2 md:py-3 active:scale-[0.97] transition-all duration-75 uppercase touch-action-manipulation",
                     selectedQuantity === 12 && "bg-white text-black border-2 border-black"
                   )}
                 >
@@ -812,7 +831,7 @@ const ProductDetail = () => {
                 (selectedProtein === "15g" && product.stock_status_15g === false) ||
                 (selectedProtein === "20g" && product.stock_status_20g === false)
               }
-              className="flex-1 min-w-[130px] font-poppins font-black text-white py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed hover:text-white"
+              className="flex-1 min-w-[130px] font-poppins font-black text-white py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed hover:text-white touch-action-manipulation shadow-md hover:shadow-lg"
               style={{
                 backgroundColor: `#${accentColor}`,
               }}
@@ -835,7 +854,7 @@ const ProductDetail = () => {
                 (selectedProtein === "15g" && product.stock_status_15g === false) ||
                 (selectedProtein === "20g" && product.stock_status_20g === false)
               }
-              className="flex-1 min-w-[100px] font-poppins font-black text-white py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase active:scale-105 active:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed hover:text-white"
+              className="flex-1 min-w-[100px] font-poppins font-black text-white py-2 md:py-4 text-[10px] sm:text-xs md:text-lg uppercase transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed hover:text-white touch-action-manipulation shadow-md hover:shadow-lg"
               style={{
                 backgroundColor: `#${accentColor}`,
               }}
@@ -848,7 +867,7 @@ const ProductDetail = () => {
             {cartQuantity >= minOrderQuantity && (
               <Button
                 onClick={() => navigate("/cart")}
-                className="px-2 md:px-3 py-2 md:py-4 font-poppins font-black text-white active:scale-105 active:shadow-xl transition-all duration-150 relative shrink-0 hover:text-white"
+                className="px-2 md:px-3 py-2 md:py-4 font-poppins font-black text-white transition-all duration-200 hover:scale-110 active:scale-90 relative shrink-0 hover:text-white touch-action-manipulation shadow-md hover:shadow-lg"
                 style={{
                   backgroundColor: `#${accentColor}`,
                 }}
@@ -865,8 +884,8 @@ const ProductDetail = () => {
               variant={isFavorite ? "default" : "outline"}
               onClick={toggleFavorite}
               className={cn(
-                "px-2 md:px-3 py-2 md:py-4 font-poppins font-bold active:scale-105 active:shadow-xl transition-all duration-150 shrink-0",
-                isFavorite && "bg-red-500 text-white hover:bg-red-600 border-red-500"
+                "px-2 md:px-3 py-2 md:py-4 font-poppins font-bold transition-all duration-300 hover:scale-120 active:scale-90 shrink-0 touch-action-manipulation",
+                isFavorite && "bg-red-500 text-white hover:bg-red-600 border-red-500 shadow-lg hover:shadow-xl"
               )}
             >
               <Heart className={cn("h-3 w-3 md:h-5 md:w-5", isFavorite ? "fill-current text-white" : "")} />
@@ -973,96 +992,89 @@ const ProductDetail = () => {
           <div className="w-full">
             <div className="px-4 mb-12 pt-8 ">
               <h2 className="font-saira font-black text-2xl text-left text-[#b5edce] uppercase">Product description:</h2>
-              <p className="font-saira font-semibold text-xl text-white mt-4">
-                Choco nut is a low calorie protein bar (compared to most protein bars) with 20g of protein in just 224 calories, made with a blend of whey and pea protein.<br />
-                High protein.<br />
-                No refined sugar.<br />
-                No preservatives.<br />
-                No chalky chew.
+              <p className="font-saira font-semibold text-xl text-white mt-4 whitespace-pre-line">
+                {product.description || "No description available"}
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-12 max-w-none px-4">
-              <div className="border-4 border-white p-8 rounded-lg" style={{ backgroundColor: `#${accentColor}` }}>
-                <h3 className="font-saira font-black text-2xl text-white uppercase mb-4">Inside The Bar</h3>
-                <hr className="border-white mb-4" />
-                <ul className="text-white font-tomorrow list-disc list-inside space-y-1 md:text-lg">
-                  <li>whey protein concentrate</li>
-                  <li>honey</li>
-                  <li>pea protein isolate</li>
-                  <li>date syrup</li>
-                  <li>peanuts</li>
-                  <li>cocoa powder</li>
-                  <li>water</li>
-                  <li>gum arabic</li>
-                  <li>cocoa butter</li>
-                  
-                </ul>
-              </div>
-              <div className="border-4 border-white p-8 rounded-lg" style={{ backgroundColor: `#${accentColor}` }}>
-                <h3 className="font-saira font-black text-2xl text-white uppercase mb-4">Nutrition Info</h3>
-                <hr className="border-white mb-4" />
-                <table className="w-full text-white font-tomorrow">
-                  <thead>
-                    <tr className="border-b border-white">
-                      <th className="text-left py-2"></th>
-                      <th className="text-center py-2">per (60 g)</th>
-                      <th className="text-center py-2">(100 g)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2">energy (kcal)</td>
-                      <td className="text-center py-2">224</td>
-                      <td className="text-center py-2">360</td>
-                    </tr>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2">protein (g)</td>
-                      <td className="text-center py-2">20</td>
-                      <td className="text-center py-2">33.5</td>
-                    </tr>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2">carbohydrates (g)</td>
-                      <td className="text-center py-2">25.2</td>
-                      <td className="text-center py-2">42.13</td>
-                    </tr>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2 pl-4">total sugars (g)</td>
-                      <td className="text-center py-2">6.8</td>
-                      <td className="text-center py-2">11.46</td>
-                    </tr>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2 pl-8">added sugars (g)</td>
-                      <td className="text-center py-2">0</td>
-                      <td className="text-center py-2">0</td>
-                    </tr>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2">fat (g)</td>
-                      <td className="text-center py-2">4.1</td>
-                      <td className="text-center py-2">6.86</td>
-                    </tr>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2 pl-4">saturated fat (g)</td>
-                      <td className="text-center py-2">1.9</td>
-                      <td className="text-center py-2">3.33</td>
-                    </tr>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2 pl-4">trans fat (g)</td>
-                      <td className="text-center py-2">0</td>
-                      <td className="text-center py-2">0</td>
-                    </tr>
-                    <tr className="border-b border-white/30">
-                      <td className="py-2">sodium (mg)</td>
-                      <td className="text-center py-2">41.4</td>
-                      <td className="text-center py-2">69(mg)</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2">cholesterol (mg)</td>
-                      <td className="text-center py-2">27.3</td>
-                      <td className="text-center py-2">45.5(mg)</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              {product.ingredients && product.ingredients.length > 0 && (
+                <div className="border-4 border-white p-8 rounded-lg" style={{ backgroundColor: `#${accentColor}` }}>
+                  <h3 className="font-saira font-black text-2xl text-white uppercase mb-4">Inside The Bar</h3>
+                  <hr className="border-white mb-4" />
+                  <ul className="text-white font-tomorrow list-disc list-inside space-y-1 md:text-lg">
+                    {product.ingredients.map((ingredient, idx) => (
+                      <li key={idx}>{ingredient}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {product.nutrition && (
+                <div className="border-4 border-white p-8 rounded-lg" style={{ backgroundColor: `#${accentColor}` }}>
+                  <h3 className="font-saira font-black text-2xl text-white uppercase mb-4">Nutrition Info</h3>
+                  <hr className="border-white mb-4" />
+                  <table className="w-full text-white font-tomorrow">
+                    <thead>
+                      <tr className="border-b border-white">
+                        <th className="text-left py-2"></th>
+                        <th className="text-center py-2">per ({product.nutrition?.serving_size_1_g ?? product.serving_size_1_g ?? 60} g)</th>
+                        <th className="text-center py-2">({product.nutrition?.serving_size_2_g ?? product.serving_size_2_g ?? 100} g)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2">energy (kcal)</td>
+                        <td className="text-center py-2">{product.nutrition?.energy_serving_1 ?? product.energy_serving_1 ?? product.nutrition?.energy_60g ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.energy_serving_2 ?? product.energy_serving_2 ?? product.nutrition?.energy_100g ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2">protein (g)</td>
+                        <td className="text-center py-2">{product.nutrition?.protein_serving_1 ?? product.protein_serving_1 ?? product.nutrition?.protein_60g ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.protein_serving_2 ?? product.protein_serving_2 ?? product.nutrition?.protein_100g ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2">carbohydrates (g)</td>
+                        <td className="text-center py-2">{product.nutrition?.carbs_serving_1 ?? product.carbs_serving_1 ?? product.nutrition?.carbs_60g ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.carbs_serving_2 ?? product.carbs_serving_2 ?? product.nutrition?.carbs_100g ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2 pl-4">total sugars (g)</td>
+                        <td className="text-center py-2">{product.nutrition?.sugars_serving_1 ?? product.sugars_serving_1 ?? product.nutrition?.sugars_60g ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.sugars_serving_2 ?? product.sugars_serving_2 ?? product.nutrition?.sugars_100g ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2 pl-8">added sugars (g)</td>
+                        <td className="text-center py-2">{product.nutrition?.added_sugars_serving_1 ?? product.added_sugars_serving_1 ?? product.nutrition?.added_sugars_60g ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.added_sugars_serving_2 ?? product.added_sugars_serving_2 ?? product.nutrition?.added_sugars_100g ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2">fat (g)</td>
+                        <td className="text-center py-2">{product.nutrition?.fat_serving_1 ?? product.fat_serving_1 ?? product.nutrition?.fat_60g ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.fat_serving_2 ?? product.fat_serving_2 ?? product.nutrition?.fat_100g ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2 pl-4">saturated fat (g)</td>
+                        <td className="text-center py-2">{product.nutrition?.sat_fat_serving_1 ?? product.sat_fat_serving_1 ?? product.nutrition?.sat_fat_60g ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.sat_fat_serving_2 ?? product.sat_fat_serving_2 ?? product.nutrition?.sat_fat_100g ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2 pl-4">trans fat (g)</td>
+                        <td className="text-center py-2">{product.nutrition?.trans_fat_serving_1 ?? product.trans_fat_serving_1 ?? product.nutrition?.trans_fat_60g ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.trans_fat_serving_2 ?? product.trans_fat_serving_2 ?? product.nutrition?.trans_fat_100g ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2 pl-4">sodium (mg)</td>
+                        <td className="text-center py-2">{product.nutrition?.sodium_serving_1 ?? product.sodium_serving_1 ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.sodium_serving_2 ?? product.sodium_serving_2 ?? 0}</td>
+                      </tr>
+                      <tr className="border-b border-white/30">
+                        <td className="py-2 pl-4">cholesterol (mg)</td>
+                        <td className="text-center py-2">{product.nutrition?.cholesterol_serving_1 ?? product.cholesterol_serving_1 ?? 0}</td>
+                        <td className="text-center py-2">{product.nutrition?.cholesterol_serving_2 ?? product.cholesterol_serving_2 ?? 0}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>

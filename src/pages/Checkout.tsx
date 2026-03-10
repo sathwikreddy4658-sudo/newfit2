@@ -910,23 +910,23 @@ const Checkout = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-16 bg-gray-50 min-h-screen">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-saira font-black text-[#3b2a20] mb-2">CHECKOUT</h1>
-        <p className="text-gray-600 text-lg">Complete your order</p>
+    <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 pt-16 sm:pt-20 bg-gray-50 min-h-screen">
+      <div className="text-center mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-saira font-black text-[#3b2a20] mb-1 sm:mb-2">CHECKOUT</h1>
+        <p className="text-gray-600 text-sm sm:text-base md:text-lg">Complete your order</p>
       </div>
       <h1 className="text-3xl font-bold mb-8 sr-only">Checkout</h1>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         <div className="lg:col-span-2">
           {isGuestCheckout ? (
             <>
-              <Card className="p-6 mb-6 border-l-4 border-l-blue-500 shadow-md">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">1</span>
-                  <h2 className="text-xl font-bold">Your Information</h2>
+              <Card className="p-4 sm:p-6 mb-4 sm:mb-6 border-l-4 border-l-blue-500 shadow-md">
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                  <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm sm:text-base">1</span>
+                  <h2 className="text-lg sm:text-xl font-bold">Your Information</h2>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
                     <Label htmlFor="guest-name">Full Name</Label>
                     <Input
@@ -961,13 +961,13 @@ const Checkout = () => {
                 </div>
               </Card>
 
-              <Card className="p-6 mb-6 border-l-4 border-l-green-500 shadow-md" data-address-form>
-                <div className="bg-green-50 -m-6 mb-4 p-4 border-b-2 border-green-200">
+              <Card className="p-4 sm:p-6 mb-4 sm:mb-6 border-l-4 border-l-green-500 shadow-md" data-address-form>
+                <div className="bg-green-50 -m-4 sm:-m-6 mb-3 sm:mb-4 p-3 sm:p-4 border-b-2 border-green-200">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">2</span>
-                    <h2 className="text-xl font-bold text-green-900">Delivery Address & Availability</h2>
+                    <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm sm:text-base">2</span>
+                    <h2 className="text-lg sm:text-xl font-bold text-green-900">Delivery Address & Availability</h2>
                   </div>
-                  <p className="text-sm text-green-700 mt-2 ml-10">Enter your pincode and click "Check Delivery" button below</p>
+                  <p className="text-xs sm:text-sm text-green-700 mt-1 sm:mt-2 ml-8 sm:ml-10">Enter your pincode and click "Check Delivery" button below</p>
                 </div>
                 <AddressForm
                   onAddressSubmit={(address, phone) => {
@@ -991,12 +991,12 @@ const Checkout = () => {
             </>
           ) : (
             <>
-              <Card className="p-6 mb-6 border-l-4 border-l-blue-500 shadow-md" data-contact-info>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">1</span>
-                  <h2 className="text-xl font-bold">Your Contact Information</h2>
+              <Card className="p-4 sm:p-6 mb-4 sm:mb-6 border-l-4 border-l-blue-500 shadow-md" data-contact-info>
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                  <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm sm:text-base">1</span>
+                  <h2 className="text-lg sm:text-xl font-bold">Your Contact Information</h2>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
                     <Label htmlFor="user-name">Full Name *</Label>
                     <Input
@@ -1173,59 +1173,59 @@ const Checkout = () => {
         </div>
 
         <div>
-          <Card className="p-6 mb-4">
-            <h2 className="text-xl font-bold mb-4">Order Items</h2>
-            <div className="space-y-3">
+          <Card className="p-4 sm:p-6 mb-4">
+            <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Order Items</h2>
+            <div className="space-y-2 sm:space-y-3">
               {items.map((item) => (
-                <div key={`${item.id}-${item.protein}`} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                <div key={`${item.id}-${item.protein}`} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                   {item.image && (
                     <img
                       src={getThumbnailUrl(item.image)}
                       alt={item.name}
-                      className="w-12 h-12 object-cover rounded-md flex-shrink-0"
+                      className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-md flex-shrink-0"
                       loading="lazy"
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{item.name}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="font-medium text-xs sm:text-sm">{item.name}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground">
                       {item.protein}
                     </div>
                   </div>
                   
                   {/* Quantity Controls */}
-                  <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-2 py-1">
+                  <div className="flex items-center gap-1 sm:gap-2 bg-gray-100 rounded-lg px-1.5 sm:px-2 py-1">
                     <button
                       onClick={() => updateQuantity(item.id, item.protein, Math.max(item.min_order_quantity || 1, item.quantity - 1))}
                       disabled={item.quantity <= (item.min_order_quantity || 1)}
-                      className="p-1 hover:bg-gray-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-0.5 sm:p-1 hover:bg-gray-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title={item.quantity <= (item.min_order_quantity || 1) ? `Minimum quantity is ${item.min_order_quantity}` : "Decrease quantity"}
                     >
-                      <Minus className="w-4 h-4 text-gray-600" />
+                      <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600" />
                     </button>
-                    <span className="font-medium text-sm min-w-[2rem] text-center">{item.quantity}</span>
+                    <span className="font-medium text-xs sm:text-sm min-w-[1.5rem] sm:min-w-[2rem] text-center">{item.quantity}</span>
                     <button
                       onClick={() => updateQuantity(item.id, item.protein, item.quantity + 1)}
                       disabled={item.quantity >= item.stock}
-                      className="p-1 hover:bg-gray-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-0.5 sm:p-1 hover:bg-gray-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title={item.quantity >= item.stock ? "Maximum stock reached" : "Increase quantity"}
                     >
-                      <Plus className="w-4 h-4 text-gray-600" />
+                      <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600" />
                     </button>
                   </div>
                   
                   <div className="text-right">
-                    <div className="font-medium text-sm">₹{(item.price * item.quantity).toFixed(2)}</div>
+                    <div className="font-medium text-xs sm:text-sm">₹{(item.price * item.quantity).toFixed(2)}</div>
                   </div>
                 </div>
               ))}
             </div>
           </Card>
 
-          <Card className="p-6 sticky top-4 border-l-4 border-l-primary shadow-lg">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">{isGuestCheckout ? '3' : '2'}</span>
-              <h2 className="text-xl font-bold">Order Summary</h2>
+          <Card className="p-4 sm:p-6 sticky top-4 border-l-4 border-l-primary shadow-lg">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm sm:text-base">{isGuestCheckout ? '3' : '2'}</span>
+              <h2 className="text-lg sm:text-xl font-bold">Order Summary</h2>
             </div>
             
             {/* Promo Code Section */}
@@ -1444,24 +1444,24 @@ const Checkout = () => {
             )}
 
             <div className="mb-4" data-payment-section>
-              <h3 className="font-semibold mb-2">Payment Method</h3>
-              <div className="space-y-3">
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">Payment Method</h3>
+              <div className="space-y-2 sm:space-y-3">
                 {/* COD Payment Option */}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cod')}
                   disabled={!deliveryChecked || !isCODAvailable}
-                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 font-medium ${
+                  className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-150 font-medium text-sm sm:text-base ${
                     !deliveryChecked || !isCODAvailable
                       ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed'
                       : paymentMethod === 'cod'
                       ? 'bg-[#5e4338] text-white border-[#5e4338]'
-                      : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5'
+                      : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5 active:scale-[0.98]'
                   }`}
                 >
                   Cash on Delivery (COD)
                   {!deliveryChecked || !isCODAvailable ? (
-                    <div className="text-xs mt-1 text-gray-500">
+                    <div className="text-[10px] sm:text-xs mt-1 text-gray-500">
                       {!deliveryChecked ? 'Check delivery availability first' : 'Not available for this area'}
                     </div>
                   ) : null}
@@ -1470,12 +1470,12 @@ const Checkout = () => {
                   type="button"
                   onClick={() => setPaymentMethod('online')}
                   disabled={!deliveryChecked}
-                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 font-medium ${
+                  className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-150 font-medium text-sm sm:text-base ${
                     !deliveryChecked
                       ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed'
                       : paymentMethod === 'online'
                       ? 'bg-[#5e4338] text-white border-[#5e4338]'
-                      : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5'
+                      : 'bg-white text-[#5e4338] border-[#5e4338] hover:bg-[#5e4338]/5 active:scale-[0.98]'
                   }`}
                 >
                   Online Payment
