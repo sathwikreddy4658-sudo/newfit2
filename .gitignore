@@ -38,3 +38,4 @@ TELEGRAM_BOT_SETUP.md
 scripts/firebase-admin-key.json
 newfit-35320-firebase-adminsdk-*.json
 firebase-service-account.json
+.vercel

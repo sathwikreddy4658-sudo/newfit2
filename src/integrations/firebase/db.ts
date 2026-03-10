@@ -18,7 +18,7 @@ import {
   onSnapshot,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from './client';
+import { db, auth } from './client';
 import { storage } from './client';
 import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
 import type { Product, Order, PromoCode, Blog, OrderItem } from './types';
@@ -312,8 +312,15 @@ export async function searchOrders(searchQuery: string): Promise<Order[]> {
     const query_lower = searchQuery.toLowerCase().trim();
     console.log('[DB] Searching orders for:', query_lower);
     
-    // Fetch all orders
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    // Check if user is authenticated
+    const currentUser = auth.currentUser;
+    
+    // For guests (not authenticated), only fetch guest orders (user_id == null)
+    // This prevents permission errors when querying orders
+    const q = currentUser 
+      ? query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
+      : query(collection(db, 'orders'), where('user_id', '==', null), orderBy('createdAt', 'desc'));
+    
     const snapshot = await getDocs(q);
     const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
     
@@ -347,16 +354,18 @@ export async function getGuestOrders(email: string, phone?: string): Promise<Ord
     
     console.log('[DB] Fetching guest orders for email:', email_lower, 'phone:', phone_clean);
     
-    // Fetch all orders
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    // Only fetch guest orders (user_id == null) to comply with Firestore rules
+    // This allows unauthenticated users to query their orders
+    const q = query(
+      collection(db, 'orders'), 
+      where('user_id', '==', null),
+      orderBy('createdAt', 'desc')
+    );
     const snapshot = await getDocs(q);
     const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
     
-    // Filter for guest orders (no user_id) matching email and/or phone
+    // Filter for orders matching email and/or phone
     const guestOrders = allOrders.filter(order => {
-      const isGuest = !order.user_id;
-      if (!isGuest) return false;
-      
       const emailMatch = order.customer_email?.toLowerCase() === email_lower;
       const phoneMatch = phone_clean && order.customer_phone?.replace(/\D/g, '').trim() === phone_clean;
       
