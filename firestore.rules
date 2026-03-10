@@ -105,8 +105,19 @@ service cloud.firestore {
         // Status can be: 'pending' (online payment), 'confirmed' (COD), or 'payment_initiated'
         request.resource.data.status in ['pending', 'confirmed', 'payment_initiated'];
       
-      // Update: Only admins can update orders
-      allow update: if isAdmin();
+      // Update: Admins can update all orders. 
+      // Authenticated users can claim guest orders (link to their account)
+      allow update: if isAdmin() ||
+                      (request.auth != null &&
+                       // Order must be a guest order (no user_id yet)
+                       resource.data.user_id == null &&
+                       // Email must match authenticated user
+                       resource.data.customer_email.lower() == request.auth.token.email.lower() &&
+                       // Only allowing user_id to be set to the current user
+                       request.resource.data.user_id == request.auth.uid &&
+                       // No other fields should be modified during linking
+                       request.resource.data.keys() == resource.data.keys().concat(['user_id']) ||
+                       request.resource.data.keys() == resource.data.keys());
       
       // Delete: Only admins can delete orders
       allow delete: if isAdmin();

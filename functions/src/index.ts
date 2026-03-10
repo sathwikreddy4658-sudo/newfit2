@@ -5,15 +5,16 @@
  *   phonepe-initiate      → POST /api/phonepe-initiate
  *   phonepe-check-status  → POST /api/phonepe-check-status
  *   phonepe-webhook       → POST /api/phonepe-webhook  (called by PhonePe)
+ *   send-email           → POST /api/send-email  (order confirmations)
  *   telegram notification → Firestore onCreate trigger on orders/{orderId}
  */
 
-import { onRequest } from "firebase-functions/v2/https";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import * as crypto from "crypto";
+import * as nodemailer from "nodemailer";
 
 // ─── Firebase Admin init ─────────────────────────────────────────────────────
 admin.initializeApp();
@@ -31,6 +32,12 @@ const PHONEPE_API_URL =
 // PhonePe Webhook credentials (used to verify incoming webhooks)
 const PHONEPE_WEBHOOK_USERNAME = process.env.PHONEPE_WEBHOOK_USERNAME || "";
 const PHONEPE_WEBHOOK_PASSWORD = process.env.PHONEPE_WEBHOOK_PASSWORD || "";
+
+// SMTP Configuration for email notifications
+const SMTP_HOST = process.env.SMTP_HOST || "smtp.hostinger.com";
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465", 10);
+const SMTP_USER = process.env.SMTP_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || "";
 
 // Telegram
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -490,6 +497,155 @@ app.post("/phonepe-webhook", async (req: Request, res: Response) => {
 //  POST /telegram-notify  (HTTP endpoint — for manual testing if needed)
 //  Also exposed as a Firestore onCreate trigger below.
 // ─────────────────────────────────────────────────────────────────────────────
+//  POST /send-email
+//  Sends order confirmation emails to customers
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/send-email", async (req: Request, res: Response) => {
+  try {
+    const {
+      orderId,
+      customerEmail,
+      customerName,
+      totalPrice,
+      orderItems,
+      address,
+      paymentMethod,
+      emailType = "confirmation",
+      trackingNumber,
+      carrierName,
+      estimatedDeliveryDate,
+    } = req.body as Record<string, unknown>;
+
+    // Validate required fields
+    if (!orderId || !customerEmail || !customerName) {
+      res.status(400).json({
+        success: false,
+        message: "Missing required fields: orderId, customerEmail, customerName",
+      });
+      return;
+    }
+
+    // Create nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465, // true for 465, false for other ports
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+    });
+
+    // Verify SMTP connection
+    try {
+      await transporter.verify();
+      console.log("[Email] SMTP connection verified");
+    } catch (smtpErr) {
+      console.error("[Email] SMTP configuration error:", smtpErr);
+      res.status(500).json({
+        success: false,
+        message: "Email service configuration error",
+      });
+      return;
+    }
+
+    // Build email HTML based on type
+    let emailSubject = `Order Confirmed - #${String(orderId).slice(0, 8)}`;
+    let emailHtml = "";
+
+    if (emailType === "confirmation") {
+      emailSubject = `Order Confirmed - #${String(orderId).slice(0, 8)}`;
+      const itemsHtml = (Array.isArray(orderItems)
+        ? (orderItems as Record<string, unknown>[])
+        : []
+      )
+        .map(
+          (item: Record<string, unknown>) =>
+            `<tr><td style="padding:10px;border-bottom:1px solid #ddd;">${item.name}</td><td style="padding:10px;border-bottom:1px solid #ddd;">₹${item.price}</td></tr>`
+        )
+        .join("");
+
+      emailHtml = `
+      <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+          <h2 style="color: #3b2a20;">Order Confirmation</h2>
+          <p>Dear ${customerName},</p>
+          <p>Thank you for your order! Here are your order details:</p>
+          
+          <table style="width:100%;border-collapse:collapse;">
+            <tr style="background-color:#f5f5f5;">
+              <th style="padding:10px;text-align:left;">Product</th>
+              <th style="padding:10px;text-align:left;">Price</th>
+            </tr>
+            ${itemsHtml}
+          </table>
+          
+          <p><strong>Total Amount:</strong> ₹${totalPrice}</p>
+          <p><strong>Payment Method:</strong> ${paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment"}</p>
+          <p><strong>Delivery Address:</strong> ${address}</p>
+          
+          <p>You can track your order using order ID: <strong>${orderId}</strong></p>
+          
+          <p>Thank you for choosing NewFit!</p>
+        </body>
+      </html>
+      `;
+    } else if (emailType === "shipped") {
+      emailSubject = `Your Order #${String(orderId).slice(0, 8)} Has Been Shipped!`;
+      emailHtml = `
+      <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+          <h2 style="color: #3b2a20;">Order Shipped</h2>
+          <p>Dear ${customerName},</p>
+          <p>Your order has been shipped!</p>
+          
+          <p><strong>Tracking Number:</strong> ${trackingNumber || "N/A"}</p>
+          <p><strong>Carrier:</strong> ${carrierName || "N/A"}</p>
+          <p><strong>Estimated Delivery:</strong> ${estimatedDeliveryDate || "Soon"}</p>
+          
+          <p>You can track your shipment using the tracking number above.</p>
+          
+          <p>Thank you for your patience!</p>
+        </body>
+      </html>
+      `;
+    } else if (emailType === "delivered") {
+      emailSubject = `Your Order #${String(orderId).slice(0, 8)} Has Been Delivered!`;
+      emailHtml = `
+      <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+          <h2 style="color: #3b2a20;">Order Delivered</h2>
+          <p>Dear ${customerName},</p>
+          <p>Great news! Your order has been delivered.</p>
+          
+          <p>We hope you enjoy your purchase. If you have any questions, please feel free to contact us.</p>
+          
+          <p>Thank you for shopping with NewFit!</p>
+        </body>
+      </html>
+      `;
+    }
+
+    // Send email
+    await transporter.sendMail({
+      from: SMTP_USER,
+      to: String(customerEmail),
+      subject: emailSubject,
+      html: emailHtml,
+    });
+
+    console.log(`[Email] Order confirmation email sent to ${customerEmail}`);
+    res.status(200).json({ success: true, message: "Email sent successfully" });
+  } catch (err) {
+    console.error("[Email] Error sending email:", err);
+    res.status(500).json({
+      success: false,
+      message: err instanceof Error ? err.message : "Internal server error",
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 app.post("/telegram-notify", async (req: Request, res: Response) => {
   try {
     const { record } = req.body as { record: Record<string, unknown> };
@@ -597,30 +753,17 @@ ${address}
 // ─────────────────────────────────────────────────────────────────────────────
 //  Export the Express app as a single HTTP function  → /api/*
 // ─────────────────────────────────────────────────────────────────────────────
-// Gen 2 HTTP function with configuration
-export const api = onRequest(
-  {
-    timeoutSeconds: 60,
-    memory: "256MiB",
-    maxInstances: 10,
-  },
-  app
-);
+export const api = functions.https.onRequest(app);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Firestore trigger: when a new order document is created → send Telegram
+//  TODO: Fix 1st Gen / 2nd Gen compatibility
 // ─────────────────────────────────────────────────────────────────────────────
-export const onNewOrder = onDocumentCreated(
-  "orders/{orderId}",
-  async (event) => {
-    const snap = event.data;
-    if (!snap) {
-      console.log("No data associated with the event");
-      return;
-    }
-    const orderData = snap.data() as Record<string, unknown>;
-    // Inject the document ID as `id` so the helper can use it
-    orderData.id = snap.id;
-    await sendTelegramNotification(orderData);
-  }
-);
+// export const onNewOrder = functions.firestore
+//   .document("orders/{orderId}")
+//   .onCreate(async (snap: admin.firestore.DocumentSnapshot) => {
+//     const orderData = snap.data() as Record<string, unknown>;
+//     // Inject the document ID as `id` so the helper can use it
+//     orderData.id = snap.id;
+//     await sendTelegramNotification(orderData);
+//   });

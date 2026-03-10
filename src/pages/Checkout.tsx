@@ -27,6 +27,75 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+// Helper function to send order confirmation email
+async function sendOrderConfirmationEmail(
+  orderId: string,
+  customerEmail: string,
+  customerName: string,
+  totalPrice: number,
+  orderItems: any[],
+  address: string,
+  paymentMethod: 'online' | 'cod'
+) {
+  try {
+    console.log('[Email] Sending order confirmation email...');
+    
+    // Try calling via a backend proxy or direct endpoint
+    // In production, this endpoint should be proxied by your hosting provider
+    const emailEndpoints = [
+      'https://freelit.in/api/send-email',  // Production endpoint
+      '/api/send-email',                     // Proxy endpoint (if configured)
+    ];
+    
+    // Also try Firebase Functions endpoint if available
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      emailEndpoints.push('https://us-central1-newfit-35320.cloudfunctions.net/api/send-email');
+    }
+    
+    let lastError: any = null;
+    
+    for (const endpoint of emailEndpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId,
+            customerEmail,
+            customerName,
+            totalPrice,
+            orderItems,
+            address,
+            paymentMethod,
+            emailType: 'confirmation',
+            createdAt: new Date().toISOString(),
+          }),
+          timeout: 10000,
+        });
+
+        if (response.ok) {
+          console.log('[Email] Order confirmation email sent successfully');
+          return true;
+        }
+      } catch (err) {
+        lastError = err;
+        console.log(`[Email] Failed to send via ${endpoint}:`, err);
+        continue; // Try next endpoint
+      }
+    }
+    
+    // All endpoints failed - log warning but don't fail the order
+    console.warn('[Email] Could not send confirmation email (non-critical):', lastError);
+    return false;
+  } catch (error) {
+    console.error('[Email] Email sending error (non-critical):', error);
+    // Non-fatal error - don't prevent order completion
+    return false;
+  }
+}
+
 const Checkout = () => {
   const { items, totalPrice, clearCart, discountedTotal, discountAmount, promoCode, totalWeight, applyPromoCode, removePromoCode, updateQuantity } = useCart();
   const navigate = useNavigate();
@@ -735,6 +804,19 @@ const Checkout = () => {
       const createdOrder = await createOrder(orderData);
       orderId = createdOrder.id;
       console.log('[Checkout] Order created successfully with ID:', orderId);
+      
+      // Send order confirmation email (non-blocking, in background)
+      const emailTo = isGuestCheckout ? guestData.email : user?.email || '';
+      const emailName = isGuestCheckout ? guestData.name : user?.displayName || user?.email?.split('@')[0] || 'Customer';
+      sendOrderConfirmationEmail(
+        orderId,
+        emailTo,
+        emailName,
+        orderData.total_amount,
+        orderItems,
+        orderAddress,
+        paymentMethod
+      ).catch(err => console.error('[Checkout] Email sending error (background):', err));
     } catch (error) {
       console.error('[Checkout] Order creation failed:', error);
       toast({
@@ -759,12 +841,14 @@ const Checkout = () => {
     if (paymentMethod === 'cod') {
       console.log('[Checkout] Confirming COD order:', { orderId, codTransactionId });
       
-      // Deduct stock immediately for COD orders (no webhook for COD)
-      try {
-        await deductStock(orderItems.map(i => ({ productId: i.productId, quantity: i.quantity })));
-        console.log('[Checkout] Stock deducted for COD order');
-      } catch (err) {
-        console.error('[Checkout] Stock deduction error (non-fatal):', err);
+      // Deduct stock in background (don't await to avoid blocking order confirmation)
+      // Only for authenticated users - guests can't write to products anyway
+      if (user) {
+        deductStock(orderItems.map(i => ({ productId: i.productId, quantity: i.quantity })))
+          .then(() => console.log('[Checkout] Stock deducted for COD order'))
+          .catch(err => console.error('[Checkout] Stock deduction error (background):', err));
+      } else {
+        console.log('[Checkout] Skipping stock deduction for guest order (no write permission)');
       }
       
       console.log('[Checkout] COD order confirmed successfully');

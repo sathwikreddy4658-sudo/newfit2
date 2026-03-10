@@ -8,9 +8,12 @@ import {
   User as FirebaseUser,
   setPersistence,
   browserLocalPersistence,
+  signInWithPopup,
+  GoogleAuthProvider,
+  GithubAuthProvider,
 } from 'firebase/auth';
 import { auth, db } from './client';
-import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, Timestamp, query, collection, where, getDocs } from 'firebase/firestore';
 
 // Export auth for direct use in components
 export { auth };
@@ -26,7 +29,7 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
 export async function registerUser(
   email: string,
   password: string,
-  displayName: string
+  displayName?: string
 ): Promise<FirebaseUser> {
   try {
     // Create user in Firebase Auth
@@ -34,13 +37,13 @@ export async function registerUser(
     const user = userCredential.user;
 
     // Update profile
-    await updateProfile(user, { displayName });
+    await updateProfile(user, { displayName: displayName || email.split('@')[0] });
 
     // Create user document in Firestore
     await setDoc(doc(db, 'users', user.uid), {
       uid: user.uid,
       email,
-      displayName,
+      displayName: displayName || email.split('@')[0],
       address: '',
       favorites: [],
       role: 'user',
@@ -152,5 +155,112 @@ export async function getUserDocument(uid: string) {
   } catch (error: any) {
     console.error('❌ Error fetching user:', error.message);
     throw error;
+  }
+}
+
+// ============================================
+// SIGN IN WITH GOOGLE
+// ============================================
+export async function signInWithGoogle(): Promise<FirebaseUser> {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    
+    const user = result.user;
+    
+    // Check if user document exists
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    
+    // If not, create user document
+    if (!userDoc.exists()) {
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || 'Google User',
+        photoURL: user.photoURL || '',
+        address: '',
+        favorites: [],
+        role: 'user',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    }
+    
+    console.log('✅ User signed in with Google:', user.email);
+    return user;
+  } catch (error: any) {
+    console.error('❌ Google sign-in error:', error.message);
+    throw new Error(`Google sign-in failed: ${error.message}`);
+  }
+}
+
+// ============================================
+// SIGN IN WITH GITHUB
+// ============================================
+export async function signInWithGitHub(): Promise<FirebaseUser> {
+  try {
+    const provider = new GithubAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    
+    const user = result.user;
+    
+    // Check if user document exists
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    
+    // If not, create user document
+    if (!userDoc.exists()) {
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || 'GitHub User',
+        photoURL: user.photoURL || '',
+        address: '',
+        favorites: [],
+        role: 'user',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    }
+    
+    console.log('✅ User signed in with GitHub:', user.email);
+    return user;
+  } catch (error: any) {
+    console.error('❌ GitHub sign-in error:', error.message);
+    throw new Error(`GitHub sign-in failed: ${error.message}`);
+  }
+}
+
+// ============================================
+// LINK GUEST ORDERS TO USER ACCOUNT
+// ============================================
+export async function linkGuestOrdersToUser(
+  userId: string,
+  guestEmail: string
+): Promise<number> {
+  try {
+    // Find all orders with this guest email and no user_id
+    const q = query(
+      collection(db, 'orders'),
+      where('customer_email', '==', guestEmail.toLowerCase()),
+      where('user_id', '==', null)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    let linkedCount = 0;
+    
+    // Update each guest order to link to the new user
+    for (const orderDoc of querySnapshot.docs) {
+      await updateDoc(doc(db, 'orders', orderDoc.id), {
+        user_id: userId,
+        updatedAt: Timestamp.now(),
+      });
+      linkedCount++;
+    }
+    
+    console.log(`✅ Linked ${linkedCount} guest orders to user:`, userId);
+    return linkedCount;
+  } catch (error: any) {
+    console.error('❌ Error linking guest orders:', error.message);
+    throw new Error(`Failed to link guest orders: ${error.message}`);
   }
 }
