@@ -312,27 +312,34 @@ export async function searchOrders(searchQuery: string): Promise<Order[]> {
     const query_lower = searchQuery.toLowerCase().trim();
     console.log('[DB] Searching orders for:', query_lower);
     
-    // Check if user is authenticated
-    const currentUser = auth.currentUser;
-    
-    // For guests (not authenticated), only fetch guest orders (user_id == null)
-    // This prevents permission errors when querying orders
-    const q = currentUser 
-      ? query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
-      : query(collection(db, 'orders'), where('user_id', '==', null), orderBy('createdAt', 'desc'));
+    // Always fetch ALL orders without auth restrictions for tracking purposes
+    // Customers should be able to track their orders by ID/email/phone regardless of auth state
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     
     const snapshot = await getDocs(q);
     const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
     
-    // Search by order ID, email, or phone
+    console.log(`[DB] Total orders in database: ${allOrders.length}`);
+    
+    // Search by order ID (both order_number and Firestore ID), email, or phone
     const results = allOrders.filter(order => {
       const orderId = order.order_number?.toLowerCase() || '';
+      const docId = order.id?.toLowerCase() || '';
       const email = order.customer_email?.toLowerCase() || '';
       const phone = order.customer_phone?.replace(/\D/g, '') || '';
       const searchClean = query_lower.replace(/\D/g, '');
       
+      // Try multiple matching strategies for IDs
+      // 1. Exact match
+      // 2. Prefix match (ORD-123...)
+      // 3. Substring match (catch partial IDs)
       return (
+        orderId === query_lower ||
+        docId === query_lower ||
+        orderId.startsWith(query_lower) ||
+        docId.startsWith(query_lower) ||
         orderId.includes(query_lower) ||
+        docId.includes(query_lower) ||
         email.includes(query_lower) ||
         phone.includes(searchClean)
       );

@@ -667,8 +667,15 @@ const Checkout = () => {
     const customerPhone = user ? userContactData.phone?.trim() : guestData.phone?.trim();
 
     // Pricing breakdown
-    const itemsSubtotal = discountedTotal !== undefined ? discountedTotal : totalPrice; // after product discount
-    const appliedDiscount = discountAmount || 0;
+    // itemsTotal = sum of orderItems prices (raw items at checkout price) - already calculated above
+    // totalPrice (from cart) = already has combo discount applied
+    // comboDiscountAmount = itemsTotal - totalPrice
+    const appliedDiscount = discountAmount || 0;  // Only promo code discount
+    
+    // Combo discount = difference between raw items and what CartContext calculated
+    const comboDiscountAmount = Math.max(0, itemsTotal - totalPrice);
+    
+    const itemsSubtotal = totalPrice;  // Price after combo discounts but before promo
     const netShipping = Math.max(0, shippingCharge - shippingDiscount);
     const codCharge = finalPricing.codCharge || 0;
 
@@ -769,11 +776,13 @@ const Checkout = () => {
       customer_phone: customerPhone || null,
       address: orderAddress,
       items: orderItems,
+      items_subtotal: itemsSubtotal,  // Price after combo discounts
+      discount_amount: appliedDiscount,  // Promo code discount only
+      combo_discount_amount: comboDiscountAmount,  // Combo pack discount amount
       total_amount: itemsSubtotal + netShipping + codCharge - appliedDiscount,
       status: paymentMethod === 'cod' ? 'confirmed' : 'pending',
       paid: paymentMethod === 'online' ? false : true,
       payment_method: paymentMethod,
-      discount_amount: appliedDiscount,
       shipping_charge: netShipping,
       cod_charge: codCharge,
       promo_code: promoCode?.code || null

@@ -154,14 +154,22 @@ export interface Order {
   customer_name: string;
   customer_email: string;
   customer_phone: string;
+  address?: string;
   
   items: OrderItem[];
   
   total_amount: number;
+  items_subtotal?: number;  // Raw items total before any discounts
+  discount_amount?: number;  // Promo code discount only
+  combo_discount_amount?: number;  // Combo pack discount
+  shipping_charge?: number;
+  cod_charge?: number;
+  
   status: string;
   paid: boolean;
   
   payment_method?: string;
+  promo_code?: string;
   
   createdAt: Timestamp;
   updatedAt: Timestamp;

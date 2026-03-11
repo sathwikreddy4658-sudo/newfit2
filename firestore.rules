@@ -78,14 +78,13 @@ service cloud.firestore {
     }
 
     // ============ ORDERS ============
-    // Public read/write: Anyone (guests, users, admins) can create orders with strict validation.
-    // Guests create orders during checkout, users/admins can view & manage.
-    // Admins can read all orders. Users/guests can read their own (by email).
+    // Anyone (guests, users, admins) can read orders for tracking purposes
+    // Anyone can create orders with strict validation (for checkout)
+    // Only admins can update/delete orders
     match /orders/{orderId} {
-      // Read: Admins can read all, users can read their own, guests can read guest orders
-      allow read: if isAdmin() || 
-                    (request.auth != null && resource.data.user_id == request.auth.uid) ||
-                    (resource.data.user_id == null);  // Allow anyone to read guest orders
+      // Read: ANYONE can read orders for tracking (via order ID, email, or phone)
+      // This is a public feature - customers should be able to track their orders
+      allow read: if true;
       
       // Create: ANYONE (guests or authenticated) can create orders with strict validation
       allow create: if 

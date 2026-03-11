@@ -130,12 +130,12 @@ const TrackOrder = () => {
             {/* Order ID Search */}
             <div>
               <Label htmlFor="orderId" className="text-xs sm:text-sm font-poppins font-semibold text-[#3b2a20]">
-                Order ID (Optional)
+                Order Number or Reference ID (Optional)
               </Label>
               <Input
                 id="orderId"
                 type="text"
-                placeholder="e.g., ORD-1709907600000"
+                placeholder="e.g., ORD-1709907600000 or JQF4mcy2"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
                 disabled={loading}
@@ -229,6 +229,9 @@ const TrackOrder = () => {
                             <h3 className="font-saira font-bold text-base sm:text-lg md:text-xl text-[#3b2a20] break-words">
                               {order.order_number}
                             </h3>
+                            <p className="font-poppins text-xs text-[#3b2a20]/50 mt-0.5">
+                              Reference ID: {order.id}
+                            </p>
                             <p className="font-poppins text-xs sm:text-sm text-[#3b2a20]/60 mt-1">
                               <Calendar className="h-3 sm:h-4 w-3 sm:w-4 inline mr-1" />
                               {formatDate(order.createdAt)}
@@ -290,13 +293,30 @@ const TrackOrder = () => {
 
                       {/* Pricing Summary */}
                       <div className="border-t-2 border-[#b5edce] pt-3 sm:pt-4 space-y-2 sm:space-y-3 font-poppins text-xs sm:text-sm">
+                        {/* Raw Items Total */}
                         <div className="flex justify-between text-[#3b2a20]/70">
-                          <span>Subtotal:</span>
-                          <span>₹{(order.total_amount - (order.shipping_charge || 0) + (order.discount_amount || 0)).toFixed(2)}</span>
+                          <span>Items:</span>
+                          <span>₹{order.items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0).toFixed(2) || '0.00'}</span>
                         </div>
-                        {order.discount_amount > 0 && (
+                        
+                        {/* Combo Discount if applicable */}
+                        {order.combo_discount_amount && order.combo_discount_amount > 0 && (
                           <div className="flex justify-between text-green-600 font-semibold">
-                            <span>Discount:</span>
+                            <span>Combo Discount:</span>
+                            <span>-₹{order.combo_discount_amount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        
+                        {/* Subtotal after combo discounts */}
+                        <div className="flex justify-between text-[#3b2a20] font-semibold">
+                          <span>Subtotal:</span>
+                          <span>₹{(order.items_subtotal || order.items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) - (order.combo_discount_amount || 0)).toFixed(2)}</span>
+                        </div>
+                        
+                        {/* Promo Discount if applicable */}
+                        {order.discount_amount && order.discount_amount > 0 && (
+                          <div className="flex justify-between text-green-600 font-semibold">
+                            <span>Promo Discount:</span>
                             <span>-₹{order.discount_amount.toFixed(2)}</span>
                           </div>
                         )}

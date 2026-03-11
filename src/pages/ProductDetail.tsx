@@ -71,6 +71,7 @@ const ProductDetail = () => {
   const [lastTapTime, setLastTapTime] = useState(0);
   const [tapTimeout, setTapTimeout] = useState<NodeJS.Timeout | null>(null);
   const [swipeStartX, setSwipeStartX] = useState(0);
+  const [swipeStartY, setSwipeStartY] = useState(0);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const accentColor = getProductAccentColor(product?.name);
 
@@ -170,7 +171,7 @@ const ProductDetail = () => {
     if (!user || !product) return;
     
     try {
-      const localFavorites = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || '[]');
+      const localFavorites = JSON.parse(localStorage.getItem(`favorites_${user.uid}`) || '[]');
       setIsFavorite(localFavorites.includes(product.id));
     } catch (error) {
       console.error("Error checking favorites:", error);
@@ -208,7 +209,7 @@ const ProductDetail = () => {
       try {
         let localFavorites: string[] = [];
         try {
-          const stored = localStorage.getItem(`favorites_${user.id}`);
+          const stored = localStorage.getItem(`favorites_${user.uid}`);
           if (stored) {
             const parsed = JSON.parse(stored);
             localFavorites = Array.isArray(parsed) ? parsed : [];
@@ -226,7 +227,7 @@ const ProductDetail = () => {
           setIsFavorite(false);
           
           // Remove from Firestore
-          await removeFromFavorites(user.id, product.id);
+          await removeFromFavorites(user.uid, product.id);
           
           toast({ title: "Removed from favorites" });
         } else {
@@ -239,12 +240,12 @@ const ProductDetail = () => {
           setIsFavorite(true);
           
           // Add to Firestore
-          await addToFavorites(user.id, product.id);
+          await addToFavorites(user.uid, product.id);
           
           toast({ title: "Added to favorites", description: "Double-tap heart icon to view all favorites" });
         }
         
-        localStorage.setItem(`favorites_${user.id}`, JSON.stringify(updatedFavorites));
+        localStorage.setItem(`favorites_${user.uid}`, JSON.stringify(updatedFavorites));
       } catch (error) {
         console.error("Error updating favorites:", error);
         toast({ title: "Error updating favorites", variant: "destructive" });
@@ -351,14 +352,22 @@ const ProductDetail = () => {
 
   const handleSwipeStart = (e: React.TouchEvent) => {
     setSwipeStartX(e.touches[0].clientX);
+    setSwipeStartY(e.touches[0].clientY);
   };
 
   const handleSwipeEnd = (e: React.TouchEvent) => {
     const swipeEndX = e.changedTouches[0].clientX;
-    const swipeDiff = swipeStartX - swipeEndX;
+    const swipeEndY = e.changedTouches[0].clientY;
+    const swipeDiffX = swipeStartX - swipeEndX;
+    const swipeDiffY = Math.abs(swipeStartY - swipeEndY);
     
-    if (Math.abs(swipeDiff) > 50) {
-      if (swipeDiff > 0) {
+    // Only allow horizontal swipes, not vertical ones
+    // Require horizontal movement to be significantly greater than vertical
+    const minHorizontalThreshold = 50;
+    const horizontalDistance = Math.abs(swipeDiffX);
+    
+    if (horizontalDistance > minHorizontalThreshold && horizontalDistance > swipeDiffY * 1.5) {
+      if (swipeDiffX > 0) {
         // Swiped left, go to next product
         navigateToNextProduct();
       } else {
@@ -977,9 +986,18 @@ const ProductDetail = () => {
             <ChevronRight className="h-5 w-5 text-black" />
           </Button>
 
-          {/* Swipe Hint Text */}
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-600 bg-white/70 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-            Swipe or click to explore
+          {/* Swipe Indicator - Always Visible */}
+          <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-1">
+            {/* Swipe arrows animation */}
+            <div className="flex gap-1 justify-center">
+              <svg className="w-4 h-4 text-gray-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <svg className="w-4 h-4 text-gray-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <span className="text-xs text-gray-600 bg-white/70 px-2 py-1 rounded font-medium">Swipe for more</span>
           </div>
         </div>
       </div>

@@ -1100,9 +1100,16 @@ const OrdersTab = () => {
                         </span>
                       </div>
                       
-                      {order.discount_amount > 0 && (
+                      {order.combo_discount_amount && order.combo_discount_amount > 0 && (
                         <div className="flex justify-between text-sm text-green-700">
-                          <span>Discount Applied:</span>
+                          <span>Combo Discount:</span>
+                          <span className="font-medium">-₹{parseFloat(order.combo_discount_amount).toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {order.discount_amount && order.discount_amount > 0 && (
+                        <div className="flex justify-between text-sm text-green-700">
+                          <span>Promo Discount:</span>
                           <span className="font-medium">-₹{parseFloat(order.discount_amount).toFixed(2)}</span>
                         </div>
                       )}
@@ -1114,7 +1121,7 @@ const OrdersTab = () => {
                         </div>
                       )}
                       
-                      {order.cod_charge > 0 && (
+                      {order.cod_charge && order.cod_charge > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">COD Charge:</span>
                           <span className="font-medium">₹{parseFloat(order.cod_charge).toFixed(2)}</span>
