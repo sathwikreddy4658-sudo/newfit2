@@ -31,8 +31,50 @@ const BlogDetail = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (dateString: any) => {
+    if (!dateString) return 'Date not available';
+    
+    let date: Date;
+    
+    // Handle Firestore Timestamp object
+    if (dateString.toDate && typeof dateString.toDate === 'function') {
+      date = dateString.toDate();
+    } 
+    // Handle Date object
+    else if (dateString instanceof Date) {
+      date = dateString;
+    }
+    // Handle number (milliseconds or seconds timestamp)
+    else if (typeof dateString === 'number') {
+      date = new Date(dateString > 10000000000 ? dateString : dateString * 1000);
+    }
+    // Handle string
+    else if (typeof dateString === 'string') {
+      date = new Date(dateString);
+    }
+    // Try parsing as JSON in case it's stored as object string
+    else if (typeof dateString === 'object') {
+      try {
+        if (dateString._seconds !== undefined) {
+          // Firestore timestamp object format
+          date = new Date(dateString._seconds * 1000);
+        } else {
+          date = new Date();
+        }
+      } catch (e) {
+        return 'Date not available';
+      }
+    }
+    else {
+      return 'Date not available';
+    }
+    
+    // Validate the date
+    if (isNaN(date.getTime())) {
+      return 'Date not available';
+    }
+    
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -177,18 +219,18 @@ const BlogDetail = () => {
             </div>
           )}
 
-          <header className="mb-10">
+          <header className="mb-16 sm:mb-12 md:mb-12 pb-12 sm:pb-8 md:pb-6 border-b-2 border-[#b5edce]/30">
             <h1 className="text-4xl font-saira font-black mb-2 text-[#3b2a20]">{blog.title}</h1>
             <p className="text-[#3b2a20]/70 font-poppins text-sm mb-4">By Freel It Team</p>
             <div className="flex items-center gap-4 text-[#3b2a20]/70 text-sm font-poppins">
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                {formatDate(blog.created_at)}
+                {formatDate(blog.createdAt)}
               </div>
             </div>
           </header>
 
-          <div className="font-poppins text-[18px] font-normal leading-[1.5] text-[#3b2a20]">
+          <div className="font-poppins text-[18px] font-normal leading-[1.5] text-[#3b2a20] mt-20 sm:mt-16 md:mt-14 pt-12 sm:pt-8 md:pt-6">
             {(() => {
               const parsedContent = parseContent(blog.content);
               
@@ -212,11 +254,11 @@ const BlogDetail = () => {
                         <div key={index}>
                           {section.type === 'heading' ? (
                             isRich ? (
-                              <div className="text-2xl font-saira font-semibold mb-3 text-[#3b2a20] mt-6 first:mt-0 pb-3 border-b-2 border-[#b5edce] leading-[1.3]">
+                              <div className="text-2xl font-saira font-semibold mb-3 text-[#3b2a20] mt-8 pb-3 border-b-2 border-[#b5edce] leading-[1.3]">
                                 {renderRichContent(section.text)}
                               </div>
                             ) : (
-                              <h2 className="text-2xl font-saira font-semibold mb-3 text-[#3b2a20] mt-6 first:mt-0 pb-3 border-b-2 border-[#b5edce] leading-[1.3]">
+                              <h2 className="text-2xl font-saira font-semibold mb-3 text-[#3b2a20] mt-8 pb-3 border-b-2 border-[#b5edce] leading-[1.3]">
                                 {section.text}
                               </h2>
                             )
@@ -224,7 +266,7 @@ const BlogDetail = () => {
                             isRich ? (
                               renderRichContent(section.text)
                             ) : (
-                              <p className="text-[#3b2a20] whitespace-pre-wrap leading-[1.5] mb-4">
+                              <p className="text-[#3b2a20] whitespace-pre-wrap leading-[1.5] mb-4 mt-12 sm:mt-8 md:mt-6">
                                 {section.text}
                               </p>
                             )

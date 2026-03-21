@@ -1,10 +1,58 @@
 import mkbg from "@/assets/mkbg.png";
 import pckbg from "@/assets/pckbg.png";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getKYFLinksForSection } from "@/integrations/firebase/db";
+import { KYF_SECTIONS, getAllSectionIds } from "@/config/kyfSections";
+
+interface KYFLink {
+  id?: string;
+  sectionId: string;
+  subsectionId: string;
+  title: string;
+  url: string;
+  order: number;
+}
 
 const KnowYourFood = () => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [expandedTerms, setExpandedTerms] = useState<Set<string>>(new Set());
+  const [kyfLinks, setKyfLinks] = useState<Record<string, KYFLink[]>>({});
+  const [loading, setLoading] = useState(true);
+
+  // Fetch KYF links for all subsections dynamically
+  useEffect(() => {
+    const fetchAllLinks = async () => {
+      try {
+        setLoading(true);
+        const allSectionIds = getAllSectionIds();
+        const linksMap: Record<string, KYFLink[]> = {};
+
+        // For each section, fetch all links and group by subsectionId
+        for (const sectionId of allSectionIds) {
+          try {
+            const sectionLinks = await getKYFLinksForSection(sectionId);
+            // Group by subsectionId
+            sectionLinks.forEach(link => {
+              if (!linksMap[link.subsectionId]) {
+                linksMap[link.subsectionId] = [];
+              }
+              linksMap[link.subsectionId].push(link);
+            });
+          } catch (error) {
+            console.error(`Error fetching links for section ${sectionId}:`, error);
+          }
+        }
+
+        setKyfLinks(linksMap);
+      } catch (error) {
+        console.error("Error fetching KYF links:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllLinks();
+  }, []);
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -224,6 +272,25 @@ const KnowYourFood = () => {
                       </li>
                     ))}
                   </ul>
+                  {/* Display KYF Links if available */}
+                  {kyfLinks[section.id] && kyfLinks[section.id].length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                      <p className="text-sm font-semibold text-[#3b2a20] mb-2">Learn more:</p>
+                      <div className="flex flex-col gap-2">
+                        {kyfLinks[section.id].map((link) => (
+                          <a
+                            key={link.id}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 hover:underline text-sm font-poppins break-words"
+                          >
+                            → {link.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -268,6 +335,25 @@ const KnowYourFood = () => {
                       </li>
                     ))}
                   </ul>
+                  {/* Display KYF Links if available */}
+                  {kyfLinks[word.id] && kyfLinks[word.id].length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                      <p className="text-sm font-semibold text-[#3b2a20] mb-2">Learn more:</p>
+                      <div className="flex flex-col gap-2">
+                        {kyfLinks[word.id].map((link) => (
+                          <a
+                            key={link.id}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 hover:underline text-sm font-poppins break-words"
+                          >
+                            → {link.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -312,6 +398,25 @@ const KnowYourFood = () => {
                       </li>
                     ))}
                   </ul>
+                  {/* Display KYF Links if available */}
+                  {kyfLinks[term.id] && kyfLinks[term.id].length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                      <p className="text-sm font-semibold text-[#3b2a20] mb-2">Learn more:</p>
+                      <div className="flex flex-col gap-2">
+                        {kyfLinks[term.id].map((link) => (
+                          <a
+                            key={link.id}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 hover:underline text-sm font-poppins break-words"
+                          >
+                            → {link.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

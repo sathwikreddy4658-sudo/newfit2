@@ -25,8 +25,50 @@ const Blogs = () => {
     setLoading(false);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (dateString: any) => {
+    if (!dateString) return 'Date not available';
+    
+    let date: Date;
+    
+    // Handle Firestore Timestamp object
+    if (dateString.toDate && typeof dateString.toDate === 'function') {
+      date = dateString.toDate();
+    } 
+    // Handle Date object
+    else if (dateString instanceof Date) {
+      date = dateString;
+    }
+    // Handle number (milliseconds or seconds timestamp)
+    else if (typeof dateString === 'number') {
+      date = new Date(dateString > 10000000000 ? dateString : dateString * 1000);
+    }
+    // Handle string
+    else if (typeof dateString === 'string') {
+      date = new Date(dateString);
+    }
+    // Try parsing as JSON in case it's stored as object string
+    else if (typeof dateString === 'object') {
+      try {
+        if (dateString._seconds !== undefined) {
+          // Firestore timestamp object format
+          date = new Date(dateString._seconds * 1000);
+        } else {
+          date = new Date();
+        }
+      } catch (e) {
+        return 'Date not available';
+      }
+    }
+    else {
+      return 'Date not available';
+    }
+    
+    // Validate the date
+    if (isNaN(date.getTime())) {
+      return 'Date not available';
+    }
+    
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",

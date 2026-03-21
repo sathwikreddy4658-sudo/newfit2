@@ -1307,6 +1307,154 @@ export async function getPincodesByState(state: string): Promise<PincodeData[]> 
 }
 
 // ============================================
+// KNOW YOUR FOOD LINKS
+// ============================================
+
+interface KYFLink {
+  id?: string;
+  sectionId: string;
+  subsectionId: string;
+  title: string;
+  url: string;
+  order: number;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+/**
+ * Get KYF links for a specific section and subsection
+ */
+export async function getKYFLinksForSubsection(sectionId: string, subsectionId: string): Promise<KYFLink[]> {
+  try {
+    // Fetch all links for the section
+    const q = query(
+      collection(db, 'kyf_links'),
+      where('sectionId', '==', sectionId)
+    );
+    const snapshot = await getDocs(q);
+    
+    // Filter by subsectionId on client side to avoid composite index requirement
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as KYFLink))
+      .filter(link => link.subsectionId === subsectionId)
+      .sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error('Error fetching KYF links:', error);
+    return [];
+  }
+}
+
+/**
+ * Get all KYF links for a section
+ */
+export async function getKYFLinksForSection(sectionId: string): Promise<KYFLink[]> {
+  try {
+    const q = query(
+      collection(db, 'kyf_links'),
+      where('sectionId', '==', sectionId)
+    );
+    const snapshot = await getDocs(q);
+    // Sort by order on client-side to avoid composite index requirement
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as KYFLink))
+      .sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error('Error fetching KYF section links:', error);
+    return [];
+  }
+}
+
+/**
+ * Get all KYF links
+ */
+export async function getAllKYFLinks(): Promise<KYFLink[]> {
+  try {
+    const q = query(
+      collection(db, 'kyf_links'),
+      orderBy('sectionId', 'asc'),
+      orderBy('order', 'asc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as KYFLink));
+  } catch (error) {
+    console.error('Error fetching all KYF links:', error);
+    return [];
+  }
+}
+
+/**
+ * Create a new KYF link
+ */
+export async function createKYFLink(linkData: Omit<KYFLink, 'id' | 'createdAt' | 'updatedAt'>): Promise<KYFLink> {
+  try {
+    const docRef = await addDoc(collection(db, 'kyf_links'), {
+      ...linkData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    return { id: docRef.id, ...linkData } as KYFLink;
+  } catch (error) {
+    console.error('Error creating KYF link:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update a KYF link
+ */
+export async function updateKYFLink(linkId: string, updates: Partial<KYFLink>): Promise<void> {
+  try {
+    const docRef = doc(db, 'kyf_links', linkId);
+    await updateDoc(docRef, {
+      ...updates,
+      updatedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error updating KYF link:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a KYF link
+ */
+export async function deleteKYFLink(linkId: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'kyf_links', linkId));
+  } catch (error) {
+    console.error('Error deleting KYF link:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete all KYF links for a subsection
+ */
+export async function deleteKYFLinksForSubsection(sectionId: string, subsectionId: string): Promise<void> {
+  try {
+    // Fetch all links for the section
+    const q = query(
+      collection(db, 'kyf_links'),
+      where('sectionId', '==', sectionId)
+    );
+    const snapshot = await getDocs(q);
+    
+    // Filter by subsectionId on client side
+    const linksToDelete = snapshot.docs
+      .filter(doc => (doc.data() as KYFLink).subsectionId === subsectionId);
+    
+    const batch = writeBatch(db);
+    linksToDelete.forEach(docSnapshot => {
+      batch.delete(docSnapshot.ref);
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error('Error deleting KYF subsection links:', error);
+    throw error;
+  }
+}
+
+// ============================================
 // EXPORT ALL FUNCTIONS
 // ============================================
 export { Timestamp, increment, writeBatch };

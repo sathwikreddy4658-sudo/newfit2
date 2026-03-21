@@ -16,7 +16,8 @@ import {
   LogOut,
   Menu,
   X,
-  Edit3
+  Edit3,
+  UtensilsCrossed
 } from "lucide-react";
 import { useState } from "react";
 import OrderNotifications from "@/components/OrderNotifications";
@@ -41,6 +42,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: Package, label: "Products", path: "/admin/products" },
     { icon: Edit3, label: "Edit Product Details", path: "/admin/products/edit" },
     { icon: FileText, label: "Blogs", path: "/admin/blogs" },
+    { icon: UtensilsCrossed, label: "Know Your Food", path: "/admin/know-your-food" },
     { icon: FlaskConical, label: "Lab Reports", path: "/admin/lab-reports" },
     { icon: ShoppingCart, label: "Orders", path: "/admin/orders" },
     { icon: Tag, label: "Promo Codes", path: "/admin/promo-codes" },
