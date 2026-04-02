@@ -1,8 +1,14 @@
 import mkbg from "@/assets/mkbg.png";
 import pckbg from "@/assets/pckbg.png";
-import { useState, useEffect } from "react";
-import { getKYFLinksForSection } from "@/integrations/firebase/db";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { getKYFLinksForSection, getKYFItems, getINSDefinitions } from "@/integrations/firebase/db";
 import { KYF_SECTIONS, getAllSectionIds } from "@/config/kyfSections";
+import { INS_NUMBERS, type INSEntry } from "@/data/insNumbers";
+import {
+  DEFAULT_SECTIONS,
+  DEFAULT_COMMON_WORDS,
+  DEFAULT_INGREDIENT_TERMS,
+} from "@/config/kyfDefaults";
 
 interface KYFLink {
   id?: string;
@@ -18,6 +24,56 @@ const KnowYourFood = () => {
   const [expandedTerms, setExpandedTerms] = useState<Set<string>>(new Set());
   const [kyfLinks, setKyfLinks] = useState<Record<string, KYFLink[]>>({});
   const [loading, setLoading] = useState(true);
+
+  // Content from DB (overrides code defaults)
+  const [sections, setSections] = useState(DEFAULT_SECTIONS);
+  const [commonWords, setCommonWords] = useState(DEFAULT_COMMON_WORDS);
+  const [ingredientTerms, setIngredientTerms] = useState(DEFAULT_INGREDIENT_TERMS);
+  const [insDefOverrides, setInsDefOverrides] = useState<Record<string, string>>({});
+
+  // Main page search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // INS mini-search
+  const [insQuery, setInsQuery] = useState("");
+  const [insResults, setInsResults] = useState<INSEntry[]>([]);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch admin-overridden content from Firestore (silent fail — code defaults remain)
+  useEffect(() => {
+    const fetchContentOverrides = async () => {
+      try {
+        const [dbItems, dbDefs] = await Promise.all([getKYFItems(), getINSDefinitions()]);
+
+        if (dbItems.length > 0) {
+          const overrideMap = new Map(dbItems.map(item => [item.itemId, item]));
+          setSections(DEFAULT_SECTIONS.map(s => {
+            const ov = overrideMap.get(s.id);
+            return ov ? { ...s, title: ov.title, points: ov.points } : s;
+          }));
+          setCommonWords(DEFAULT_COMMON_WORDS.map(w => {
+            const ov = overrideMap.get(w.id);
+            return ov ? { ...w, term: ov.title, points: ov.points } : w;
+          }));
+          setIngredientTerms(DEFAULT_INGREDIENT_TERMS.map(t => {
+            const ov = overrideMap.get(t.id);
+            return ov ? { ...t, term: ov.title, points: ov.points } : t;
+          }));
+        }
+
+        if (dbDefs.length > 0) {
+          setInsDefOverrides(
+            Object.fromEntries(dbDefs.map(d => [d.number, d.definition]))
+          );
+        }
+      } catch (error) {
+        console.error('[KYF] Failed to fetch content overrides:', error);
+      }
+    };
+    fetchContentOverrides();
+  }, []);
 
   // Fetch KYF links for all subsections dynamically
   useEffect(() => {
@@ -70,154 +126,92 @@ const KnowYourFood = () => {
     });
   };
 
-  const sections = [
-    {
-      id: "nutrition",
-      title: "Nutrition Information",
-      points: [
-        "The nutrition information panel shows the nutrients in the food product.",
-        "This includes calories, fat, protein, carbohydrates, sugars, and sodium.",
-        "Understanding these values helps you make informed dietary choices for your health."
-      ]
-    },
-    {
-      id: "ingredients",
-      title: "Ingredients List",
-      points: [
-        "Ingredients are listed by weight in a decreasing order. Top ingredients are used the most in that product.",
-        "Reading this list helps you identify allergens, added sugars, and artificial additives.",
-        "This helps you understand what exactly is in your food."
-      ]
-    },
-    {
-      id: "claims",
-      title: "Claims",
-      points: [
-        "Terms like 'sugar-free', 'low-fat', 'natural', and 'healthy' are marketing claims.",
-        "Understanding what these terms actually mean helps you avoid misleading marketing.",
-        "This helps you choose products that truly fit your needs."
-      ]
-    },
-    {
-      id: "allergen",
-      title: "Allergen Information",
-      points: [
-        "Allergen information identifies common allergens like milk, eggs, peanuts, tree nuts, fish, and shellfish.",
-        "This is crucial for people with food allergies or sensitivities.",
-        "It helps you avoid potentially harmful ingredients."
-      ]
+  // ── INS search handler ─────────────────────────────────────────────
+  const handleInsSearch = useCallback((query: string) => {
+    setInsQuery(query);
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      setInsResults([]);
+      return;
     }
+    const results = INS_NUMBERS.filter(
+      (entry) =>
+        entry.number.toLowerCase().includes(q) ||
+        entry.name.toLowerCase().includes(q) ||
+        entry.category.toLowerCase().includes(q)
+    ).map(entry => ({
+      ...entry,
+      // DB definition overrides the code-level definition
+      definition: insDefOverrides[entry.number] ?? entry.definition,
+    }));
+    setInsResults(results);
+  }, [insDefOverrides]);
+
+  // ── Build flat searchable index ───────────────────────────────────
+  type SearchResult = {
+    sectionLabel: string;
+    sectionGroup: string;
+    itemId: string;
+    itemTitle: string;
+    points: string[];
+  };
+
+  const allItems: SearchResult[] = [
+    ...sections.map((s) => ({
+      sectionLabel: "HOW TO READ A FOOD PACK",
+      sectionGroup: "how-to-read",
+      itemId: s.id,
+      itemTitle: s.title,
+      points: s.points,
+    })),
+    ...commonWords.map((w) => ({
+      sectionLabel: "COMMON WORDS ON FOOD PACKS",
+      sectionGroup: "common-words",
+      itemId: w.id,
+      itemTitle: w.term,
+      points: w.points,
+    })),
+    ...ingredientTerms.map((t) => ({
+      sectionLabel: "INGREDIENT TERMS & ADDITIVES",
+      sectionGroup: "ingredient-terms",
+      itemId: t.id,
+      itemTitle: t.term,
+      points: t.points,
+    })),
   ];
 
-  const commonWords = [
-    {
-      id: "sugar-free",
-      term: "Sugar-Free",
-      points: [
-        "Legally, a product can be called sugar-free only if total sugars are less than 0.5 g per 100 g.",
-        "Here natural and added sugars both come under the total sugars.",
-        "Always check the nutrition table to confirm."
-      ]
-    },
-    {
-      id: "no-added-sugar",
-      term: "No Added Sugar",
-      points: [
-        "Means no extra sugar was added during making.",
-        "On the label, the \"Added Sugar\" value should show 0 g.",
-        "However, natural sugars from other ingredients (like fruits or milk) may still be present.",
-        "Important: Zero added sugar does not automatically mean it is suitable for people with diabetes.",
-        "Suitability depends on the overall ingredients and nutrition values."
-      ]
-    },
-    {
-      id: "unsweetened",
-      term: "Unsweetened",
-      points: [
-        "Means no sugar or sweetener has been added for sweetness.",
-        "However, natural sugars from ingredients (like milk or fruits) may still be present."
-      ]
-    },
-    {
-      id: "guilt-free",
-      term: "Guilt-Free / Healthy",
-      points: [
-        "These are marketing words.",
-        "Many products use this term when they avoid white sugar, palm oil, maida, or certain ingredients.",
-"This does not automatically mean the product helps with weight loss or is suitable for people with diabetes.",
-"Always check the nutrition table and ingredients list.",
-"They do not automatically mean the product is healthy."
-      ]
-    },
-    {
-      id: "gluten-free",
-      term: "Gluten-Free",
-      points: [
-        "Made without gluten.",
-        "Important for people with gluten allergy or intolerance."
-      ]
-    },
-    {
-      id: "organic",
-      term: "Organic",
-      points: [
-        "Made using organic farming methods.",
-        "No synthetic fertilizers or pesticides."
-      ]
-    },
-    {
-      id: "no-preservatives",
-      term: "No Preservatives",
-      points: [
-        "Means no added preservatives are used.",
-        "The product may still contain ingredients that naturally help preserve it."
-      ]
-    },
-    {
-      id: "natural",
-      term: "Natural / All Natural",
-      points: [
-        "Usually means ingredients come from natural sources.",
-        "This term does not always have a strict legal definition.",
-        "Always read the ingredients list."
-      ]
-    }
-  ];
+  const searchResults: SearchResult[] = searchQuery.trim()
+    ? (() => {
+        const q = searchQuery.trim().toLowerCase();
+        return allItems.filter(
+          (item) =>
+            item.itemTitle.toLowerCase().includes(q) ||
+            item.sectionLabel.toLowerCase().includes(q) ||
+            item.points.some((p) => p.toLowerCase().includes(q))
+        );
+      })()
+    : [];
 
-  const ingredientTerms = [
-    {
-      id: "nature-identical-flavours",
-      term: "Nature Identical Flavouring Substances",
-      points: [
-        "Flavours made to copy natural taste.",
-        "These are artificial or synthetic flavours."
-      ]
-    },
-    {
-      id: "ins-number",
-      term: "INS Number",
-      points: [
-        "Code used for food additives.",
-        "Depending on the number, it can mean preservatives, acidity regulators, sweeteners, colours, flavours, or stabilizers."
-      ]
-    },
-    {
-      id: "acidity-regulators",
-      term: "Acidity Regulators",
-      points: [
-        "Used to control sourness or acidity.",
-        "Can be natural or synthetic."
-      ]
-    },
-    {
-      id: "stabilizers",
-      term: "Stabilizers",
-      points: [
-        "Help keep texture and consistency.",
-        "Can be natural or synthetic."
-      ]
+  const navigateToItem = (item: SearchResult) => {
+    setSearchQuery("");
+    if (item.sectionGroup === "how-to-read") {
+      setExpandedSection(item.itemId);
+    } else {
+      setExpandedTerms((prev) => {
+        const next = new Set(prev);
+        next.add(item.itemId);
+        return next;
+      });
     }
-  ];
+    setTimeout(() => {
+      const el = document.getElementById(`kyf-item-${item.itemId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-[#3b2a20]", "ring-offset-2");
+        setTimeout(() => el.classList.remove("ring-2", "ring-[#3b2a20]", "ring-offset-2"), 2000);
+      }
+    }, 100);
+  };
 
   return (
     <div className="min-h-screen bg-cover bg-center bg-fixed py-12" style={{
@@ -233,6 +227,72 @@ const KnowYourFood = () => {
             Food labels and ingredients, explained simply.
           </p>
         </div>
+
+        {/* ── Main Search Bar ── */}
+        <div className="relative mb-2">
+          <div className="flex items-center bg-white rounded-xl shadow-md border border-gray-200 px-4 py-3 gap-3">
+            {/* Search icon */}
+            <svg className="w-5 h-5 text-[#3b2a20] shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+              placeholder="Search sections, terms, or definitions…"
+              className="flex-1 outline-none text-base font-poppins text-gray-800 placeholder-gray-400 bg-transparent"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Clear search"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Search results dropdown */}
+          {searchFocused && searchQuery.trim() && (
+            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white rounded-xl shadow-xl border border-gray-200 max-h-80 overflow-y-auto">
+              {searchResults.length === 0 ? (
+                <div className="px-4 py-4 text-sm font-poppins text-gray-500">No results found for &ldquo;{searchQuery}&rdquo;</div>
+              ) : (
+                searchResults.map((result) => (
+                  <button
+                    key={`${result.sectionGroup}-${result.itemId}`}
+                    onMouseDown={() => navigateToItem(result)}
+                    className="w-full text-left px-4 py-3 hover:bg-amber-50 transition-colors border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="text-xs font-semibold font-poppins text-amber-700 uppercase tracking-wide mb-0.5">
+                      {result.sectionLabel}
+                    </div>
+                    <div className="text-sm font-poppins font-semibold text-[#3b2a20]">{result.itemTitle}</div>
+                    {result.points.map((p, i) => {
+                      const q = searchQuery.trim().toLowerCase();
+                      if (p.toLowerCase().includes(q) && !result.itemTitle.toLowerCase().includes(q)) {
+                        return (
+                          <div key={i} className="text-xs font-poppins text-gray-500 mt-0.5 truncate">
+                            {p}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* How to Read Section */}
@@ -246,6 +306,7 @@ const KnowYourFood = () => {
           {sections.map((section) => (
             <div
               key={section.id}
+              id={`kyf-item-${section.id}`}
               className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer transition-all duration-300"
               onClick={() => toggleSection(section.id)}
             >
@@ -309,6 +370,7 @@ const KnowYourFood = () => {
           {commonWords.map((word) => (
             <div
               key={word.id}
+              id={`kyf-item-${word.id}`}
               className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer transition-all duration-300"
               onClick={() => toggleTerm(word.id)}
             >
@@ -372,6 +434,7 @@ const KnowYourFood = () => {
           {ingredientTerms.map((term) => (
             <div
               key={term.id}
+              id={`kyf-item-${term.id}`}
               className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer transition-all duration-300"
               onClick={() => toggleTerm(term.id)}
             >
@@ -398,6 +461,71 @@ const KnowYourFood = () => {
                       </li>
                     ))}
                   </ul>
+
+                  {/* ── INS Number mini search bar ── */}
+                  {term.id === "ins-number" && (
+                    <div
+                      className="mt-4 pt-4 border-t border-gray-300"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="text-sm font-semibold text-[#3b2a20] mb-2">Look up an INS number or name:</p>
+                      <div className="flex items-center bg-white rounded-lg border border-gray-300 px-3 py-2 gap-2 shadow-sm">
+                        <svg className="w-4 h-4 text-[#3b2a20] shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input
+                          type="text"
+                          value={insQuery}
+                          onChange={(e) => handleInsSearch(e.target.value)}
+                          placeholder="Enter INS number or name…"
+                          className="flex-1 outline-none text-sm font-poppins text-gray-800 placeholder-gray-400 bg-transparent"
+                        />
+                        {insQuery && (
+                          <button
+                            onClick={() => { setInsQuery(""); setInsResults([]); }}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            aria-label="Clear"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* INS results */}
+                      {insQuery.trim() && (
+                        <div className="mt-2">
+                          {insResults.length === 0 ? (
+                            <p className="text-xs font-poppins text-gray-500 px-1">No matching INS entry found.</p>
+                          ) : (
+                            <div className="rounded-lg border border-gray-200 overflow-hidden">
+                              {insResults.map((entry, i) => (
+                                <div
+                                  key={entry.number}
+                                  className={`flex items-start gap-3 px-3 py-2.5 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                                >
+                                  <span className="text-sm font-bold font-poppins text-[#3b2a20] w-14 shrink-0">
+                                    {entry.number}
+                                  </span>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-poppins text-gray-800 font-medium">{entry.name}</span>
+                                    <span className="text-xs font-poppins text-amber-700">{entry.category}</span>
+                                    {entry.definition && (
+                                      <span className="text-xs font-poppins text-gray-500 mt-0.5 leading-relaxed">{entry.definition}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Display KYF Links if available */}
                   {kyfLinks[term.id] && kyfLinks[term.id].length > 0 && (
                     <div className="mt-4 pt-4 border-t border-gray-300">

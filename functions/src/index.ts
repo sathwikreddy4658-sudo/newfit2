@@ -43,10 +43,16 @@ const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465", 10);
 const SMTP_USER = process.env.SMTP_USER || "care@freelit.in";
 const SMTP_PASS = process.env.SMTP_PASS || "NewFit@2025secure";
 
-// Telegram
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
-const SITE_URL = process.env.SITE_URL || "https://freelit.in";
+// Telegram — read from Firebase Runtime Config (set via firebase functions:config:set)
+const TELEGRAM_BOT_TOKEN =
+  functions.config().telegram?.bot_token || process.env.TELEGRAM_BOT_TOKEN || "";
+const TELEGRAM_CHAT_ID =
+  functions.config().telegram?.chat_id || process.env.TELEGRAM_CHAT_ID || "";
+const SITE_URL =
+  functions.config().site?.url ||
+  functions.config().app?.site_url ||
+  process.env.SITE_URL ||
+  "https://freelit.in";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -715,7 +721,7 @@ async function sendTelegramNotification(
   }
 
   const orderId = ((record.id as string) || "").slice(0, 8);
-  const totalPrice = parseFloat(String(record.total_price || 0)).toFixed(2);
+  const totalPrice = parseFloat(String(record.total_amount || record.total_price || 0)).toFixed(2);
   const paymentMethod =
     record.payment_method === "online"
       ? "💳 Online Payment"
@@ -769,13 +775,17 @@ export const api = functions.https.onRequest(app);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Firestore trigger: when a new order document is created → send Telegram
-//  TODO: Fix 1st Gen / 2nd Gen compatibility
+//  Automatically notifies for successful orders (confirmed COD or online payment)
 // ─────────────────────────────────────────────────────────────────────────────
-// export const onNewOrder = functions.firestore
-//   .document("orders/{orderId}")
-//   .onCreate(async (snap: admin.firestore.DocumentSnapshot) => {
-//     const orderData = snap.data() as Record<string, unknown>;
-//     // Inject the document ID as `id` so the helper can use it
-//     orderData.id = snap.id;
-//     await sendTelegramNotification(orderData);
-//   });
+export const onNewOrder = functions.firestore
+  .document("orders/{orderId}")
+  .onCreate(async (snap) => {
+    const orderData = snap.data() as Record<string, unknown>;
+    // Inject the document ID as `id` so the helper can use it
+    orderData.id = snap.id;
+    try {
+      await sendTelegramNotification(orderData);
+    } catch (error) {
+      console.error("[onNewOrder] Telegram notification failed:", error);
+    }
+  });

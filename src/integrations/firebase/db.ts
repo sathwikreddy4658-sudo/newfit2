@@ -1455,6 +1455,99 @@ export async function deleteKYFLinksForSubsection(sectionId: string, subsectionI
 }
 
 // ============================================
+// KYF ITEM CONTENT (admin-editable overrides)
+// ============================================
+
+export interface KYFItemContent {
+  id?: string;
+  itemId: string;      // matches item id from kyfDefaults (e.g. "sugar-free")
+  group: string;       // "how-to-read" | "common-words" | "ingredient-terms"
+  title: string;
+  points: string[];
+  updatedAt?: any;
+}
+
+/** Get all admin-overridden KYF item documents from Firestore. */
+export async function getKYFItems(): Promise<KYFItemContent[]> {
+  try {
+    const snapshot = await getDocs(collection(db, 'kyf_items'));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as KYFItemContent));
+  } catch (error) {
+    console.error('Error fetching KYF items:', error);
+    return [];
+  }
+}
+
+/** Create or update a KYF item override in Firestore (document id = itemId). */
+export async function upsertKYFItem(
+  itemId: string,
+  data: Omit<KYFItemContent, 'id' | 'updatedAt'>
+): Promise<void> {
+  try {
+    const docRef = doc(db, 'kyf_items', itemId);
+    await setDoc(docRef, { ...data, updatedAt: Timestamp.now() }, { merge: true });
+  } catch (error) {
+    console.error('Error upserting KYF item:', error);
+    throw error;
+  }
+}
+
+/** Delete a KYF item override (restores the code default on the public page). */
+export async function deleteKYFItem(itemId: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'kyf_items', itemId));
+  } catch (error) {
+    console.error('Error deleting KYF item:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// INS DEFINITIONS (admin-editable)
+// ============================================
+
+export interface INSDefinitionEntry {
+  number: string;
+  definition: string;
+  updatedAt?: any;
+}
+
+/** Get all admin-saved INS definitions from Firestore. */
+export async function getINSDefinitions(): Promise<INSDefinitionEntry[]> {
+  try {
+    const snapshot = await getDocs(collection(db, 'ins_definitions'));
+    return snapshot.docs.map(d => d.data() as INSDefinitionEntry);
+  } catch (error) {
+    console.error('Error fetching INS definitions:', error);
+    return [];
+  }
+}
+
+/** Create or update an INS definition (document id = INS number). */
+export async function upsertINSDefinition(
+  number: string,
+  definition: string
+): Promise<void> {
+  try {
+    const docRef = doc(db, 'ins_definitions', number);
+    await setDoc(docRef, { number, definition, updatedAt: Timestamp.now() }, { merge: true });
+  } catch (error) {
+    console.error('Error upserting INS definition:', error);
+    throw error;
+  }
+}
+
+/** Delete an INS definition override (falls back to code definition). */
+export async function deleteINSDefinition(number: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'ins_definitions', number));
+  } catch (error) {
+    console.error('Error deleting INS definition:', error);
+    throw error;
+  }
+}
+
+// ============================================
 // EXPORT ALL FUNCTIONS
 // ============================================
 export { Timestamp, increment, writeBatch };

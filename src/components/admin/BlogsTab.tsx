@@ -348,8 +348,12 @@ const BlogsTab = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (dateValue: any) => {
+    if (!dateValue) return "No date";
+    // Firestore Timestamp has a toDate() method
+    const date = typeof dateValue?.toDate === "function" ? dateValue.toDate() : new Date(dateValue);
+    if (isNaN(date.getTime())) return "No date";
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -626,7 +630,7 @@ const BlogsTab = () => {
             )}
             <h3 className="font-semibold mb-1 line-clamp-2">{blog.title}</h3>
             <p className="text-sm text-muted-foreground mb-3">
-              {formatDate(blog.created_at)}
+              {formatDate(blog.createdAt)}
             </p>
             <p className="text-sm text-muted-foreground mb-3 line-clamp-3 flex-grow">
               {(() => {

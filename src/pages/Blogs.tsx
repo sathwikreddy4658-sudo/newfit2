@@ -203,7 +203,7 @@ const Blogs = () => {
                     <div className="flex items-center gap-4 text-sm text-[#3b2a20]/70">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        {formatDate(blog.created_at)}
+                        {formatDate(blog.createdAt)}
                       </div>
                     </div>
                   </CardHeader>
@@ -239,7 +239,7 @@ const Blogs = () => {
                         <div className="flex items-center gap-4 text-sm text-[#3b2a20]/70">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
-                            {formatDate(blog.created_at)}
+                            {formatDate(blog.createdAt)}
                           </div>
                         </div>
                       </CardHeader>

@@ -45,8 +45,9 @@ var __importStar = (this && this.__importStar) || (function () {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.api = void 0;
+exports.onNewOrder = exports.api = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -71,10 +72,13 @@ const SMTP_HOST = process.env.SMTP_HOST || "smtp.hostinger.com";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465", 10);
 const SMTP_USER = process.env.SMTP_USER || "care@freelit.in";
 const SMTP_PASS = process.env.SMTP_PASS || "NewFit@2025secure";
-// Telegram
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
-const SITE_URL = process.env.SITE_URL || "https://freelit.in";
+// Telegram — read from Firebase Runtime Config (set via firebase functions:config:set)
+const TELEGRAM_BOT_TOKEN = ((_a = functions.config().telegram) === null || _a === void 0 ? void 0 : _a.bot_token) || process.env.TELEGRAM_BOT_TOKEN || "";
+const TELEGRAM_CHAT_ID = ((_b = functions.config().telegram) === null || _b === void 0 ? void 0 : _b.chat_id) || process.env.TELEGRAM_CHAT_ID || "";
+const SITE_URL = ((_c = functions.config().site) === null || _c === void 0 ? void 0 : _c.url) ||
+    ((_d = functions.config().app) === null || _d === void 0 ? void 0 : _d.site_url) ||
+    process.env.SITE_URL ||
+    "https://freelit.in";
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 /**
  * Compute SHA-256 hex digest of a string (synchronous via Node crypto)
@@ -640,7 +644,7 @@ async function sendTelegramNotification(record) {
         }
     }
     const orderId = (record.id || "").slice(0, 8);
-    const totalPrice = parseFloat(String(record.total_price || 0)).toFixed(2);
+    const totalPrice = parseFloat(String(record.total_amount || record.total_price || 0)).toFixed(2);
     const paymentMethod = record.payment_method === "online"
         ? "💳 Online Payment"
         : "💵 Cash on Delivery";
@@ -688,14 +692,19 @@ ${address}
 exports.api = functions.https.onRequest(app);
 // ─────────────────────────────────────────────────────────────────────────────
 //  Firestore trigger: when a new order document is created → send Telegram
-//  TODO: Fix 1st Gen / 2nd Gen compatibility
+//  Automatically notifies for successful orders (confirmed COD or online payment)
 // ─────────────────────────────────────────────────────────────────────────────
-// export const onNewOrder = functions.firestore
-//   .document("orders/{orderId}")
-//   .onCreate(async (snap: admin.firestore.DocumentSnapshot) => {
-//     const orderData = snap.data() as Record<string, unknown>;
-//     // Inject the document ID as `id` so the helper can use it
-//     orderData.id = snap.id;
-//     await sendTelegramNotification(orderData);
-//   });
+exports.onNewOrder = functions.firestore
+    .document("orders/{orderId}")
+    .onCreate(async (snap) => {
+    const orderData = snap.data();
+    // Inject the document ID as `id` so the helper can use it
+    orderData.id = snap.id;
+    try {
+        await sendTelegramNotification(orderData);
+    }
+    catch (error) {
+        console.error("[onNewOrder] Telegram notification failed:", error);
+    }
+});
 //# sourceMappingURL=index.js.map

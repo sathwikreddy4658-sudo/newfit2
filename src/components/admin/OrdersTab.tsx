@@ -376,8 +376,24 @@ const OrdersTab = () => {
     });
 
     try {
-      // TODO: Implement Firebase Cloud Functions for notification
-      return; // Skip notification - Firebase Cloud Function setup required
+      // Call the Cloud Function's manual endpoint to send notification
+      const baseUrl = process.env.REACT_APP_API_URL || '/api';
+      const response = await fetch(`${baseUrl}/telegram-notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to send notification');
+      }
+
+      toast({ 
+        title: "✅ Notification sent", 
+        description: "Telegram notification sent successfully"
+      });
     } catch (error: any) {
       console.error('Telegram notification error:', error);
       toast({ 
@@ -390,10 +406,10 @@ const OrdersTab = () => {
   };
 
   const sendTelegramNotificationAuto = async (order: any) => {
-    // TODO: Migrate to Firebase Cloud Functions for Telegram notifications
-    // This feature requires setting up a Firebase Cloud Function
-    // For now, notifications are skipped
-    console.log('[Auto Telegram] Notification feature requires Firebase Cloud Function setup:', order.id);
+    // Notification is now automatically sent by the Firestore trigger (onNewOrder)
+    // when a new order is created in the database.
+    // This function is kept for reference but no manual action is needed.
+    console.log('[Auto Telegram] Order created - notification will be sent automatically:', order.id);
   };
 
   const handleDeleteOrder = async (orderId: string) => {

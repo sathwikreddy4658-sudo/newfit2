@@ -92,7 +92,9 @@ const PaymentCallback = () => {
         return 'FAILED';
       } catch (error) {
         console.error('[PaymentCallback] Error checking PhonePe status:', error);
-        return 'FAILED';
+        // Return PENDING (not FAILED) on network/API errors — don't falsely mark a
+        // successful payment as failed just because the status check itself failed.
+        return 'PENDING';
       }
     };
 
@@ -257,8 +259,30 @@ const PaymentCallback = () => {
               setStatus('success');
               return;
             } else if (phonePeStatus === 'FAILED') {
-              console.log('[PaymentCallback] Payment FAILED confirmed by PhonePe');
+              console.log('[PaymentCallback] PhonePe says FAILED — doing final Firestore recheck before concluding');
               
+              // Wait 2 more seconds: webhook may have just fired during the PhonePe API call
+              await new Promise(resolve => setTimeout(resolve, 2000));
+
+              // Final check: if Firestore already shows SUCCESS/paid, trust it over PhonePe status
+              const latestTx = await getPaymentTx(transactionId);
+              if (latestTx?.status === 'SUCCESS') {
+                console.log('[PaymentCallback] ✅ Webhook updated to SUCCESS after PhonePe FAILED — trusting webhook');
+                clearCart();
+                setStatus('success');
+                return;
+              }
+              if (orderParam) {
+                const latestOrder = await getOrder(orderParam);
+                if (latestOrder?.status === 'paid') {
+                  console.log('[PaymentCallback] ✅ Order is PAID after PhonePe FAILED — trusting Firestore');
+                  clearCart();
+                  setStatus('success');
+                  return;
+                }
+              }
+
+              console.log('[PaymentCallback] ❌ Payment FAILED confirmed by PhonePe and Firestore');
               const txDoc = await getPaymentTx(transactionId);
               if (txDoc?.ref) {
                 await updateDoc(txDoc.ref, {
@@ -271,13 +295,12 @@ const PaymentCallback = () => {
               return;
             } else {
               // PENDING or any non-conclusive status (includes 403/5xx from API)
-              console.warn('[PaymentCallback] Payment status inconclusive — redirecting to orders page');
+              console.warn('[PaymentCallback] Payment status inconclusive — treating as success, handleContinue will route correctly');
               toast({
                 title: "Payment Processing",
-                description: "Your payment is being verified. Please check your orders page for the latest status.",
+                description: "Your payment is being verified. You will receive a confirmation email once confirmed.",
               });
               clearCart();
-              setTimeout(() => navigate('/orders'), 3000);
               setStatus('success');
               return;
             }
@@ -305,14 +328,13 @@ const PaymentCallback = () => {
               }
             }
             
-            // Inconclusive — don't show 'failed', redirect to orders
-            console.warn('[PaymentCallback] Payment verification inconclusive — redirecting to orders page');
+            // Inconclusive — don't show 'failed', route via handleContinue
+            console.warn('[PaymentCallback] Payment verification inconclusive — treating as success');
             toast({
               title: "Payment Under Review",
-              description: "We couldn't automatically verify your payment. Check your orders page — if payment was deducted, your order is confirmed.",
+              description: "We couldn't automatically verify your payment. If payment was deducted, your order is confirmed.",
             });
             clearCart();
-            setTimeout(() => navigate('/orders'), 4000);
             setStatus('success');
             return;
           }
@@ -347,7 +369,7 @@ const PaymentCallback = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [status]);
+  }, [status, orderId]); // include orderId so timer always has current order
 
   const handleContinue = async () => {
     if (status === 'success') {
@@ -372,7 +394,7 @@ const PaymentCallback = () => {
                 state: {
                   orderId,
                   email: orderEmail,
-                  name: customerName
+                  guestName: customerName
                 }
               });
               return;
