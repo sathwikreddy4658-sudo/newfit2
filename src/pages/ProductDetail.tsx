@@ -74,6 +74,8 @@ const ProductDetail = () => {
   const [swipeStartY, setSwipeStartY] = useState(0);
   const [imageSwipeStartX, setImageSwipeStartX] = useState(0);
   const [imageSwipeStartY, setImageSwipeStartY] = useState(0);
+  const [imageTransition, setImageTransition] = useState(true);
+  const [modalImageTransition, setModalImageTransition] = useState(true);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const accentColor = getProductAccentColor(product?.name);
 
@@ -325,12 +327,14 @@ const ProductDetail = () => {
 
   const nextImage = () => {
     if (product?.images && product.images.length > 1) {
+      setImageTransition(true);
       setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
     }
   };
 
   const prevImage = () => {
     if (product?.images && product.images.length > 1) {
+      setImageTransition(true);
       setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
     }
   };
@@ -342,12 +346,14 @@ const ProductDetail = () => {
 
   const nextModalImage = () => {
     if (product?.images && product.images.length > 1) {
+      setModalImageTransition(true);
       setModalImageIndex((prev) => (prev + 1) % product.images.length);
     }
   };
 
   const prevModalImage = () => {
     if (product?.images && product.images.length > 1) {
+      setModalImageTransition(true);
       setModalImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
     }
   };
@@ -581,13 +587,25 @@ const ProductDetail = () => {
               >
                 {product.images && product.images.length > 0 ? (
                   <>
-                    <img
-                      src={getHeroImageUrl(product.images[currentImageIndex])}
-                      alt={`${product.name} low calorie high protein bar image ${currentImageIndex + 1}`}
-                      className="w-full h-full object-contain"
-                      onClick={() => openImageModal(currentImageIndex)}
-                      loading={getLazyLoadingStrategy('hero')}
-                    />
+                    <div 
+                      className="w-full h-full flex"
+                      style={{
+                        transform: `translateX(-${currentImageIndex * 100}%)`,
+                        transition: imageTransition ? 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0s',
+                        willChange: 'transform'
+                      }}
+                    >
+                      {product.images.map((image, index) => (
+                        <img
+                          key={index}
+                          src={getHeroImageUrl(image)}
+                          alt={`${product.name} low calorie high protein bar image ${index + 1}`}
+                          className="w-full h-full object-contain flex-shrink-0"
+                          onClick={() => openImageModal(index)}
+                          loading={index === 0 ? 'eager' : getLazyLoadingStrategy('hero')}
+                        />
+                      ))}
+                    </div>
                     {product.images.length > 1 && (
                       <>
                         <Button
@@ -626,18 +644,30 @@ const ProductDetail = () => {
               <DialogTitle className="sr-only">Product Image Gallery</DialogTitle>
               <DialogDescription className="sr-only">Enlarged product image view. Use arrow buttons to navigate between images.</DialogDescription>
               <div 
-                className="relative w-full h-full flex items-center justify-center bg-black"
+                className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden"
                 onTouchStart={handleModalImageSwipeStart}
                 onTouchEnd={handleModalImageSwipeEnd}
               >
                 {product.images && product.images.length > 0 && (
                   <>
-                    <img
-                      src={getHeroImageUrl(product.images[modalImageIndex])}
-                      alt={`${product.name} low calorie high protein bar image ${modalImageIndex + 1}`}
-                      className="w-full h-full object-contain"
-                      loading={getLazyLoadingStrategy('modal')}
-                    />
+                    <div 
+                      className="w-full h-full flex items-center justify-center"
+                      style={{
+                        transform: `translateX(-${modalImageIndex * 100}%)`,
+                        transition: modalImageTransition ? 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0s',
+                        willChange: 'transform'
+                      }}
+                    >
+                      {product.images.map((image, index) => (
+                        <img
+                          key={index}
+                          src={getHeroImageUrl(image)}
+                          alt={`${product.name} low calorie high protein bar image ${index + 1}`}
+                          className="w-full h-full object-contain flex-shrink-0"
+                          loading={index === 0 ? 'eager' : getLazyLoadingStrategy('modal')}
+                        />
+                      ))}
+                    </div>
                     {product.images.length > 1 && (
                       <>
                         <Button
@@ -1262,8 +1292,6 @@ const ProductDetail = () => {
             </div>
           </div>
         </div>
-      </div>
-
       </div>
     </>
   );
