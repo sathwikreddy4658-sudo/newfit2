@@ -76,6 +76,8 @@ const ProductDetail = () => {
   const [imageSwipeStartY, setImageSwipeStartY] = useState(0);
   const [imageTransition, setImageTransition] = useState(true);
   const [modalImageTransition, setModalImageTransition] = useState(true);
+  const [productTransitionActive, setProductTransitionActive] = useState(false);
+  const [productTransitionDirection, setProductTransitionDirection] = useState<'left' | 'right'>('left');
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const accentColor = getProductAccentColor(product?.name);
 
@@ -396,7 +398,11 @@ const ProductDetail = () => {
     const nextProduct = allProducts[nextIndex];
 
     if (nextProduct) {
-      navigate(`/product/${encodeURIComponent(nextProduct.name)}`, { state: { from: 'animation' } });
+      setProductTransitionActive(true);
+      setProductTransitionDirection('left');
+      setTimeout(() => {
+        navigate(`/product/${encodeURIComponent(nextProduct.name)}`, { state: { from: 'animation' } });
+      }, 300);
     }
   };
 
@@ -411,7 +417,11 @@ const ProductDetail = () => {
     const prevProduct = allProducts[prevIndex];
 
     if (prevProduct) {
-      navigate(`/product/${encodeURIComponent(prevProduct.name)}`, { state: { from: 'animation' } });
+      setProductTransitionActive(true);
+      setProductTransitionDirection('right');
+      setTimeout(() => {
+        navigate(`/product/${encodeURIComponent(prevProduct.name)}`, { state: { from: 'animation' } });
+      }, 300);
     }
   };
 
@@ -541,7 +551,15 @@ const ProductDetail = () => {
           </script>
         )}
       </Helmet>
-      <div className="min-h-screen w-full bg-[#b5edce]/30">
+      <div 
+        className="min-h-screen w-full bg-[#b5edce]/30"
+        style={{
+          opacity: productTransitionActive ? 0.3 : 1,
+          transform: productTransitionActive ? (productTransitionDirection === 'left' ? 'translateX(-30px)' : 'translateX(30px)') : 'translateX(0)',
+          transition: productTransitionActive ? 'all 0.3s ease-in' : 'all 0.3s ease-out',
+          pointerEvents: productTransitionActive ? 'none' : 'auto'
+        }}
+      >
         <div className="container mx-auto px-4 pt-6 md:pt-0">
 
     {/* Animated Hero Section - Suit-Up Reveal Effect (Desktop Only) */}
@@ -591,7 +609,7 @@ const ProductDetail = () => {
                       className="w-full h-full flex"
                       style={{
                         transform: `translateX(-${currentImageIndex * 100}%)`,
-                        transition: imageTransition ? 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0s',
+                        transition: imageTransition ? 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'transform 0s',
                         willChange: 'transform'
                       }}
                     >
@@ -654,7 +672,7 @@ const ProductDetail = () => {
                       className="w-full h-full flex items-center justify-center"
                       style={{
                         transform: `translateX(-${modalImageIndex * 100}%)`,
-                        transition: modalImageTransition ? 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0s',
+                        transition: modalImageTransition ? 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'transform 0s',
                         willChange: 'transform'
                       }}
                     >
