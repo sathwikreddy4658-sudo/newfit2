@@ -15,6 +15,8 @@ interface Rating {
   productId: string;
   productName: string;
   userId: string;
+  userName: string;
+  userEmail: string;
   rating: number;
   comment: string | null;
   createdAt: any;
@@ -167,11 +169,14 @@ const CustomerRatingsTab = () => {
                         <CardTitle className="text-lg">{rating.productName}</CardTitle>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-sm text-muted-foreground">
-                            By: {rating.userId}
+                            By: <span className="font-medium text-foreground">{rating.userName || rating.userId}</span>
                           </span>
                           <Badge variant={rating.approved ? "default" : "secondary"}>
                             {rating.approved ? "Approved" : "Pending"}
                           </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Email: <span className="font-medium text-foreground">{rating.userEmail}</span>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           {renderStars(rating.rating)}

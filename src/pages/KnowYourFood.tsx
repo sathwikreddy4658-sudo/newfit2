@@ -1,6 +1,7 @@
 import mkbg from "@/assets/mkbg.png";
 import pckbg from "@/assets/pckbg.png";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getKYFLinksForSection, getKYFItems, getINSDefinitions } from "@/integrations/firebase/db";
 import { KYF_SECTIONS, getAllSectionIds } from "@/config/kyfSections";
 import { INS_NUMBERS, type INSEntry } from "@/data/insNumbers";
@@ -20,6 +21,9 @@ interface KYFLink {
 }
 
 const KnowYourFood = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "general";
+
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [expandedTerms, setExpandedTerms] = useState<Set<string>>(new Set());
   const [kyfLinks, setKyfLinks] = useState<Record<string, KYFLink[]>>({});
@@ -40,6 +44,12 @@ const KnowYourFood = () => {
   const [insResults, setInsResults] = useState<INSEntry[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const insInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle tab change with URL update
+  const handleTabChange = (tab: "general" | "ins") => {
+    setSearchParams({ tab });
+  };
 
   // Fetch admin-overridden content from Firestore (silent fail — code defaults remain)
   useEffect(() => {
@@ -219,7 +229,7 @@ const KnowYourFood = () => {
     }}>
       <div className="max-w-4xl mx-auto px-4">
         {/* Headline */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-saira font-black uppercase text-[#3b2a20]">
             KNOW YOUR <span style={{ color: '#3b2a20' }}>FOOD</span>
           </h1>
@@ -228,70 +238,161 @@ const KnowYourFood = () => {
           </p>
         </div>
 
-        {/* ── Main Search Bar ── */}
-        <div className="relative mb-2">
-          <div className="flex items-center bg-white rounded-xl shadow-md border border-gray-200 px-4 py-3 gap-3">
-            {/* Search icon */}
-            <svg className="w-5 h-5 text-[#3b2a20] shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
-              placeholder="Search sections, terms, or definitions…"
-              className="flex-1 outline-none text-base font-poppins text-gray-800 placeholder-gray-400 bg-transparent"
-            />
-            {searchQuery && (
+        {/* ── Sticky Tabbed Search Interface ── */}
+        <div className="sticky top-0 z-40 -mx-4 px-4 pt-4 pb-4 bg-gradient-to-b from-white via-white to-white/95 shadow-lg rounded-b-2xl mb-8">
+          <div className="max-w-4xl mx-auto">
+            {/* Tab Navigation - Brand Styled */}
+            <div className="flex gap-3 mb-5 bg-white p-1 rounded-lg w-fit shadow-md border border-[#5e4338]">
               <button
-                onClick={() => setSearchQuery("")}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Clear search"
+                onClick={() => handleTabChange("general")}
+                className={`px-5 py-2.5 rounded-lg font-semibold text-sm font-poppins transition-all duration-300 ${
+                  activeTab === "general"
+                    ? "bg-[#5e4338] text-white shadow-lg border border-[#5e4338]"
+                    : "text-[#3b2a20]/70 hover:text-[#3b2a20] hover:bg-[#5e4338]/20"
+                }`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                General Search
               </button>
+              <button
+                onClick={() => handleTabChange("ins")}
+                className={`px-5 py-2.5 rounded-lg font-semibold text-sm font-poppins transition-all duration-300 ${
+                  activeTab === "ins"
+                    ? "bg-[#5e4338] text-white shadow-lg border border-[#5e4338]"
+                    : "text-[#3b2a20]/70 hover:text-[#3b2a20] hover:bg-[#5e4338]/20"
+                }`}
+              >
+                🔍 INS Lookup
+              </button>
+            </div>
+
+            {/* General Search Tab */}
+            {activeTab === "general" && (
+              <div className="animate-in fade-in duration-300">
+                <div className="flex items-center bg-white rounded-xl border-2 border-[#5e4338] px-4 py-3 gap-3 shadow-lg">
+                  <svg className="w-5 h-5 text-[#3b2a20] shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+                    placeholder="Search sections, terms, or definitions…"
+                    className="flex-1 outline-none text-base font-poppins text-gray-800 placeholder-gray-400 bg-transparent"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* General search results dropdown */}
+                {searchFocused && searchQuery.trim() && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-white rounded-xl shadow-xl border-2 border-[#5e4338] max-h-80 overflow-y-auto mx-4">
+                    {searchResults.length === 0 ? (
+                      <div className="px-4 py-4 text-sm font-poppins text-gray-500">No results found for &ldquo;{searchQuery}&rdquo;</div>
+                    ) : (
+                      searchResults.map((result) => (
+                        <button
+                          key={`${result.sectionGroup}-${result.itemId}`}
+                          onMouseDown={() => navigateToItem(result)}
+                          className="w-full text-left px-4 py-3 hover:bg-[#5e4338]/30 transition-colors border-b border-[#5e4338]/30 last:border-b-0"
+                        >
+                          <div className="text-xs font-semibold font-poppins text-[#3b2a20] uppercase tracking-wide mb-0.5">
+                            {result.sectionLabel}
+                          </div>
+                          <div className="text-sm font-poppins font-semibold text-[#3b2a20]">{result.itemTitle}</div>
+                          {result.points.map((p, i) => {
+                            const q = searchQuery.trim().toLowerCase();
+                            if (p.toLowerCase().includes(q) && !result.itemTitle.toLowerCase().includes(q)) {
+                              return (
+                                <div key={i} className="text-xs font-poppins text-gray-600 mt-0.5 truncate">
+                                  {p}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* INS Search Tab */}
+            {activeTab === "ins" && (
+              <div className="animate-in fade-in duration-300">
+                <div className="flex items-center bg-white rounded-xl border-2 border-[#5e4338] px-4 py-3 gap-3 shadow-lg">
+                  <svg className="w-5 h-5 text-[#3b2a20] shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    ref={insInputRef}
+                    type="text"
+                    value={insQuery}
+                    onChange={(e) => handleInsSearch(e.target.value)}
+                    placeholder="Enter INS number (e.g., E101) or additive name…"
+                    className="flex-1 outline-none text-base font-poppins text-gray-800 placeholder-gray-400 bg-transparent"
+                  />
+                  {insQuery && (
+                    <button
+                      onClick={() => { setInsQuery(""); setInsResults([]); }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      aria-label="Clear"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* INS results */}
+                {insQuery.trim() && (
+                  <div className="mt-4">
+                    {insResults.length === 0 ? (
+                      <p className="text-sm font-poppins text-gray-500 px-2">No matching INS entry found. Try searching like "E101" or "Thiamine".</p>
+                    ) : (
+                      <div className="rounded-xl border border-[#5e4338] overflow-hidden max-h-64 overflow-y-auto bg-white shadow-lg">
+                        {insResults.map((entry, i) => (
+                          <div
+                            key={entry.number}
+                            className={`flex items-start gap-3 px-4 py-3 border-b border-[#5e4338]/30 last:border-b-0 ${i % 2 === 0 ? "bg-white" : "bg-[#5e4338]/5"}`}
+                          >
+                            <span className="text-base font-bold font-poppins text-[#3b2a20] w-16 shrink-0">
+                              {entry.number}
+                            </span>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-base font-poppins text-gray-800 font-medium">{entry.name}</span>
+                              <span className="text-xs font-poppins text-[#5e4338] font-semibold">{entry.category}</span>
+                              {entry.definition && (
+                                <span className="text-xs font-poppins text-gray-600 mt-1 leading-relaxed">{entry.definition}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
-
-          {/* Search results dropdown */}
-          {searchFocused && searchQuery.trim() && (
-            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white rounded-xl shadow-xl border border-gray-200 max-h-80 overflow-y-auto">
-              {searchResults.length === 0 ? (
-                <div className="px-4 py-4 text-sm font-poppins text-gray-500">No results found for &ldquo;{searchQuery}&rdquo;</div>
-              ) : (
-                searchResults.map((result) => (
-                  <button
-                    key={`${result.sectionGroup}-${result.itemId}`}
-                    onMouseDown={() => navigateToItem(result)}
-                    className="w-full text-left px-4 py-3 hover:bg-amber-50 transition-colors border-b border-gray-100 last:border-b-0"
-                  >
-                    <div className="text-xs font-semibold font-poppins text-amber-700 uppercase tracking-wide mb-0.5">
-                      {result.sectionLabel}
-                    </div>
-                    <div className="text-sm font-poppins font-semibold text-[#3b2a20]">{result.itemTitle}</div>
-                    {result.points.map((p, i) => {
-                      const q = searchQuery.trim().toLowerCase();
-                      if (p.toLowerCase().includes(q) && !result.itemTitle.toLowerCase().includes(q)) {
-                        return (
-                          <div key={i} className="text-xs font-poppins text-gray-500 mt-0.5 truncate">
-                            {p}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })}
-                  </button>
-                ))
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -461,70 +562,6 @@ const KnowYourFood = () => {
                       </li>
                     ))}
                   </ul>
-
-                  {/* ── INS Number mini search bar ── */}
-                  {term.id === "ins-number" && (
-                    <div
-                      className="mt-4 pt-4 border-t border-gray-300"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <p className="text-sm font-semibold text-[#3b2a20] mb-2">Look up an INS number or name:</p>
-                      <div className="flex items-center bg-white rounded-lg border border-gray-300 px-3 py-2 gap-2 shadow-sm">
-                        <svg className="w-4 h-4 text-[#3b2a20] shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <circle cx="11" cy="11" r="8" />
-                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input
-                          type="text"
-                          value={insQuery}
-                          onChange={(e) => handleInsSearch(e.target.value)}
-                          placeholder="Enter INS number or name…"
-                          className="flex-1 outline-none text-sm font-poppins text-gray-800 placeholder-gray-400 bg-transparent"
-                        />
-                        {insQuery && (
-                          <button
-                            onClick={() => { setInsQuery(""); setInsResults([]); }}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                            aria-label="Clear"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* INS results */}
-                      {insQuery.trim() && (
-                        <div className="mt-2">
-                          {insResults.length === 0 ? (
-                            <p className="text-xs font-poppins text-gray-500 px-1">No matching INS entry found.</p>
-                          ) : (
-                            <div className="rounded-lg border border-gray-200 overflow-hidden">
-                              {insResults.map((entry, i) => (
-                                <div
-                                  key={entry.number}
-                                  className={`flex items-start gap-3 px-3 py-2.5 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                                >
-                                  <span className="text-sm font-bold font-poppins text-[#3b2a20] w-14 shrink-0">
-                                    {entry.number}
-                                  </span>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-sm font-poppins text-gray-800 font-medium">{entry.name}</span>
-                                    <span className="text-xs font-poppins text-amber-700">{entry.category}</span>
-                                    {entry.definition && (
-                                      <span className="text-xs font-poppins text-gray-500 mt-0.5 leading-relaxed">{entry.definition}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Display KYF Links if available */}
                   {kyfLinks[term.id] && kyfLinks[term.id].length > 0 && (

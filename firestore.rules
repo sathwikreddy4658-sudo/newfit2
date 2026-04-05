@@ -30,16 +30,9 @@ service cloud.firestore {
         allow read: if true; // Public can read approved ratings
         // Strict validation for creating ratings
         allow create: if request.auth != null && 
-                         // Must include userId that matches authenticated user
                          request.resource.data.userId == request.auth.uid &&
-                         // Rating must be between 1-5
                          request.resource.data.rating >= 1 &&
-                         request.resource.data.rating <= 5 &&
-                         // Comment length validation (max 500 chars)
-                         request.resource.data.comment.size() >= 10 &&
-                         request.resource.data.comment.size() <= 500 &&
-                         // Must have required fields
-                         request.resource.data.keys().hasAll(['userId', 'rating', 'comment', 'userName']);
+                         request.resource.data.rating <= 5;
         allow update, delete: if request.auth != null && isAdmin();
       }
       

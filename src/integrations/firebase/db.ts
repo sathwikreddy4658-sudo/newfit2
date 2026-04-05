@@ -972,6 +972,8 @@ export async function createRating(productId: string, ratingData: any) {
       {
         rating: ratingData.rating,
         userId: ratingData.userId,
+        userName: ratingData.userName || 'Anonymous', // Include user name for display
+        userEmail: ratingData.userEmail || '', // Store email for admin contact
         comment: sanitizedComment,
         approved: false, // Always false on creation - only admins can change this
         createdAt: Timestamp.now(),

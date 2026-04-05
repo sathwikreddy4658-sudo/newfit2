@@ -23,8 +23,18 @@ const RatingComponent = ({ productId }: RatingComponentProps) => {
   const [hoverRating, setHoverRating] = useState(0);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
-      setUser(firebaseUser ? { id: firebaseUser.uid, email: firebaseUser.email } : null);
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        // Reload user profile to get fresh displayName
+        await firebaseUser.reload();
+        setUser({ 
+          id: firebaseUser.uid, 
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName 
+        });
+      } else {
+        setUser(null);
+      }
     });
 
     return () => unsubscribe();
@@ -93,6 +103,9 @@ const RatingComponent = ({ productId }: RatingComponentProps) => {
         rating,
         comment: cleanComment || null,
         approved: false, // New ratings need admin approval
+        // Use displayName if set, otherwise extract name from email (before @), fallback to Anonymous
+        userName: user.displayName || (user.email ? user.email.split('@')[0] : 'Anonymous'),
+        userEmail: user.email, // Store email for admin contact
       };
 
       // Create rating in Firebase
