@@ -72,6 +72,8 @@ const ProductDetail = () => {
   const [tapTimeout, setTapTimeout] = useState<NodeJS.Timeout | null>(null);
   const [swipeStartX, setSwipeStartX] = useState(0);
   const [swipeStartY, setSwipeStartY] = useState(0);
+  const [imageSwipeStartX, setImageSwipeStartX] = useState(0);
+  const [imageSwipeStartY, setImageSwipeStartY] = useState(0);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const accentColor = getProductAccentColor(product?.name);
 
@@ -407,6 +409,62 @@ const ProductDetail = () => {
     }
   };
 
+  // Image gallery swipe handlers
+  const handleImageSwipeStart = (e: React.TouchEvent) => {
+    setImageSwipeStartX(e.touches[0].clientX);
+    setImageSwipeStartY(e.touches[0].clientY);
+  };
+
+  const handleImageSwipeEnd = (e: React.TouchEvent) => {
+    const swipeEndX = e.changedTouches[0].clientX;
+    const swipeEndY = e.changedTouches[0].clientY;
+    const swipeDiffX = imageSwipeStartX - swipeEndX;
+    const swipeDiffY = Math.abs(imageSwipeStartY - swipeEndY);
+    
+    // Only allow horizontal swipes, not vertical ones
+    const minHorizontalThreshold = 30; // Lower threshold for image gallery
+    const horizontalDistance = Math.abs(swipeDiffX);
+    
+    // Only navigate images if we have more than one image
+    if (product?.images && product.images.length > 1 && horizontalDistance > minHorizontalThreshold && horizontalDistance > swipeDiffY * 1.5) {
+      if (swipeDiffX > 0) {
+        // Swiped left, go to next image
+        nextImage();
+      } else {
+        // Swiped right, go to previous image
+        prevImage();
+      }
+    }
+  };
+
+  // Modal image swipe handlers
+  const handleModalImageSwipeStart = (e: React.TouchEvent) => {
+    setImageSwipeStartX(e.touches[0].clientX);
+    setImageSwipeStartY(e.touches[0].clientY);
+  };
+
+  const handleModalImageSwipeEnd = (e: React.TouchEvent) => {
+    const swipeEndX = e.changedTouches[0].clientX;
+    const swipeEndY = e.changedTouches[0].clientY;
+    const swipeDiffX = imageSwipeStartX - swipeEndX;
+    const swipeDiffY = Math.abs(imageSwipeStartY - swipeEndY);
+    
+    // Only allow horizontal swipes, not vertical ones
+    const minHorizontalThreshold = 30;
+    const horizontalDistance = Math.abs(swipeDiffX);
+    
+    // Only navigate images if we have more than one image
+    if (product?.images && product.images.length > 1 && horizontalDistance > minHorizontalThreshold && horizontalDistance > swipeDiffY * 1.5) {
+      if (swipeDiffX > 0) {
+        // Swiped left, go to next image
+        nextModalImage();
+      } else {
+        // Swiped right, go to previous image
+        prevModalImage();
+      }
+    }
+  };
+
 
 
   if (loading) {
@@ -516,7 +574,11 @@ const ProductDetail = () => {
         <div className="relative">
           <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
             <DialogTrigger asChild>
-              <div className="w-full max-w-xs md:max-w-lg bg-white rounded-lg mb-2 mx-auto flex items-center justify-center overflow-hidden relative aspect-square cursor-pointer">
+              <div 
+                className="w-full max-w-xs md:max-w-lg bg-white rounded-lg mb-2 mx-auto flex items-center justify-center overflow-hidden relative aspect-square cursor-pointer"
+                onTouchStart={handleImageSwipeStart}
+                onTouchEnd={handleImageSwipeEnd}
+              >
                 {product.images && product.images.length > 0 ? (
                   <>
                     <img
@@ -563,7 +625,11 @@ const ProductDetail = () => {
             <DialogContent className="w-[90vw] max-w-4xl h-[80vh] p-0 md:max-w-[18rem] md:h-[20vh]">
               <DialogTitle className="sr-only">Product Image Gallery</DialogTitle>
               <DialogDescription className="sr-only">Enlarged product image view. Use arrow buttons to navigate between images.</DialogDescription>
-              <div className="relative w-full h-full flex items-center justify-center bg-black">
+              <div 
+                className="relative w-full h-full flex items-center justify-center bg-black"
+                onTouchStart={handleModalImageSwipeStart}
+                onTouchEnd={handleModalImageSwipeEnd}
+              >
                 {product.images && product.images.length > 0 && (
                   <>
                     <img
