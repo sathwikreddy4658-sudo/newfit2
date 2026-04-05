@@ -76,8 +76,6 @@ const ProductDetail = () => {
   const [imageSwipeStartY, setImageSwipeStartY] = useState(0);
   const [imageTransition, setImageTransition] = useState(true);
   const [modalImageTransition, setModalImageTransition] = useState(true);
-  const [productTransitionActive, setProductTransitionActive] = useState(false);
-  const [productTransitionDirection, setProductTransitionDirection] = useState<'left' | 'right'>('left');
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const accentColor = getProductAccentColor(product?.name);
 
@@ -398,11 +396,7 @@ const ProductDetail = () => {
     const nextProduct = allProducts[nextIndex];
 
     if (nextProduct) {
-      setProductTransitionActive(true);
-      setProductTransitionDirection('left');
-      setTimeout(() => {
-        navigate(`/product/${encodeURIComponent(nextProduct.name)}`, { state: { from: 'animation' } });
-      }, 300);
+      navigate(`/product/${encodeURIComponent(nextProduct.name)}`, { state: { from: 'animation' } });
     }
   };
 
@@ -417,11 +411,7 @@ const ProductDetail = () => {
     const prevProduct = allProducts[prevIndex];
 
     if (prevProduct) {
-      setProductTransitionActive(true);
-      setProductTransitionDirection('right');
-      setTimeout(() => {
-        navigate(`/product/${encodeURIComponent(prevProduct.name)}`, { state: { from: 'animation' } });
-      }, 300);
+      navigate(`/product/${encodeURIComponent(prevProduct.name)}`, { state: { from: 'animation' } });
     }
   };
 
@@ -551,15 +541,7 @@ const ProductDetail = () => {
           </script>
         )}
       </Helmet>
-      <div 
-        className="min-h-screen w-full bg-[#b5edce]/30"
-        style={{
-          opacity: productTransitionActive ? 0.3 : 1,
-          transform: productTransitionActive ? (productTransitionDirection === 'left' ? 'translateX(-30px)' : 'translateX(30px)') : 'translateX(0)',
-          transition: productTransitionActive ? 'all 0.3s ease-in' : 'all 0.3s ease-out',
-          pointerEvents: productTransitionActive ? 'none' : 'auto'
-        }}
-      >
+      <div className="min-h-screen w-full bg-[#b5edce]/30">
         <div className="container mx-auto px-4 pt-6 md:pt-0">
 
     {/* Animated Hero Section - Suit-Up Reveal Effect (Desktop Only) */}
